@@ -3,8 +3,7 @@
 
 -- LEAVE this statement on. It is required to connect to your database.
 CONNECT TO COMP421;
-
--- Parent tables first so that dependent tables can reference them.
+-- Parent tables first 
 CREATE TABLE Area
 (
   areaID INT NOT NULL PRIMARY KEY,
