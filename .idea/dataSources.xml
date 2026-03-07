@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="cs421@winter2026-comp421.cs.mcgill.ca" uuid="9cffe4d2-15b6-41db-bbf2-9b249c723cb8">
-      <driver-ref>postgresql</driver-ref>
-      <synchronize>true</synchronize>
-      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
-      <jdbc-url>jdbc:postgresql://winter2026-comp421.cs.mcgill.ca:5432/cs421</jdbc-url>
+    <data-source source="LOCAL" name="COMP421@winter2026-comp421.cs.mcgill.ca" uuid="4e194e49-3fa2-4057-ae54-0ce4ab47797f">
+      <driver-ref>db2.11</driver-ref>
+      <jdbc-driver>com.ibm.db2.jcc.DB2Driver</jdbc-driver>
+      <jdbc-url>jdbc:db2://winter2026-comp421.cs.mcgill.ca:50000/COMP421</jdbc-url>
       <jdbc-additional-properties>
         <property name="com.intellij.clouds.kubernetes.db.host.port" />
         <property name="com.intellij.clouds.kubernetes.db.enabled" value="false" />

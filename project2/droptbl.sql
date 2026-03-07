@@ -4,9 +4,16 @@
 -- LEAVE this statement on. It is required to connect to your database.
 CONNECT TO COMP421;
 
--- Remember to put the drop table ddls for the tables with foreign key references
---    BEFORE the ddls to drop the parent tables (reverse of the creation order).
-
--- This is only an example of how you add drop table ddls to this file.
---   You may remove it.
-DROP TABLE MYTEST01;
+-- Drop child tables before parents.
+ALTER TABLE Branch DROP FOREIGN KEY fk_branch_manager;
+DROP TABLE Relocation;
+DROP TABLE Agreement;
+DROP TABLE Vehicle;
+DROP TABLE RentalPeriod;
+DROP TABLE Reservation;
+DROP TABLE Customer;
+DROP TABLE BranchManager;
+DROP TABLE Employee;
+DROP TABLE Branch;
+DROP TABLE VehicleClass;
+DROP TABLE Area;
