@@ -11,6 +11,6 @@ JOIN Vehicle v ON v.branchID = b.branchID
 LEFT JOIN Agreement a ON a.vin = v.vin
 LEFT JOIN Reservation r ON r.resID = a.resID
 GROUP BY b.branchID, b.city
-HAVING COUNT(DISTINCT r.resID) >= 0.3 * COUNT(DISTINCT v.vin)
+HAVING COUNT(DISTINCT r.resID) >= 0.5 * COUNT(DISTINCT v.vin)
 ORDER BY utilization_pct DESC;
 EOF
