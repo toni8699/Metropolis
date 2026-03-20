@@ -9,4 +9,4 @@ if [ ! -f "$BIN_DIR/main.class" ]; then
   exit 1
 fi
 
-java -cp "$BIN_DIR" main
+java -cp "$BIN_DIR:${CLASSPATH:-.}" main
