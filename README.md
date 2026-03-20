@@ -8,17 +8,24 @@ Source files:
 - `Project3/Metropolis/src/main.java`
 - `Project3/Metropolis/src/options.java`
 
-## Compile and Run (on server)
+## Build, Run, Clean Scripts
 
 From the repository root:
 
 ```bash
 cd Project3/Metropolis
-cd src
-javac main.java options.java
-java main
+sh Project3/Metropolis/build.sh
+sh Project3/Metropolis/run.sh
+sh Project3/Metropolis/clean.sh
 ```
 
+From inside `Project3/Metropolis`:
+
+```bash
+sh build.sh
+sh run.sh
+sh clean.sh
+```
 ## Notes
 
 - The program prompts for DB2 username and password at startup (use our group username and password).
