@@ -142,13 +142,6 @@ class main {
     }
 
     private static String[] resolveCredentials(Scanner sc) {
-        String user = trimToNull(System.getenv("SOCSUSER"));
-        String password = trimToNull(System.getenv("SOCSPASSWD"));
-        if (user != null && password != null) {
-            return new String[] {user, password};
-        }
-
-        System.out.println("SOCSUSER/SOCSPASSWD not fully set. Falling back to interactive prompt.");
         Console console = System.console();
         if (console != null) {
             String promptUser = trimToNull(console.readLine("DB2 username: "));
