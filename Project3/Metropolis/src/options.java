@@ -147,17 +147,17 @@ static void option3CancellationReassignment(Connection con, Scanner sc) {
                         int classID = rs.getInt("classID");
                         
                         // Find an available vehicle of the same class
-                        String findNewVin = "SELECT vin FROM Vehicle WHERE classID = ? AND status = 'Available' FETCH FIRST 1 ROWS ONLY";
+                        String findNewVin = "SELECT vin FROM Vehicle WHERE classID = ? AND status = 'Available' AND vin <> ? FETCH FIRST 1 ROWS ONLY";
                         String newVin = null;
                         try (PreparedStatement pstmt2 = con.prepareStatement(findNewVin)) {
                             pstmt2.setInt(1, classID);
+                            pstmt2.setString(2, oldVin);
                             try (ResultSet rs2 = pstmt2.executeQuery()) {
                                 if (rs2.next()) {
-                                    newVin = rs2.getString("vin");
+                                newVin = rs2.getString("vin");
                                 }
                             }
                         }
-                        
                         if (newVin != null) {
                             // Reassign
                             String updateAg = "UPDATE Agreement SET vin = ? WHERE contractID = ?";

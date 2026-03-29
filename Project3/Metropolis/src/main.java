@@ -64,12 +64,9 @@ class main {
                     options.option5RewardTopEmployees(con, sc);
                     break;
                 case 6:
-                    options.option6StoredProcedureCaller(con, sc);
-                    break;
-                case 7:
                     option7TestSelectAll(con, sc);
                     break;
-                case 8:
+                case 7:
                     running = false;
                     System.out.println("Goodbye.");
                     break;
@@ -87,9 +84,8 @@ class main {
         System.out.println("3. Cancellation Reassignment");
         System.out.println("4. Add Customer");
         System.out.println("5. Reward Top Employees");
-        System.out.println("6. Call Stored Procedure");
-        System.out.println("7. Test: SELECT * FROM table");
-        System.out.println("8. Quit");
+        System.out.println("6. Test: SELECT * FROM table");
+        System.out.println("7. Quit");
     }
 
     private static int readInt(Scanner sc, String prompt) {
