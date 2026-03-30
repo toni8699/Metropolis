@@ -1,3 +1,5 @@
+CONNECT TO COMP421@
+
 DECLARE v_rows INT DEFAULT 0;
 
 ...
@@ -17,3 +19,4 @@ SET salary = salary * (1 + p_raise_pct)
 WHERE eID IN (SELECT DISTINCT eID FROM Agreement);
 
 GET DIAGNOSTICS p_employee_updates = ROW_COUNT;
+END@
