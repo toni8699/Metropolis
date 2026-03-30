@@ -1,98 +1,55 @@
 CONNECT TO COMP421@
 
-DROP PROCEDURE RelocateEmployeesForDemand@
+DROP PROCEDURE MarkRentedVehiclesAndReport@
 
-CREATE PROCEDURE RelocateEmployeesForDemand (
-    IN p_target_branch INT,
-    IN p_source_branch INT,
-    IN p_max_to_move INT,
-    OUT p_moved_count INT
+CREATE PROCEDURE MarkRentedVehiclesAndReport (
+    IN p_raise_pct DECIMAL(6,4),
+    OUT p_vehicle_updates INT,
+    OUT p_employee_updates INT
 )
 LANGUAGE SQL
 BEGIN
-    DECLARE v_target_fleet INT DEFAULT 0;
-    DECLARE v_target_active INT DEFAULT 0;
-    DECLARE v_source_fleet INT DEFAULT 0;
-    DECLARE v_source_active INT DEFAULT 0;
-    DECLARE v_target_util DECIMAL(10,4) DEFAULT 0.0;
-    DECLARE v_source_util DECIMAL(10,4) DEFAULT 0.0;
-    DECLARE v_emp_id INT;
+    DECLARE v_vin CHAR(17);
     DECLARE v_done INT DEFAULT 0;
 
-    DECLARE c_employees CURSOR FOR
-        SELECT e.eID
-        FROM Employee e
-        LEFT JOIN Agreement a ON a.eID = e.eID
-        WHERE e.branchID = p_source_branch
-          AND e.supervisorID IS NOT NULL
-          AND e.eID NOT IN (SELECT bm.eID FROM BranchManager bm)
-          AND NOT EXISTS (SELECT 1 FROM Employee s WHERE s.supervisorID = e.eID)
-        GROUP BY e.eID
-        ORDER BY COUNT(a.contractID) DESC, e.eID;
+    DECLARE c_vins CURSOR FOR
+        SELECT DISTINCT a.vin
+        FROM Agreement a;
 
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = 1;
 
-    SET p_moved_count = 0;
+    SET p_vehicle_updates = 0;
+    SET p_employee_updates = 0;
 
-    IF p_max_to_move <= 0 OR p_target_branch = p_source_branch THEN
-        RETURN;
+    IF p_raise_pct < 0 THEN
+        SET p_raise_pct = 0;
     END IF;
 
-    SELECT
-        COUNT(DISTINCT v.vin),
-        COUNT(DISTINCT r.resID)
-    INTO v_target_fleet, v_target_active
-    FROM Branch b
-    JOIN Vehicle v ON v.branchID = b.branchID
-    LEFT JOIN Agreement a ON a.vin = v.vin
-    LEFT JOIN Reservation r ON r.resID = a.resID
-    WHERE b.branchID = p_target_branch;
+    OPEN c_vins;
 
-    SELECT
-        COUNT(DISTINCT v.vin),
-        COUNT(DISTINCT r.resID)
-    INTO v_source_fleet, v_source_active
-    FROM Branch b
-    JOIN Vehicle v ON v.branchID = b.branchID
-    LEFT JOIN Agreement a ON a.vin = v.vin
-    LEFT JOIN Reservation r ON r.resID = a.resID
-    WHERE b.branchID = p_source_branch;
-
-    IF v_target_fleet > 0 THEN
-        SET v_target_util = DECIMAL(v_target_active, 10, 4) / DECIMAL(v_target_fleet, 10, 4);
-    END IF;
-
-    IF v_source_fleet > 0 THEN
-        SET v_source_util = DECIMAL(v_source_active, 10, 4) / DECIMAL(v_source_fleet, 10, 4);
-    END IF;
-
-    IF v_target_util <= v_source_util THEN
-        RETURN;
-    END IF;
-
-    OPEN c_employees;
-
-    move_loop:
+    vehicle_loop:
     LOOP
-        IF p_moved_count >= p_max_to_move THEN
-            LEAVE move_loop;
-        END IF;
-
         SET v_done = 0;
-        FETCH c_employees INTO v_emp_id;
+        FETCH c_vins INTO v_vin;
 
         IF v_done = 1 THEN
-            LEAVE move_loop;
+            LEAVE vehicle_loop;
         END IF;
 
-        UPDATE Employee
-        SET branchID = p_target_branch,
-            salary = salary * 1.02
-        WHERE eID = v_emp_id;
+        UPDATE Vehicle
+        SET status = 'Rented'
+        WHERE vin = v_vin
+          AND status <> 'Rented';
 
-        SET p_moved_count = p_moved_count + 1;
+        SET p_vehicle_updates = p_vehicle_updates + ROW_COUNT;
     END LOOP;
 
-    CLOSE c_employees;
+    CLOSE c_vins;
+
+    UPDATE Employee
+    SET salary = salary * (1 + p_raise_pct)
+    WHERE eID IN (SELECT DISTINCT eID FROM Agreement);
+
+    SET p_employee_updates = ROW_COUNT;
 END@
 
