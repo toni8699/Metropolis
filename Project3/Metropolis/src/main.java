@@ -64,9 +64,18 @@ class main {
                     options.option5RewardTopEmployees(con, sc);
                     break;
                 case 6:
-                    option7TestSelectAll(con, sc);
+                    options.option8RevenueByAreaAndClass(con, sc);
                     break;
                 case 7:
+                    options.option9AvailableVehiclesByArea(con, sc);
+                    break;
+                case 8:
+                    options.option10RelocationPlannerSimulation(con, sc);
+                    break;
+                case 9:
+                    optionSelectAll(con, sc);
+                    break;
+                case 10:
                     running = false;
                     System.out.println("Goodbye.");
                     break;
@@ -84,8 +93,11 @@ class main {
         System.out.println("3. Cancellation Reassignment");
         System.out.println("4. Add Customer");
         System.out.println("5. Reward Top Employees");
-        System.out.println("6. Test: SELECT * FROM table");
-        System.out.println("7. Quit");
+        System.out.println("6. Revenue by Area and Vehicle Class");
+        System.out.println("7. Available Vehicles by Area");
+        System.out.println("8. Relocation Planner (Simulation)");
+        System.out.println("9. Select ALL");
+        System.out.println("10. Quit");
     }
 
     private static int readInt(Scanner sc, String prompt) {
@@ -100,7 +112,7 @@ class main {
         }
     }
 
-    private static void option7TestSelectAll(Connection con, Scanner sc) {
+    private static void optionSelectAll(Connection con, Scanner sc) {
         System.out.print("Enter table name: ");
         String tableName = sc.nextLine().trim();
         if (!tableName.matches("[A-Za-z0-9_]+")) {
