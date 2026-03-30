@@ -3,9 +3,8 @@ CONNECT TO COMP421@
 DROP PROCEDURE MarkRentedVehiclesAndReport@
 
 CREATE PROCEDURE MarkRentedVehiclesAndReport (
-    IN p_raise_pct DECIMAL(6,4),
-    OUT p_vehicle_updates INT,
-    OUT p_employee_updates INT
+    IN p_target_status VARCHAR(30),
+    OUT p_vehicle_updates INT
 )
 LANGUAGE SQL
 BEGIN
@@ -20,11 +19,6 @@ BEGIN
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = 1;
 
     SET p_vehicle_updates = 0;
-    SET p_employee_updates = 0;
-
-    IF p_raise_pct < 0 THEN
-        SET p_raise_pct = 0;
-    END IF;
 
     OPEN c_vins;
 
@@ -38,19 +32,13 @@ BEGIN
         END IF;
 
         UPDATE Vehicle
-        SET status = 'Rented'
+        SET status = p_target_status
         WHERE vin = v_vin
-          AND status <> 'Rented';
+          AND status <> p_target_status;
 
         GET DIAGNOSTICS v_rows = ROW_COUNT;
         SET p_vehicle_updates = p_vehicle_updates + v_rows;
     END LOOP;
 
     CLOSE c_vins;
-
-    UPDATE Employee
-    SET salary = salary * (1 + p_raise_pct)
-    WHERE eID IN (SELECT DISTINCT eID FROM Agreement);
-
-    GET DIAGNOSTICS p_employee_updates = ROW_COUNT;
 END@
