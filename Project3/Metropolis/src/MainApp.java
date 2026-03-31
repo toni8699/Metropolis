@@ -6,6 +6,7 @@ import javafx.stage.Stage;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Scanner;
 
 public class MainApp extends Application {
 
@@ -20,15 +21,20 @@ public class MainApp extends Application {
             registerDriver();
 
             // temporary: hardcode while building
-            String username = "cs421g66";
-            String password = "Group6666@";
+            Scanner sc = new Scanner(System.in);
 
-            con = DriverManager.getConnection(URL, username, password);
+            System.out.print("Enter DB username: ");
+            String user = sc.nextLine();
+
+            System.out.print("Enter DB password: ");
+            String password = sc.nextLine();
+
+            con = DriverManager.getConnection(URL, user, password);
 
             BorderPane root = new BorderPane();
             root.setCenter(new HomeScreen(root, con));
 
-            Scene scene = new Scene(root, 1200, 1200);
+            Scene scene = new Scene(root, 800, 600);
             stage.setFullScreen(true);
             stage.setScene(scene);
             stage.setTitle("Metropolis Nexus");
