@@ -1,0 +1,5 @@
+# Ignore IntelliJ build output
+out/
+
+# Ignore compiled Java files
+*.class

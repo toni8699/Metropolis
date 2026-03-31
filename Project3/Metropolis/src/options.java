@@ -452,7 +452,6 @@ static void option3CancellationReassignment(Connection con, Scanner sc) {
             try { con.setAutoCommit(true); } catch (SQLException ignored) {}
         }
     }
-
     private static boolean customerExists(Connection con, String email) throws SQLException {
         String sql = "SELECT 1 FROM Customer WHERE email = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
@@ -476,6 +475,7 @@ static void option3CancellationReassignment(Connection con, Scanner sc) {
         }
     }
 
+    // option 6 (?)
     private static void createWalkInReservation(Connection con, String email, int resID, Scanner sc) throws SQLException {
         String resSql = "INSERT INTO Reservation (resID, bookedAtTime, email) VALUES (?, CURRENT TIMESTAMP, ?)";
         try (PreparedStatement ps = con.prepareStatement(resSql)) {
@@ -796,4 +796,5 @@ static void option3CancellationReassignment(Connection con, Scanner sc) {
         double opportunityCost;
         double totalCost;
     }
+
 }
