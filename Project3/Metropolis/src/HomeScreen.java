@@ -2,11 +2,11 @@ import javafx.application.Application;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.scene.control.Button;
 import java.sql.Connection;
 
 public class HomeScreen extends VBox {
@@ -22,7 +22,7 @@ public class HomeScreen extends VBox {
         Button cancellationReassignment = new Button("Cancellation Reassignment");
         Button addCustomer = new Button("Add Customer");
         Button rewardTopEmployees = new Button("Reward Top Employees");
-        Button testSelectAllFromTable = new Button ("Test: SELECT * FROM table");
+        Button testSelectAllFromTable = new Button ("SELECT ALL");
         Button runRevenueReport = new Button("Run Revenue Report");
         Button availVehiclesByArea = new Button("Available Vehicles By Area");
         Button relocationPlanner = new Button("Relocation Planner Simulation");
@@ -63,6 +63,10 @@ public class HomeScreen extends VBox {
             root.setCenter(new RewardPane(root, con));
         });
 
+        testSelectAllFromTable.setOnAction(e -> {
+            root.setCenter(new SelectAllPane(root, con));
+        });
+
         /*
         quit.setOnAction(e -> {
             System.exit(1);
@@ -87,6 +91,7 @@ public class HomeScreen extends VBox {
 
         // Adding the nodes to the scene
         getChildren().addAll(title, lookupButton, createReservation, cancellationReassignment,
-                addCustomer, rewardTopEmployees, runRevenueReport, availVehiclesByArea, relocationPlanner);
+                addCustomer, rewardTopEmployees, runRevenueReport, availVehiclesByArea,
+                relocationPlanner, testSelectAllFromTable);
     }
 }

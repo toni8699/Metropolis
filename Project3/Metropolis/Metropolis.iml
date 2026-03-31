@@ -8,5 +8,7 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" exported="" name="db2jcc4" level="project" />
+    <orderEntry type="library" name="lib" level="application" />
+    <orderEntry type="library" exported="" name="JFX21" level="project" />
   </component>
 </module>

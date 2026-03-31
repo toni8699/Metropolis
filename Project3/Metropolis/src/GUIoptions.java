@@ -371,6 +371,53 @@ class GUIOptions {
         }
     }
 
+    static String selectAllFromTable(Connection con, String tableName) {
+        if (isBlank(tableName)) {
+            return "Please enter a table name.";
+        }
+
+        String trimmed = tableName.trim();
+        if (!trimmed.matches("[A-Za-z0-9_]+")) {
+            return "Invalid table name.";
+        }
+
+        String sql = "SELECT * FROM " + trimmed;
+        StringBuilder sb = new StringBuilder();
+
+        try (Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            ResultSetMetaData md = rs.getMetaData();
+            int cols = md.getColumnCount();
+
+            for (int i = 1; i <= cols; i++) {
+                if (i > 1) {
+                    sb.append(" | ");
+                }
+                sb.append(md.getColumnName(i));
+            }
+            sb.append("\n");
+
+            boolean hasRows = false;
+            while (rs.next()) {
+                hasRows = true;
+                for (int i = 1; i <= cols; i++) {
+                    if (i > 1) {
+                        sb.append(" | ");
+                    }
+                    sb.append(rs.getString(i));
+                }
+                sb.append("\n");
+            }
+
+            if (!hasRows) {
+                sb.append("(No rows returned)");
+            }
+            return sb.toString();
+        } catch (SQLException e) {
+            return formatSqlError("SELECT test failed.", e);
+        }
+    }
+
     static String relocationPlannerSimulation(Connection con) {
         final double UTIL_TARGET = 0.75;
         final double DONOR_MAX_UTIL = 0.65;
