@@ -193,7 +193,7 @@ static void option2CreateReservationAgreement(Connection con, Scanner sc) {
                 return;
             }
 
-            java.util.Set<String> availableVins = new java.util.HashSet<>();
+            java.util.Map<String, String> availableVinLookup = new java.util.HashMap<>();
             String vehicleSql =
                 "SELECT v.vin, vc.className, v.make, v.model, v.mileage " +
                 "FROM Vehicle v " +
@@ -205,10 +205,11 @@ static void option2CreateReservationAgreement(Connection con, Scanner sc) {
                 ps.setInt(1, branchID);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
-                        String vin = rs.getString("vin");
-                        availableVins.add(vin);
+                        String vinFromDb = rs.getString("vin");
+                        String displayVin = vinFromDb == null ? "" : vinFromDb.trim();
+                        availableVinLookup.put(normalizeVin(displayVin), vinFromDb);
                         System.out.println(
-                            "  vin=" + vin +
+                            "  vin=" + displayVin +
                             " class=" + rs.getString("className") +
                             " make/model=" + rs.getString("make") + " " + rs.getString("model") +
                             " mileage=" + rs.getInt("mileage")
@@ -216,15 +217,16 @@ static void option2CreateReservationAgreement(Connection con, Scanner sc) {
                     }
                 }
             }
-            if (availableVins.isEmpty()) {
+            if (availableVinLookup.isEmpty()) {
                 System.out.println("No available vehicles in selected branch.");
                 con.rollback();
                 return;
             }
 
             System.out.print("Choose vehicle VIN: ");
-            String vin = sc.nextLine().trim();
-            if (!availableVins.contains(vin)) {
+            String inputVin = sc.nextLine();
+            String vin = availableVinLookup.get(normalizeVin(inputVin));
+            if (vin == null) {
                 System.out.println("Invalid VIN selection.");
                 con.rollback();
                 return;
@@ -464,6 +466,10 @@ static void option3CancellationReassignment(Connection con, Scanner sc) {
 
     private static int readIntInput(Scanner sc) {
         return Integer.parseInt(sc.nextLine().trim());
+    }
+
+    private static String normalizeVin(String vin) {
+        return vin == null ? "" : vin.trim().toUpperCase();
     }
 
     private static int nextReservationId(Connection con) throws SQLException {
