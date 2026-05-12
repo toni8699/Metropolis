@@ -1,8 +1,8 @@
-# COMP 421 Project
+# Java DB2 Rental App
 
-Java/DB2 application scaffold for Project 3.
+Java/DB2 application scaffold.
 
-## Project 3 App
+## Application
 
 Source files:
 - `Project3/Metropolis/src/main.java`
@@ -28,7 +28,7 @@ sh clean.sh
 ```
 ## Notes
 
-- The program prompts for DB2 username and password at startup (use our group username and password).
+- The program prompts for DB2 username and password at startup.
 - Main menu logic is in `main.java`.
 - Option method stubs are in `options.java`.
 
