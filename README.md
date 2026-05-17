@@ -1,34 +1,44 @@
-# Java DB2 Rental App
+# Metropolis Nexus
 
-Java/DB2 application scaffold.
+Vehicle rental platform — backend rental logic in Java, PostgreSQL on Neon, React web UI coming in `frontend/`.
 
-## Application
+## Layout
 
-Source files:
-- `Project3/Metropolis/src/main.java`
-- `Project3/Metropolis/src/options.java`
-
-## Build, Run, Clean Scripts
-
-From the repository root:
-
-```bash
-cd Project3/Metropolis
-sh Project3/Metropolis/build.sh
-sh Project3/Metropolis/run.sh
-sh Project3/Metropolis/clean.sh
+```text
+backend/          Java rental services + dev CLI
+  src/            RentalService, options, Database
+  scripts/        build.sh, run.sh, clean.sh
+db/               schema.sql, seed.sql, setup-neon.sh
+frontend/         React + Tailwind (planned)
 ```
 
-From inside `Project3/Metropolis`:
+## Database (Neon)
+
+1. Create a project at [neon.tech](https://neon.tech).
+2. Copy the connection string into `.env`:
+
+   ```bash
+   cp .env.example .env
+   # edit DATABASE_URL
+   ```
+
+3. Apply schema and sample data (requires `psql`):
+
+   ```bash
+   chmod +x db/setup-neon.sh
+   ./db/setup-neon.sh
+   ```
+
+## Backend CLI (optional dev tool)
 
 ```bash
-sh build.sh
-sh run.sh
-sh clean.sh
+chmod +x backend/scripts/*.sh db/setup-neon.sh
+./backend/scripts/build.sh
+./backend/scripts/run.sh
 ```
-## Notes
 
-- The program prompts for DB2 username and password at startup.
-- Main menu logic is in `main.java`.
-- Option method stubs are in `options.java`.
+Loads `DATABASE_URL` from `.env` when present.
 
+## Rental logic
+
+Business rules live in `backend/src/RentalService.java` (reservations, relocation simulation, revenue, etc.). The CLI in `options.java` mirrors the same operations for local testing.

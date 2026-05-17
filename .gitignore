@@ -1,5 +1,22 @@
-# Ignore IntelliJ build output
-out/
+# Environment
+.env
 
-# Ignore compiled Java files
+# Java
 *.class
+backend/bin/
+backend/lib/postgresql.jar
+
+# IDE
+.idea/
+out/
+*.iml
+
+# OS
+.DS_Store
+
+# Legacy / archives
+*.jar
+*.jar.zip
+*.zip
+*.log
+*.xlsx
