@@ -1,10 +1,18 @@
 # Environment
 .env
 
-# Java
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+frontend/node_modules/
+frontend/dist/
+
+# Java (legacy)
 *.class
 backend/bin/
-backend/lib/postgresql.jar
+backend/lib/
+backend/target/
 
 # IDE
 .idea/

@@ -1,0 +1,18 @@
+import os
+
+
+class Config:
+    CORS_ORIGINS = os.environ.get(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    PORT = int(os.environ.get("PORT", "8080"))
+    DEBUG = os.environ.get("FLASK_DEBUG") == "1"
+
+    APIFAIRY_TITLE = "Metropolis Nexus API"
+    APIFAIRY_VERSION = "1.0"
+    APIFAIRY_UI = "redoc"
+
+    JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-dev-secret")
+    JWT_EXPIRES_HOURS = int(os.environ.get("JWT_EXPIRES_HOURS", "24"))
+    DATABASE_URL = os.environ.get("DATABASE_URL", "")
