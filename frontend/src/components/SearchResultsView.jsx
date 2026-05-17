@@ -9,6 +9,13 @@ import { List, Map as MapIcon } from "lucide-react";
 import CarGrid from "./CarGrid";
 
 const fallbackCenter = { lat: 45.5017, lng: -73.5673 };
+const simplifiedMapStyles = [
+  { featureType: "administrative", elementType: "all", stylers: [{ visibility: "off" }] },
+  { featureType: "poi.business", elementType: "all", stylers: [{ visibility: "off" }] },
+  { featureType: "poi.medical", elementType: "all", stylers: [{ visibility: "off" }] },
+  { featureType: "poi.school", elementType: "all", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", elementType: "all", stylers: [{ visibility: "off" }] },
+];
 
 function PriceMarker({ car, isActive, onClick }) {
   return (
@@ -17,7 +24,12 @@ function PriceMarker({ car, isActive, onClick }) {
       mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
     >
       <button
-        onClick={onClick}
+        onClick={(event) => {
+          event.stopPropagation();
+          onClick();
+        }}
+        onMouseDown={(event) => event.stopPropagation()}
+        onTouchStart={(event) => event.stopPropagation()}
         className={`cursor-pointer rounded-full border border-gray-200 px-3 py-1.5 text-sm font-bold shadow-md transition-transform hover:scale-105 ${
           isActive ? "bg-gray-900 text-white" : "bg-white text-gray-900"
         }`}
@@ -28,14 +40,19 @@ function PriceMarker({ car, isActive, onClick }) {
   );
 }
 
-export default function SearchResultsView({ cars = [], cityLabel = "Montreal" }) {
+export default function SearchResultsView({
+  cars = [],
+  cityLabel = "Montreal",
+  searchCenter = null,
+}) {
   const [activeId, setActiveId] = useState(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [selectedCar, setSelectedCar] = useState(null);
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const { isLoaded } = useJsApiLoader({
-    id: "search-results-map",
+    id: "google-maps-script",
     googleMapsApiKey: apiKey || "",
+    libraries: ["places"],
   });
 
   const mapCars = useMemo(
@@ -44,11 +61,26 @@ export default function SearchResultsView({ cars = [], cityLabel = "Montreal" })
   );
 
   const center = useMemo(() => {
+    if (
+      searchCenter &&
+      Number.isFinite(searchCenter.lat) &&
+      Number.isFinite(searchCenter.lng)
+    ) {
+      return { lat: searchCenter.lat, lng: searchCenter.lng };
+    }
     if (mapCars.length === 0) return fallbackCenter;
     const latAvg = mapCars.reduce((sum, c) => sum + c.lat, 0) / mapCars.length;
     const lngAvg = mapCars.reduce((sum, c) => sum + c.lng, 0) / mapCars.length;
     return { lat: latAvg, lng: lngAvg };
-  }, [mapCars]);
+  }, [mapCars, searchCenter]);
+
+  const handleMapClick = (event) => {
+    if (event?.placeId) {
+      event.stop();
+      return;
+    }
+    setSelectedCar(null);
+  };
 
   return (
     <div className="w-full">
@@ -110,8 +142,13 @@ export default function SearchResultsView({ cars = [], cityLabel = "Montreal" })
                   mapContainerStyle={{ width: "100%", height: "100%" }}
                   center={center}
                   zoom={12}
-                  onClick={() => setSelectedCar(null)}
-                  options={{ disableDefaultUI: true, zoomControl: true }}
+                  onClick={handleMapClick}
+                  options={{
+                    disableDefaultUI: true,
+                    zoomControl: true,
+                    clickableIcons: false,
+                    styles: simplifiedMapStyles,
+                  }}
                 >
                   {mapCars.map((car) => (
                     <PriceMarker

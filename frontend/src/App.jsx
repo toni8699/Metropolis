@@ -20,9 +20,23 @@ async function quickDemoLogin(role = "RENTER") {
 
 export default function App() {
   const [hasSearched, setHasSearched] = useState(false);
+  const [searchParams, setSearchParams] = useState({
+    location: "",
+    pickupDate: "",
+    returnDate: "",
+  });
+
+  const handleSearch = (params) => {
+    setSearchParams(params);
+    setHasSearched(true);
+  };
+
+  const handleGoHome = () => {
+    setHasSearched(false);
+  };
 
   return (
-    <Layout onSearch={() => setHasSearched(true)}>
+    <Layout onSearch={handleSearch} onHome={handleGoHome}>
       <div className="flex w-full items-center justify-end gap-2 px-4 py-3 sm:px-6 md:px-10 lg:px-12 xl:px-20">
         <button
           className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
@@ -39,7 +53,15 @@ export default function App() {
       </div>
       <div className="w-full px-4 py-5 sm:px-6 md:px-10 lg:px-12 xl:px-20">
         <Routes>
-          <Route path="/" element={<MapBrowsePage hasSearched={hasSearched} />} />
+          <Route
+            path="/"
+            element={
+              <MapBrowsePage
+                hasSearched={hasSearched}
+                searchParams={searchParams}
+              />
+            }
+          />
           <Route path="/listings/:listingId" element={<ListingDetailPage />} />
           <Route path="/bookings/:bookingId" element={<BookingDetailsPage />} />
           <Route path="/owner" element={<OwnerDashboardPage />} />

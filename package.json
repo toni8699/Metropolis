@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "@tanstack/react-query": "^5.100.10",
-    "@vis.gl/react-google-maps": "^1.8.3"
+    "@vis.gl/react-google-maps": "^1.8.3",
+    "date-fns": "^4.1.0",
+    "react-day-picker": "^10.0.1"
   }
 }

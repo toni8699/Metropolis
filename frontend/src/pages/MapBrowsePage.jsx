@@ -5,18 +5,55 @@ import SearchResultsView from "../components/SearchResultsView";
 import { apiGet } from "../lib/api";
 import { getUserLocation, haversineKm } from "../lib/location";
 
-export default function MapBrowsePage({ hasSearched }) {
+export default function MapBrowsePage({ hasSearched, searchParams }) {
   const [userLocation, setUserLocation] = useState(null);
 
+  const queryPath = useMemo(() => {
+    if (!hasSearched) {
+      return "/api/market/listings?bbox=-73.75,45.45,-73.50,45.62";
+    }
+    const params = new URLSearchParams();
+    if (searchParams?.pickupDate) {
+      params.set("start", `${searchParams.pickupDate}T00:00:00Z`);
+    }
+    if (searchParams?.returnDate) {
+      params.set("end", `${searchParams.returnDate}T00:00:00Z`);
+    }
+    const query = params.toString();
+    return query ? `/api/market/listings?${query}` : "/api/market/listings";
+  }, [hasSearched, searchParams]);
+
   const { data } = useQuery({
-    queryKey: ["marketListings"],
-    queryFn: () => apiGet("/api/market/listings?bbox=-73.75,45.45,-73.50,45.62"),
+    queryKey: ["marketListings", queryPath],
+    queryFn: () => apiGet(queryPath),
   });
-  const listings = data?.listings || [];
+  const rawListings = data?.listings || [];
 
   useEffect(() => {
     getUserLocation().then(setUserLocation);
   }, []);
+
+  const listings = useMemo(() => {
+    if (!hasSearched) return rawListings;
+
+    const center = searchParams?.coordinates;
+    if (center?.lat == null || center?.lng == null) {
+      return rawListings;
+    }
+
+    const maxDistanceKm = 80;
+    const nearby = rawListings.filter((listing) => {
+      if (listing.lat == null || listing.lng == null) return false;
+      return (
+        haversineKm(
+          { lat: center.lat, lng: center.lng },
+          { lat: listing.lat, lng: listing.lng },
+        ) <= maxDistanceKm
+      );
+    });
+
+    return nearby.length > 0 ? nearby : rawListings;
+  }, [hasSearched, rawListings, searchParams]);
 
   const cars = useMemo(
     () =>
@@ -47,7 +84,11 @@ export default function MapBrowsePage({ hasSearched }) {
 
   return (
     hasSearched ? (
-      <SearchResultsView cars={cars} cityLabel="Montreal" />
+      <SearchResultsView
+        cars={cars}
+        cityLabel={searchParams?.location || listings?.[0]?.cityZone || "Montreal"}
+        searchCenter={searchParams?.coordinates || null}
+      />
     ) : (
       <div className="space-y-6">
         <h2 className="text-xl font-semibold">Popular Locations and Vehicles</h2>
