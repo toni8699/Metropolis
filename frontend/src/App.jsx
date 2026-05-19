@@ -5,7 +5,9 @@ import ListingDetailPage from "./pages/ListingDetailPage";
 import MapBrowsePage from "./pages/MapBrowsePage";
 import OwnerDashboardPage from "./pages/OwnerDashboardPage";
 import Layout from "./components/Layout";
+import HostOnboardingFlow from "./components/HostOnboardingFlow";
 import { apiPost, setAccessToken } from "./lib/api";
+import { useAuth } from "./context/AuthContext";
 
 async function quickDemoLogin(role = "RENTER") {
   const email = role === "OWNER" ? "owner_demo@example.com" : "renter_demo@example.com";
@@ -19,6 +21,7 @@ async function quickDemoLogin(role = "RENTER") {
 }
 
 export default function App() {
+  const { isAuthenticated } = useAuth();
   const [hasSearched, setHasSearched] = useState(false);
   const [searchParams, setSearchParams] = useState({
     location: "",
@@ -35,7 +38,7 @@ export default function App() {
     setHasSearched(false);
   };
 
-  return (
+  const mainAppShell = (
     <Layout onSearch={handleSearch} onHome={handleGoHome}>
       <div className="flex w-full items-center justify-end gap-2 px-4 py-3 sm:px-6 md:px-10 lg:px-12 xl:px-20">
         <button
@@ -69,5 +72,19 @@ export default function App() {
         </Routes>
       </div>
     </Layout>
+  );
+
+  return (
+    <Routes>
+      <Route
+        path="/host"
+        element={isAuthenticated ? <HostOnboardingFlow /> : <Navigate to="/" replace />}
+      />
+      <Route
+        path="/host/onboarding"
+        element={isAuthenticated ? <HostOnboardingFlow /> : <Navigate to="/" replace />}
+      />
+      <Route path="*" element={mainAppShell} />
+    </Routes>
   );
 }

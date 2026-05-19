@@ -1,9 +1,6 @@
 import {
   CarFront,
-  ChevronLeft,
-  ChevronRight,
   Globe,
-  MapPin,
   Menu,
   Search,
   SlidersHorizontal,
@@ -11,13 +8,22 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useJsApiLoader } from "@react-google-maps/api";
-import { DayPicker } from "react-day-picker";
-import "react-day-picker/style.css";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import AuthModal from "./AuthModal";
+import UserMenuDropdown from "./header/UserMenuDropdown";
+import CollapsedSearchPill from "./header/CollapsedSearchPill";
+import WhereSuggestionsDropdown from "./header/WhereSuggestionsDropdown";
+import WhenDateDropdown from "./header/WhenDateDropdown";
 
 export default function Header({ onSearch, onHome }) {
+  const navigate = useNavigate();
+  const { isAuthenticated, logout } = useAuth();
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState("login");
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("where");
   const [location, setLocation] = useState("montreal-core");
   const [searchQuery, setSearchQuery] = useState("montreal-core");
@@ -29,6 +35,8 @@ export default function Header({ onSearch, onHome }) {
   const searchContainerRef = useRef(null);
   const autocompleteServiceRef = useRef(null);
   const geocoderRef = useRef(null);
+  const mobileUserMenuRef = useRef(null);
+  const desktopUserMenuRef = useRef(null);
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const { isLoaded: isPlacesLoaded, loadError: placesLoadError } = useJsApiLoader({
     id: "google-maps-script",
@@ -61,6 +69,23 @@ export default function Header({ onSearch, onHome }) {
       document.removeEventListener("keydown", closeOnEsc);
     };
   }, [isSearchExpanded]);
+
+  useEffect(() => {
+    if (!isUserMenuOpen) return undefined;
+    const onClickOutside = (event) => {
+      const isInsideMobile =
+        mobileUserMenuRef.current &&
+        mobileUserMenuRef.current.contains(event.target);
+      const isInsideDesktop =
+        desktopUserMenuRef.current &&
+        desktopUserMenuRef.current.contains(event.target);
+      if (!isInsideMobile && !isInsideDesktop) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [isUserMenuOpen]);
 
   const whenLabel =
     selectedRange?.from && selectedRange?.to
@@ -262,6 +287,39 @@ export default function Header({ onSearch, onHome }) {
       ? `${sectionBaseClass} bg-white shadow-md`
       : `${sectionBaseClass} hover:bg-gray-200`;
 
+  const openAuthModal = (mode = "login") => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+    setIsUserMenuOpen(false);
+  };
+
+  const handleHostClick = () => {
+    if (isAuthenticated) {
+      navigate("/host");
+      return;
+    }
+    openAuthModal("login");
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsUserMenuOpen(false);
+    navigate("/");
+  };
+
+  const handlePickPrediction = async (prediction, title) => {
+    setLocation(title);
+    setSearchQuery(title);
+    setPlacesError("");
+    try {
+      const coords = await geocodePlace(prediction.place_id);
+      setSelectedCoordinates(coords);
+    } catch {
+      setSelectedCoordinates(null);
+    }
+    setActiveSection("when");
+  };
+
   return (
     <>
       {isSearchExpanded && (
@@ -285,36 +343,41 @@ export default function Header({ onSearch, onHome }) {
               <CarFront className="h-12 w-12" />
               <span className="text-4xl font-extrabold">DriveBnb</span>
             </Link>
-            <button
-              className="flex items-center gap-2 rounded-full border p-1 pl-3 transition hover:shadow-md md:hidden"
-              aria-label="User menu"
-            >
-              <Menu className="h-5 w-5 text-gray-700" />
-              <UserCircle2 className="h-9 w-9 fill-gray-500 text-gray-500" />
-            </button>
+            <div ref={mobileUserMenuRef} className="relative md:hidden">
+              <button
+                onClick={() => setIsUserMenuOpen((open) => !open)}
+                className="flex items-center gap-2 rounded-full border p-1 pl-3 transition hover:shadow-md"
+                aria-label="User menu"
+              >
+                <Menu className="h-5 w-5 text-gray-700" />
+                <UserCircle2 className="h-9 w-9 fill-gray-500 text-gray-500" />
+              </button>
+              {isUserMenuOpen && (
+                <UserMenuDropdown
+                  isAuthenticated={isAuthenticated}
+                  onLogin={() => openAuthModal("login")}
+                  onSignup={() => openAuthModal("signup")}
+                  onManageListings={() => {
+                    navigate("/host");
+                    setIsUserMenuOpen(false);
+                  }}
+                  onLogout={handleLogout}
+                />
+              )}
+            </div>
           </div>
 
           <div ref={searchContainerRef} className="relative w-full md:w-auto md:px-3">
             {!isSearchExpanded ? (
-              <button
-                onClick={() => {
+              <CollapsedSearchPill
+                location={location}
+                collapsedWhenLabel={collapsedWhenLabel}
+                onOpen={() => {
                   setActiveSection("where");
                   setSearchQuery(location);
                   setIsSearchExpanded(true);
                 }}
-                className="mx-auto flex h-20 w-full max-w-xl cursor-pointer items-center rounded-full border border-gray-300 bg-white py-3 pl-6 pr-3 shadow-sm transition hover:shadow-md md:max-w-2xl"
-              >
-                <div className="min-w-[150px] flex-1 px-3 text-center text-xl font-bold text-gray-900 sm:min-w-[260px]">
-                  {location || "Anywhere"}
-                </div>
-                <div className="mx-2 h-6 w-[1px] flex-shrink-0 bg-gray-300" />
-                <div className="min-w-[150px] flex-1 px-3 text-center text-lg text-gray-700 sm:min-w-[280px]">
-                  {collapsedWhenLabel}
-                </div>
-                <div className="ml-2 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
-                  <Search className="h-6 w-6" strokeWidth={3} />
-                </div>
-              </button>
+              />
             ) : (
               <div className="relative mx-auto flex h-24 w-full max-w-3xl items-center rounded-full border border-gray-200 bg-gray-100 shadow-sm">
                 <button
@@ -350,151 +413,27 @@ export default function Header({ onSearch, onHome }) {
                 </button>
 
                 {activeSection === "when" && (
-                  <div className="absolute top-[80px] left-1/2 z-50 flex w-[700px] -translate-x-1/2 gap-8 rounded-[2rem] border border-gray-200 bg-white p-8 shadow-2xl">
-                    <div className="flex w-1/3 flex-col gap-4">
-                      <button
-                        onClick={setToday}
-                        className="cursor-pointer rounded-2xl border border-gray-200 p-4 text-left transition hover:border-gray-900"
-                      >
-                        <p className="text-sm font-semibold text-gray-900">Today</p>
-                        <p className="text-sm text-gray-500">
-                          {format(todayDate, "EEE, MMM d")}
-                        </p>
-                      </button>
-                      <button
-                        onClick={setTomorrow}
-                        className="cursor-pointer rounded-2xl border border-gray-200 p-4 text-left transition hover:border-gray-900"
-                      >
-                        <p className="text-sm font-semibold text-gray-900">
-                          Tomorrow
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {format(tomorrowDate, "EEE, MMM d")}
-                        </p>
-                      </button>
-                      <button
-                        onClick={setNextWeekend}
-                        className="cursor-pointer rounded-2xl border border-gray-200 p-4 text-left transition hover:border-gray-900"
-                      >
-                        <p className="text-sm font-semibold text-gray-900">
-                          Next weekend
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {format(previewNextSaturday, "MMM d")} -{" "}
-                          {format(previewNextSunday, "MMM d")}
-                        </p>
-                      </button>
-                    </div>
-
-                    <div className="w-2/3">
-                      <DayPicker
-                        mode="range"
-                        numberOfMonths={2}
-                        selected={selectedRange}
-                        onSelect={setSelectedRange}
-                        className="rdp-airbnb"
-                        classNames={{
-                          month_caption: "pb-4 text-center text-lg font-semibold",
-                          weekdays: "mb-3",
-                          weekday:
-                            "text-xs font-medium text-gray-400 uppercase tracking-wide",
-                          day: "h-12 w-12 p-0",
-                          day_button:
-                            "h-12 w-12 rounded-full flex items-center justify-center font-medium border border-transparent hover:border-gray-900",
-                          selected: "bg-gray-900 text-white rounded-full border-gray-900",
-                          range_start:
-                            "bg-gray-900 text-white rounded-full border-gray-900",
-                          range_end:
-                            "bg-gray-900 text-white rounded-full border-gray-900",
-                          range_middle:
-                            "bg-gray-100 text-gray-900 rounded-none border-transparent",
-                        }}
-                        components={{
-                          Chevron: ({ orientation, ...props }) =>
-                            orientation === "left" ? (
-                              <ChevronLeft {...props} className="h-5 w-5" />
-                            ) : (
-                              <ChevronRight {...props} className="h-5 w-5" />
-                            ),
-                        }}
-                      />
-                    </div>
-                  </div>
+                  <WhenDateDropdown
+                    todayDate={todayDate}
+                    tomorrowDate={tomorrowDate}
+                    previewNextSaturday={previewNextSaturday}
+                    previewNextSunday={previewNextSunday}
+                    setToday={setToday}
+                    setTomorrow={setTomorrow}
+                    setNextWeekend={setNextWeekend}
+                    selectedRange={selectedRange}
+                    setSelectedRange={setSelectedRange}
+                  />
                 )}
 
                 {activeSection === "where" && (
-                  <div className="absolute top-[80px] left-0 z-50 w-[430px] rounded-3xl border border-gray-200 bg-white p-4 shadow-xl">
-                    {isLoading ? (
-                      <div className="space-y-3">
-                        {[0, 1, 2].map((row) => (
-                          <div
-                            key={row}
-                            className="flex items-center gap-3 rounded-2xl px-3 py-3"
-                          >
-                            <div className="h-10 w-10 animate-pulse rounded-full bg-gray-200" />
-                            <div className="flex-1 space-y-2">
-                              <div className="h-4 w-40 animate-pulse rounded bg-gray-200" />
-                              <div className="h-3 w-56 animate-pulse rounded bg-gray-100" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : placePredictions.length > 0 ? (
-                      <div className="space-y-1">
-                        {placePredictions.map((prediction) => {
-                          const title =
-                            prediction.structured_formatting?.main_text ||
-                            prediction.description;
-                          const subtitle =
-                            prediction.structured_formatting?.secondary_text || "";
-                          return (
-                            <button
-                              key={prediction.place_id}
-                              onClick={async () => {
-                                setLocation(title);
-                                setSearchQuery(title);
-                                setPlacesError("");
-                                try {
-                                  const coords = await geocodePlace(
-                                    prediction.place_id,
-                                  );
-                                  setSelectedCoordinates(coords);
-                                } catch {
-                                  setSelectedCoordinates(null);
-                                }
-                                setActiveSection("when");
-                              }}
-                              className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-gray-50"
-                            >
-                              <span className="rounded-xl bg-gray-100 p-3 text-gray-700">
-                                <MapPin className="h-5 w-5" />
-                              </span>
-                              <span className="min-w-0 flex-1 space-y-0.5">
-                                <span className="block truncate text-base text-gray-900">
-                                  {title}
-                                </span>
-                                <span className="block truncate text-sm text-gray-500">
-                                  {subtitle}
-                                </span>
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : placesError ? (
-                      <p className="px-2 py-6 text-center text-sm text-red-500">
-                        {placesError}
-                      </p>
-                    ) : searchQuery.trim() ? (
-                      <p className="px-2 py-6 text-center text-sm text-gray-500">
-                        No locations found.
-                      </p>
-                    ) : (
-                      <p className="px-2 py-6 text-center text-sm text-gray-500">
-                        Start typing to search locations.
-                      </p>
-                    )}
-                  </div>
+                  <WhereSuggestionsDropdown
+                    isLoading={isLoading}
+                    placePredictions={placePredictions}
+                    placesError={placesError}
+                    searchQuery={searchQuery}
+                    onPickPrediction={handlePickPrediction}
+                  />
                 )}
               </div>
             )}
@@ -505,7 +444,10 @@ export default function Header({ onSearch, onHome }) {
               <SlidersHorizontal className="h-5 w-5" />
               Filters
             </button>
-            <button className="rounded-full px-5 py-3 text-base font-semibold hover:bg-gray-100">
+            <button
+              onClick={handleHostClick}
+              className="rounded-full px-5 py-3 text-base font-semibold hover:bg-gray-100"
+            >
               Host your car
             </button>
             <button
@@ -514,16 +456,36 @@ export default function Header({ onSearch, onHome }) {
             >
               <Globe className="h-6 w-6 text-gray-700" />
             </button>
-            <button
-              className="flex items-center gap-2 rounded-full border p-2 pl-4 transition hover:shadow-md"
-              aria-label="User menu"
-            >
-              <Menu className="h-5 w-5 text-gray-700" />
-              <UserCircle2 className="h-10 w-10 fill-gray-500 text-gray-500" />
-            </button>
+            <div ref={desktopUserMenuRef} className="relative">
+              <button
+                onClick={() => setIsUserMenuOpen((open) => !open)}
+                className="flex items-center gap-2 rounded-full border p-2 pl-4 transition hover:shadow-md"
+                aria-label="User menu"
+              >
+                <Menu className="h-5 w-5 text-gray-700" />
+                <UserCircle2 className="h-10 w-10 fill-gray-500 text-gray-500" />
+              </button>
+              {isUserMenuOpen && (
+                <UserMenuDropdown
+                  isAuthenticated={isAuthenticated}
+                  onLogin={() => openAuthModal("login")}
+                  onSignup={() => openAuthModal("signup")}
+                  onManageListings={() => {
+                    navigate("/host");
+                    setIsUserMenuOpen(false);
+                  }}
+                  onLogout={handleLogout}
+                />
+              )}
+            </div>
           </div>
         </div>
       </header>
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        mode={authModalMode}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </>
   );
 }

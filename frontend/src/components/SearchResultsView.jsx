@@ -1,11 +1,16 @@
 import { useMemo, useState } from "react";
 import {
   GoogleMap,
-  InfoWindow,
   OverlayView,
   useJsApiLoader,
 } from "@react-google-maps/api";
-import { List, Map as MapIcon } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  List,
+  Map as MapIcon,
+  Star,
+} from "lucide-react";
 import CarGrid from "./CarGrid";
 
 const fallbackCenter = { lat: 45.5017, lng: -73.5673 };
@@ -40,10 +45,129 @@ function PriceMarker({ car, isActive, onClick }) {
   );
 }
 
+function MapPopupCard({ car }) {
+  const images = car.images?.length
+    ? car.images
+    : [car.image || car.photos?.[0]].filter(Boolean);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const currentImage = images[currentImageIndex];
+  const listingUrl = `/listings/${car.listingId || car.id}`;
+  const title = [car.make || car.brand, car.model].filter(Boolean).join(" ");
+
+  const handleNextImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (images.length <= 1) return;
+    setCurrentImageIndex((index) => (index + 1) % images.length);
+  };
+
+  const handlePrevImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (images.length <= 1) return;
+    setCurrentImageIndex((index) => (index - 1 + images.length) % images.length);
+  };
+
+  return (
+    <a
+      href={listingUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block w-[280px] cursor-pointer overflow-hidden rounded-2xl bg-white shadow-2xl"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onTouchStart={(event) => event.stopPropagation()}
+    >
+      <div className="relative h-[180px] w-full overflow-hidden bg-gray-100">
+        {currentImage ? (
+          <img
+            src={currentImage}
+            alt={car.title || title}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gray-100 text-sm text-gray-500">
+            No image
+          </div>
+        )}
+
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={handlePrevImage}
+              className="absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 opacity-0 shadow-sm transition hover:scale-110 hover:bg-white group-hover:opacity-100"
+              aria-label="Previous image"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={handleNextImage}
+              className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 opacity-0 shadow-sm transition hover:scale-110 hover:bg-white group-hover:opacity-100"
+              aria-label="Next image"
+            >
+              <ChevronRight size={16} />
+            </button>
+
+            <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+              {images.map((image, index) => (
+                <span
+                  key={`${image}-${index}`}
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    index === currentImageIndex ? "bg-white" : "bg-white/60"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1 p-4">
+        <div className="flex w-full items-center gap-3">
+          <p className="min-w-0 flex-1 truncate font-semibold text-gray-900">
+            {title || car.title || "Vehicle"}
+          </p>
+          <span className="flex items-center gap-1 text-sm font-medium text-gray-900">
+            <Star className="h-4 w-4 fill-gray-900 text-gray-900" />
+            {Number(car.rating || 4.9).toFixed(2)}
+          </span>
+        </div>
+        <p className="truncate text-sm text-gray-500">
+          {car.details || car.sourceType || "Automatic"}
+        </p>
+        <p className="mt-1 text-gray-900">
+          <span className="font-bold">${car.pricePerDay}</span>
+          <span className="font-normal"> / day</span>
+        </p>
+      </div>
+    </a>
+  );
+}
+
+function ListingPopup({ car }) {
+  return (
+    <OverlayView
+      position={{ lat: car.lat, lng: car.lng }}
+      mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+    >
+      <div
+        className="relative"
+        style={{ transform: "translate(-50%, calc(-100% - 14px))" }}
+        onClick={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+        onTouchStart={(event) => event.stopPropagation()}
+      >
+        <MapPopupCard car={car} />
+      </div>
+    </OverlayView>
+  );
+}
+
 export default function SearchResultsView({
   cars = [],
   cityLabel = "Montreal",
   searchCenter = null,
+  isLoading = false,
 }) {
   const [activeId, setActiveId] = useState(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
@@ -90,7 +214,9 @@ export default function SearchResultsView({
             isMapFullscreen ? "hidden" : "md:w-[55%] xl:w-[60%]"
           }`}
         >
-          <h2 className="mb-6 text-xl font-semibold">{cars.length} cars in {cityLabel}</h2>
+          <h2 className="mb-6 text-xl font-semibold">
+            {isLoading ? "Loading cars..." : `${cars.length} cars in ${cityLabel}`}
+          </h2>
           <div className="mb-4 md:hidden">
             <button
               onClick={() => setIsMapFullscreen(true)}
@@ -100,11 +226,23 @@ export default function SearchResultsView({
               Show map
             </button>
           </div>
-          <CarGrid
-            cars={cars}
-            compact
-            distanceById={Object.fromEntries(cars.map((c) => [c.id, c.distanceKm]))}
-          />
+          {isLoading ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <div key={idx} className="space-y-3">
+                  <div className="aspect-[20/19] animate-pulse rounded-2xl bg-gray-200" />
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
+                  <div className="h-4 w-1/2 animate-pulse rounded bg-gray-100" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <CarGrid
+              cars={cars}
+              compact
+              distanceById={Object.fromEntries(cars.map((c) => [c.id, c.distanceKm]))}
+            />
+          )}
         </section>
 
         <aside
@@ -163,33 +301,9 @@ export default function SearchResultsView({
                   ))}
 
                   {selectedCar && (
-                    <InfoWindow
-                      position={{ lat: selectedCar.lat, lng: selectedCar.lng }}
-                      onCloseClick={() => setSelectedCar(null)}
-                    >
-                      <a
-                        href={`/listings/${selectedCar.listingId || selectedCar.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block w-64 overflow-hidden rounded-xl bg-white shadow-xl"
-                      >
-                        <img
-                          src={selectedCar.image || selectedCar.photos?.[0]}
-                          alt={selectedCar.title || `${selectedCar.make} ${selectedCar.model}`}
-                          className="h-32 w-full object-cover"
-                        />
-                        <div className="space-y-1 p-3">
-                          <p className="text-sm font-semibold text-gray-900">
-                            {selectedCar.make || selectedCar.brand} {selectedCar.model}{" "}
-                            {selectedCar.year || ""}
-                          </p>
-                          <p className="text-sm text-gray-600">★ {Number(selectedCar.rating || 4.9).toFixed(2)}</p>
-                          <p className="text-sm text-gray-900">
-                            <span className="font-semibold">${selectedCar.pricePerDay}</span> / day
-                          </p>
-                        </div>
-                      </a>
-                    </InfoWindow>
+                    <ListingPopup
+                      car={selectedCar}
+                    />
                   )}
                 </GoogleMap>
               </div>
