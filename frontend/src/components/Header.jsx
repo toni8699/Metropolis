@@ -19,7 +19,9 @@ import WhenDateDropdown from "./header/WhenDateDropdown";
 
 export default function Header({ onSearch, onHome }) {
   const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, hasListings, isAdmin, logout } = useAuth();
+  const canHost = hasListings;
+  const canAdmin = isAdmin;
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
@@ -148,6 +150,7 @@ export default function Header({ onSearch, onHome }) {
       coordinates,
     });
     setIsSearchExpanded(false);
+    navigate("/");
   };
 
   useEffect(() => {
@@ -357,11 +360,17 @@ export default function Header({ onSearch, onHome }) {
                   isAuthenticated={isAuthenticated}
                   onLogin={() => openAuthModal("login")}
                   onSignup={() => openAuthModal("signup")}
-                  onManageListings={() => {
+                  onSwitchToHosting={() => {
                     navigate("/host");
                     setIsUserMenuOpen(false);
                   }}
+                  onOpenAdminDashboard={() => {
+                    navigate("/admin");
+                    setIsUserMenuOpen(false);
+                  }}
                   onLogout={handleLogout}
+                  canHost={canHost}
+                  canAdmin={canAdmin}
                 />
               )}
             </div>
@@ -448,7 +457,7 @@ export default function Header({ onSearch, onHome }) {
               onClick={handleHostClick}
               className="rounded-full px-5 py-3 text-base font-semibold hover:bg-gray-100"
             >
-              Host your car
+              {canHost ? "Switch to Hosting" : "Host your car"}
             </button>
             <button
               className="rounded-full p-3 hover:bg-gray-100"
@@ -470,11 +479,17 @@ export default function Header({ onSearch, onHome }) {
                   isAuthenticated={isAuthenticated}
                   onLogin={() => openAuthModal("login")}
                   onSignup={() => openAuthModal("signup")}
-                  onManageListings={() => {
+                  onSwitchToHosting={() => {
                     navigate("/host");
                     setIsUserMenuOpen(false);
                   }}
+                  onOpenAdminDashboard={() => {
+                    navigate("/admin");
+                    setIsUserMenuOpen(false);
+                  }}
                   onLogout={handleLogout}
+                  canHost={canHost}
+                  canAdmin={canAdmin}
                 />
               )}
             </div>

@@ -16,3 +16,7 @@ class Config:
     JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-dev-secret")
     JWT_EXPIRES_HOURS = int(os.environ.get("JWT_EXPIRES_HOURS", "24"))
     DATABASE_URL = os.environ.get("DATABASE_URL", "")
+    AWS_REGION = os.environ.get("AWS_REGION", "").strip()
+    S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "").strip()
+    S3_PRESIGN_TTL_SECONDS = int(os.environ.get("S3_PRESIGN_TTL_SECONDS", "300"))
+    ALLOW_USER_LISTINGS = os.environ.get("ALLOW_USER_LISTINGS", "0") in {"1", "true", "TRUE", "yes", "YES"}

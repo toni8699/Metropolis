@@ -1,12 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
-import { CarFront, Fuel, Settings, Star, UserCircle2 } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CarFront, ChevronLeft, ChevronRight, Fuel, Settings, Star, UserCircle2 } from "lucide-react";
+import { differenceInCalendarDays, format } from "date-fns";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/style.css";
+import { useAuth } from "../context/AuthContext";
+import AuthModal from "../components/AuthModal";
+import { useNavigate, useParams } from "react-router-dom";
 import { apiGet } from "../utils/api";
 
 export default function ListingDetailPage() {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const { listingId } = useParams();
   const [listing, setListing] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [reserveError, setReserveError] = useState("");
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [calendarMonths, setCalendarMonths] = useState(2);
+  const calendarRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,6 +44,25 @@ export default function ListingDetailPage() {
       cancelled = true;
     };
   }, [listingId]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!calendarRef.current?.contains(event.target)) {
+        setIsCalendarOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const syncCalendarMonths = () => {
+      setCalendarMonths(window.innerWidth >= 1024 ? 2 : 1);
+    };
+    syncCalendarMonths();
+    window.addEventListener("resize", syncCalendarMonths);
+    return () => window.removeEventListener("resize", syncCalendarMonths);
+  }, []);
 
   const images = useMemo(() => {
     const raw = listing?.photos?.filter(Boolean) || [];
@@ -83,8 +115,47 @@ export default function ListingDetailPage() {
   const rating = 4.92;
   const locationText = listing.cityZone ? listing.cityZone.replace(/-/g, " ") : "Location";
 
+  const nights =
+    dateRange.from && dateRange.to
+      ? differenceInCalendarDays(dateRange.to, dateRange.from)
+      : 0;
+  const hasCompleteRange = Boolean(dateRange.from && dateRange.to && nights > 0);
+  const nightlySubtotal = hasCompleteRange ? Number(listing.pricePerDay || 0) * nights : 0;
+  const serviceFee = hasCompleteRange ? Number((nightlySubtotal * 0.12).toFixed(2)) : 0;
+  const cleaningFee = hasCompleteRange ? 25 : 0;
+  const totalPrice = hasCompleteRange
+    ? Number((nightlySubtotal + serviceFee + cleaningFee).toFixed(2))
+    : 0;
+
+  const handleReserveClick = () => {
+    if (!dateRange.from || !dateRange.to) {
+      setReserveError("Please select both check-in and checkout dates.");
+      return;
+    }
+    if (differenceInCalendarDays(dateRange.to, dateRange.from) <= 0) {
+      setReserveError("Checkout date must be after check-in date.");
+      return;
+    }
+
+    setReserveError("");
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    navigate(`/book/${listingId}`, {
+      state: {
+        startDate: format(dateRange.from, "yyyy-MM-dd"),
+        endDate: format(dateRange.to, "yyyy-MM-dd"),
+      },
+    });
+  };
+
+  const reserveButtonDisabled = !dateRange.from || !dateRange.to;
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-10">
+    <>
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-10">
       <h1 className="mb-2 text-3xl font-semibold text-gray-900">{title}</h1>
       <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
         <span className="flex items-center gap-1 underline">
@@ -180,28 +251,130 @@ export default function ListingDetailPage() {
               <p className="text-gray-600">/ day</p>
             </div>
 
-            <div className="mt-4 rounded-xl border border-gray-300">
-              <div className="grid grid-cols-2">
-                <div className="border-r p-3">
-                  <p className="text-xs font-semibold uppercase text-gray-500">Check-in</p>
-                  <p className="text-sm text-gray-700">Add date</p>
+            <div ref={calendarRef} className="relative mt-6">
+              <div
+                className="flex border border-gray-400 rounded-xl cursor-pointer relative"
+                onClick={() => setIsCalendarOpen((open) => !open)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setIsCalendarOpen((open) => !open);
+                  }
+                }}
+              >
+                <div className="w-1/2 p-3">
+                  <p className="text-[10px] font-bold text-gray-800">CHECK-IN</p>
+                  <p className="text-sm text-gray-500">
+                    {dateRange.from ? format(dateRange.from, "MM/dd/yyyy") : "Add date"}
+                  </p>
                 </div>
-                <div className="p-3">
-                  <p className="text-xs font-semibold uppercase text-gray-500">Checkout</p>
-                  <p className="text-sm text-gray-700">Add date</p>
+                <div className="w-1/2 p-3 border-l border-gray-400">
+                  <p className="text-[10px] font-bold text-gray-800">CHECKOUT</p>
+                  <p className="text-sm text-gray-500">
+                    {dateRange.to ? format(dateRange.to, "MM/dd/yyyy") : "Add date"}
+                  </p>
                 </div>
               </div>
+
+              {isCalendarOpen && (
+                <div className="absolute top-[100%] right-0 mt-4 bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 z-50">
+                  <DayPicker
+                    mode="range"
+                    numberOfMonths={calendarMonths}
+                    selected={dateRange}
+                    onSelect={(range) => setDateRange(range || { from: undefined, to: undefined })}
+                    className="rdp-airbnb"
+                    classNames={{
+                      month_caption: "pb-4 text-center text-lg font-semibold",
+                      weekdays: "mb-3",
+                      weekday: "text-xs font-medium text-gray-400 uppercase tracking-wide",
+                      day: "h-10 w-10 md:h-12 md:w-12 p-0",
+                      day_button:
+                        "h-10 w-10 md:h-12 md:w-12 rounded-full flex items-center justify-center font-medium text-sm border border-transparent hover:border-gray-900",
+                      selected: "bg-gray-900 text-white rounded-full border-gray-900",
+                      range_start: "bg-gray-900 text-white rounded-full border-gray-900",
+                      range_end: "bg-gray-900 text-white rounded-full border-gray-900",
+                      range_middle: "bg-gray-100 text-gray-900 rounded-none border-transparent",
+                    }}
+                    components={{
+                      Chevron: ({ orientation, ...props }) =>
+                        orientation === "left" ? (
+                          <ChevronLeft {...props} className="h-5 w-5" />
+                        ) : (
+                          <ChevronRight {...props} className="h-5 w-5" />
+                        ),
+                    }}
+                  />
+                  <div className="flex justify-between items-center pt-4 border-t mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setDateRange({ from: undefined, to: undefined })}
+                      className="underline font-medium text-sm cursor-pointer hover:text-black text-gray-600"
+                    >
+                      Clear dates
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsCalendarOpen(false)}
+                      className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-black"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <button className="mt-4 w-full rounded-lg bg-indigo-600 py-3 font-bold text-white transition hover:bg-indigo-700">
+            <button
+              onClick={handleReserveClick}
+              disabled={reserveButtonDisabled}
+              className="mt-4 w-full rounded-lg bg-indigo-600 py-3 font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
               Reserve
             </button>
             <p className="mt-3 text-center text-sm text-gray-500">
               You won&apos;t be charged yet
             </p>
+            {reserveError && (
+              <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-600">
+                {reserveError}
+              </div>
+            )}
+            {hasCompleteRange ? (
+              <div className="mt-5 space-y-3 border-t border-gray-200 pt-4 text-sm text-gray-700">
+                <div className="flex items-center justify-between">
+                  <p className="underline">
+                    ${listing.pricePerDay} x {nights} nights
+                  </p>
+                  <p>${nightlySubtotal.toFixed(2)}</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="underline">Service fee</p>
+                  <p>${serviceFee.toFixed(2)}</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="underline">Cleaning fee</p>
+                  <p>${cleaningFee.toFixed(2)}</p>
+                </div>
+                <div className="flex items-center justify-between border-t border-gray-200 pt-3 text-base font-semibold text-gray-900">
+                  <p>Total before taxes</p>
+                  <p>${totalPrice.toFixed(2)}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-4 text-center text-sm text-gray-500">Add dates to see price</p>
+            )}
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        mode="login"
+        onClose={() => setIsAuthModalOpen(false)}
+      />
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { apiGet, apiPost } from "../lib/api";
+import { apiGet, apiPost } from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 
 const initialForm = {
   title: "",
@@ -14,6 +15,7 @@ const initialForm = {
 };
 
 export default function OwnerDashboardPage() {
+  const { refreshMe } = useAuth();
   const [listings, setListings] = useState([]);
   const [form, setForm] = useState(initialForm);
 
@@ -27,6 +29,7 @@ export default function OwnerDashboardPage() {
   const createListing = async (e) => {
     e.preventDefault();
     await apiPost("/api/owner/listings", form, true);
+    await refreshMe();
     setForm(initialForm);
     loadListings();
   };

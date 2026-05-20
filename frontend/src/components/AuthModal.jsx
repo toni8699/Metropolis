@@ -34,7 +34,7 @@ export default function AuthModal({ isOpen, mode = "login", onClose }) {
       if (authMode === "login") {
         await login(form.email, form.password);
       } else {
-        await register({ ...form, role: "OWNER" });
+        await register({ ...form });
       }
       onClose?.();
     } catch (err) {

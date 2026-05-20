@@ -56,3 +56,10 @@ export function apiPatch(path, body, withAuth = false) {
     withAuth,
   });
 }
+
+export function apiDelete(path, withAuth = false) {
+  return apiRequest(path, {
+    method: "DELETE",
+    withAuth,
+  });
+}

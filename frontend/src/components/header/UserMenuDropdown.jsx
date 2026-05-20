@@ -2,8 +2,11 @@ export default function UserMenuDropdown({
   isAuthenticated,
   onLogin,
   onSignup,
-  onManageListings,
+  onSwitchToHosting,
+  onOpenAdminDashboard,
   onLogout,
+  canHost,
+  canAdmin,
 }) {
   return (
     <div className="absolute right-0 top-full z-[70] mt-2 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
@@ -30,12 +33,22 @@ export default function UserMenuDropdown({
           <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50">
             Trips
           </button>
-          <button
-            onClick={onManageListings}
-            className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
-          >
-            Manage listings
-          </button>
+          {canHost && (
+            <button
+              onClick={onSwitchToHosting}
+              className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
+            >
+              Switch to Hosting
+            </button>
+          )}
+          {canAdmin && (
+            <button
+              onClick={onOpenAdminDashboard}
+              className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
+            >
+              Admin Dashboard
+            </button>
+          )}
           <button
             onClick={onLogout}
             className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"

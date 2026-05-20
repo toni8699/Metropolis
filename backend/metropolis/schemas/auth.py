@@ -5,7 +5,7 @@ class AuthRegisterSchema(ma.Schema):
     email = ma.Email(required=True)
     password = ma.String(required=True)
     fullName = ma.String(required=False, allow_none=True)
-    role = ma.String(required=False, metadata={"example": "RENTER"})
+    role = ma.String(required=False, metadata={"example": "user"})
 
 
 class AuthLoginSchema(ma.Schema):
@@ -16,8 +16,10 @@ class AuthLoginSchema(ma.Schema):
 class UserSummarySchema(ma.Schema):
     userId = ma.Integer(required=True)
     email = ma.Email(required=True)
-    role = ma.String(required=True)
     fullName = ma.String(allow_none=True)
+    role = ma.String(required=True)
+    isAdmin = ma.Boolean(required=True)
+    hasListings = ma.Boolean(required=True)
 
 
 class AuthTokenSchema(ma.Schema):

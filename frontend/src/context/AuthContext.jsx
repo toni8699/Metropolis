@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { apiPost } from "../utils/api";
+import { apiGet, apiPost } from "../utils/api";
 
 const AuthContext = createContext(null);
 
@@ -24,6 +24,25 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (token) {
+      refreshMe().catch(() => {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem(AUTH_USER_KEY);
+        setToken(null);
+        setUser(null);
+      });
+    }
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refreshMe = async () => {
+    if (!localStorage.getItem("accessToken")) return null;
+    const result = await apiGet("/api/me", true);
+    const nextUser = result?.user || null;
+    setUser(nextUser);
+    return nextUser;
+  };
+
   const login = async (email, password) => {
     const result = await apiPost("/api/auth/login", { email, password });
     const nextToken = result?.token;
@@ -34,6 +53,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem("accessToken", nextToken);
     setToken(nextToken);
     setUser(nextUser);
+    await refreshMe();
     return result;
   };
 
@@ -41,7 +61,7 @@ export function AuthProvider({ children }) {
     const result = await apiPost("/api/auth/register", {
       email: data.email,
       password: data.password,
-      role: data.role || "OWNER",
+      role: data.role || "user",
     });
     const nextToken = result?.token;
     const nextUser = result?.user;
@@ -51,6 +71,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem("accessToken", nextToken);
     setToken(nextToken);
     setUser(nextUser);
+    await refreshMe();
     return result;
   };
 
@@ -65,7 +86,11 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       token,
+      role: user?.role || "user",
+      isAdmin: Boolean(user?.isAdmin),
+      hasListings: Boolean(user?.hasListings),
       isAuthenticated: Boolean(token && user),
+      refreshMe,
       login,
       register,
       logout,

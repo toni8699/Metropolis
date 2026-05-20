@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import CarGrid from "./CarGrid";
 
-const fallbackCenter = { lat: 45.5017, lng: -73.5673 };
+const fallbackCenter = { lat: 43.6532, lng: -79.3832 };
 const simplifiedMapStyles = [
   { featureType: "administrative", elementType: "all", stylers: [{ visibility: "off" }] },
   { featureType: "poi.business", elementType: "all", stylers: [{ visibility: "off" }] },
@@ -21,6 +21,14 @@ const simplifiedMapStyles = [
   { featureType: "poi.school", elementType: "all", stylers: [{ visibility: "off" }] },
   { featureType: "transit", elementType: "all", stylers: [{ visibility: "off" }] },
 ];
+
+function parseCoord(value) {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const normalized = String(value).trim().replace(",", ".");
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 function PriceMarker({ car, isActive, onClick }) {
   return (
@@ -51,7 +59,7 @@ function MapPopupCard({ car }) {
     : [car.image || car.photos?.[0]].filter(Boolean);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const currentImage = images[currentImageIndex];
-  const listingUrl = `/listings/${car.listingId || car.id}`;
+  const listingUrl = `/app/listings/${car.listingId || car.id}`;
   const title = [car.make || car.brand, car.model].filter(Boolean).join(" ");
 
   const handleNextImage = (e) => {
@@ -165,7 +173,7 @@ function ListingPopup({ car }) {
 
 export default function SearchResultsView({
   cars = [],
-  cityLabel = "Montreal",
+  cityLabel = "Toronto",
   searchCenter = null,
   isLoading = false,
 }) {
@@ -180,7 +188,15 @@ export default function SearchResultsView({
   });
 
   const mapCars = useMemo(
-    () => cars.filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng)),
+    () =>
+      cars
+        .map((car) => {
+          const lat = parseCoord(car.lat);
+          const lng = parseCoord(car.lng);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+          return { ...car, lat, lng };
+        })
+        .filter(Boolean),
     [cars]
   );
 

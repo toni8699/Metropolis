@@ -36,3 +36,31 @@ class FleetSyncSchema(ma.Schema):
     status = ma.String(required=True)
     created = ma.Integer(required=True)
     existing = ma.Integer(required=True)
+
+
+class AdminBookingsSchema(ma.Schema):
+    status = ma.String(required=True)
+    bookings = ma.List(ma.Raw(), required=True)
+
+
+class AdminListingsSchema(ma.Schema):
+    status = ma.String(required=True)
+    listings = ma.List(ma.Raw(), required=True)
+
+
+class AdminUsersSchema(ma.Schema):
+    status = ma.String(required=True)
+    users = ma.List(ma.Raw(), required=True)
+
+
+class AdminCompanyLocationsSchema(ma.Schema):
+    status = ma.String(required=True)
+    areas = ma.List(ma.Raw(), required=True)
+    branches = ma.List(ma.Raw(), required=True)
+    parkingSpots = ma.List(ma.Raw(), required=True)
+    vehicleClasses = ma.List(ma.Raw(), required=True)
+
+
+class AdminAnalyticsSchema(ma.Schema):
+    status = ma.String(required=True)
+    analytics = ma.Raw(required=True)

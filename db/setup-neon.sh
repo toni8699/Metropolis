@@ -20,7 +20,11 @@ fi
 echo "Applying schema..."
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT_DIR/db/schema.sql"
 
+echo "Applying incremental migrations..."
+sh "$ROOT_DIR/db/migrate.sh"
+
 echo "Loading seed data..."
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT_DIR/db/seed.sql"
 
 echo "Database ready."
+echo "For fleet-first Toronto demo, run: ./db/reset-and-sync-toronto.sh"

@@ -14,13 +14,13 @@ bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 @response(AuthTokenSchema, 201)
 @other_responses({400: (ErrorSchema, "Validation error."), 500: (ErrorSchema, "Server error.")})
 def register(payload):
-    """Register renter or owner account."""
+    """Register account with shared auth system."""
     try:
         result = auth_service.register(
             email=payload["email"],
             password=payload["password"],
             full_name=payload.get("fullName"),
-            role=payload.get("role", "RENTER"),
+            role=payload.get("role", "user"),
         )
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc

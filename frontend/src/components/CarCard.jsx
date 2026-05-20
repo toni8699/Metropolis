@@ -15,7 +15,9 @@ export default function CarCard({ car, distanceKm }) {
     return `${distanceKm.toFixed(1)} km away`;
   }, [car.locationText, distanceKm]);
 
-  const href = car.listingId ? `/listings/${car.listingId}` : `/listings/${car.id}`;
+  const href = car.listingId
+    ? `/app/listings/${car.listingId}`
+    : `/app/listings/${car.id}`;
 
   return (
     <article className="group">

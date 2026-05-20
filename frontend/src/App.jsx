@@ -1,27 +1,16 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useState } from "react";
 import BookingDetailsPage from "./pages/BookingDetailsPage";
+import BookingCheckoutPage from "./pages/BookingCheckoutPage";
 import ListingDetailPage from "./pages/ListingDetailPage";
 import MapBrowsePage from "./pages/MapBrowsePage";
 import OwnerDashboardPage from "./pages/OwnerDashboardPage";
+import TripsPage from "./pages/TripsPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
 import Layout from "./components/Layout";
-import HostOnboardingFlow from "./components/HostOnboardingFlow";
-import { apiPost, setAccessToken } from "./lib/api";
-import { useAuth } from "./context/AuthContext";
-
-async function quickDemoLogin(role = "RENTER") {
-  const email = role === "OWNER" ? "owner_demo@example.com" : "renter_demo@example.com";
-  const password = "testpass123";
-  await apiPost("/api/auth/register", { email, password, role });
-  const login = await apiPost("/api/auth/login", { email, password });
-  if (login.token) {
-    setAccessToken(login.token);
-    window.location.reload();
-  }
-}
+import { RequireAuth, RequireRole } from "./components/RouteGuards";
 
 export default function App() {
-  const { isAuthenticated } = useAuth();
   const [hasSearched, setHasSearched] = useState(false);
   const [searchParams, setSearchParams] = useState({
     location: "",
@@ -40,20 +29,6 @@ export default function App() {
 
   const mainAppShell = (
     <Layout onSearch={handleSearch} onHome={handleGoHome}>
-      <div className="flex w-full items-center justify-end gap-2 px-4 py-3 sm:px-6 md:px-10 lg:px-12 xl:px-20">
-        <button
-          className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-          onClick={() => quickDemoLogin("RENTER")}
-        >
-          Demo renter login
-        </button>
-        <button
-          className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-          onClick={() => quickDemoLogin("OWNER")}
-        >
-          Demo owner login
-        </button>
-      </div>
       <div className="w-full px-4 py-5 sm:px-6 md:px-10 lg:px-12 xl:px-20">
         <Routes>
           <Route
@@ -65,9 +40,23 @@ export default function App() {
               />
             }
           />
+          <Route
+            path="/app"
+            element={
+              <MapBrowsePage
+                hasSearched={hasSearched}
+                searchParams={searchParams}
+              />
+            }
+          />
           <Route path="/listings/:listingId" element={<ListingDetailPage />} />
+          <Route path="/app/listings/:listingId" element={<ListingDetailPage />} />
+          <Route path="/book/:id" element={<BookingCheckoutPage />} />
+          <Route path="/app/book/:id" element={<BookingCheckoutPage />} />
           <Route path="/bookings/:bookingId" element={<BookingDetailsPage />} />
-          <Route path="/owner" element={<OwnerDashboardPage />} />
+          <Route path="/app/bookings/:bookingId" element={<BookingDetailsPage />} />
+          <Route path="/trips" element={<TripsPage />} />
+          <Route path="/app/trips" element={<TripsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
@@ -76,15 +65,17 @@ export default function App() {
 
   return (
     <Routes>
-      <Route
-        path="/host"
-        element={isAuthenticated ? <HostOnboardingFlow /> : <Navigate to="/" replace />}
-      />
-      <Route
-        path="/host/onboarding"
-        element={isAuthenticated ? <HostOnboardingFlow /> : <Navigate to="/" replace />}
-      />
-      <Route path="*" element={mainAppShell} />
+      <Route path="/" element={mainAppShell} />
+      <Route path="/app/*" element={mainAppShell} />
+
+      <Route element={<RequireAuth />}>
+        <Route path="/host" element={<OwnerDashboardPage />} />
+        <Route element={<RequireRole roles={["admin"]} />}>
+          <Route path="/admin" element={<AdminDashboardPage />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>
   );
 }

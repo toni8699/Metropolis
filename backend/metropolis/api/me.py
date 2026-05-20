@@ -11,7 +11,7 @@ bp = Blueprint("me", __name__, url_prefix="/api")
 
 
 @bp.get("/me")
-@require_auth("RENTER", "OWNER", "ADMIN")
+@require_auth()
 @response(MeSchema)
 @other_responses({404: (ErrorSchema, "User not found."), 500: (ErrorSchema, "Server error.")})
 def me():

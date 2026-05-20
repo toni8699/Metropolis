@@ -15,7 +15,7 @@ bp = Blueprint("bookings", __name__, url_prefix="/api/bookings")
 
 
 @bp.post("")
-@require_auth("RENTER", "OWNER", "ADMIN")
+@require_auth()
 @body(BookingCreateSchema)
 @response(BookingItemSchema, 201)
 @other_responses({400: (ErrorSchema, "Validation error."), 404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
@@ -33,7 +33,7 @@ def create_booking(payload):
 
 
 @bp.get("/<int:booking_id>")
-@require_auth("RENTER", "OWNER", "ADMIN")
+@require_auth()
 @response(BookingItemSchema)
 @other_responses({403: (ErrorSchema, "Forbidden."), 404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
 def get_booking(booking_id: int):
@@ -42,7 +42,7 @@ def get_booking(booking_id: int):
         result = marketplace_service.get_booking(
             booking_id,
             int(g.current_user["sub"]),
-            g.current_user["role"],
+            g.current_user["isAdmin"],
         )
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
@@ -55,7 +55,7 @@ def get_booking(booking_id: int):
 
 
 @bp.post("/<int:booking_id>/instructions")
-@require_auth("OWNER", "ADMIN")
+@require_auth()
 @body(BookingInstructionCreateSchema)
 @response(BookingItemSchema)
 @other_responses({404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
@@ -72,7 +72,7 @@ def send_instruction(payload, booking_id: int):
         result = marketplace_service.get_booking(
             booking_id,
             int(g.current_user["sub"]),
-            g.current_user["role"],
+            g.current_user["isAdmin"],
         )
     except Exception as exc:  # noqa: BLE001
         if isinstance(exc, NotFound):
@@ -82,7 +82,7 @@ def send_instruction(payload, booking_id: int):
 
 
 @bp.post("/<int:booking_id>/confirm-pickup")
-@require_auth("RENTER", "OWNER", "ADMIN")
+@require_auth()
 @response(BookingItemSchema)
 @other_responses({400: (ErrorSchema, "Validation error."), 404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
 def confirm_pickup(booking_id: int):
@@ -91,7 +91,7 @@ def confirm_pickup(booking_id: int):
         result = marketplace_service.transition_booking_status(
             booking_id,
             int(g.current_user["sub"]),
-            g.current_user["role"],
+            g.current_user["isAdmin"],
             "IN_PROGRESS",
         )
     except Exception as exc:  # noqa: BLE001
@@ -106,7 +106,7 @@ def confirm_pickup(booking_id: int):
 
 
 @bp.post("/<int:booking_id>/complete")
-@require_auth("RENTER", "OWNER", "ADMIN")
+@require_auth()
 @response(BookingItemSchema)
 @other_responses({400: (ErrorSchema, "Validation error."), 404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
 def complete_booking(booking_id: int):
@@ -115,7 +115,7 @@ def complete_booking(booking_id: int):
         result = marketplace_service.transition_booking_status(
             booking_id,
             int(g.current_user["sub"]),
-            g.current_user["role"],
+            g.current_user["isAdmin"],
             "COMPLETED",
         )
     except Exception as exc:  # noqa: BLE001

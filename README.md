@@ -17,10 +17,13 @@ backend/
     auth.py                            JWT auth utilities
     db.py                              Neon connection helper
   requirements.txt
+  uv.lock
   scripts/
 db/
   schema.sql                           Full schema (base + marketplace extension)
-  migrations/001_marketplace_mvp.sql   Incremental migration for existing DBs
+  migrate.sh                           Applies migrations (incremental or clean mode)
+  migrations/000_initial_clean.sql     Canonical clean bootstrap entrypoint
+  migrations/*.sql                     Incremental migration set
   seed.sql
   setup-neon.sh
 frontend/
@@ -42,12 +45,73 @@ frontend/
    ./db/setup-neon.sh
    ```
 
-3. For existing DBs, apply only marketplace migration:
+3. Apply migrations (incremental compatibility path):
 
    ```bash
+   chmod +x db/migrate.sh
    set -a && . ./.env && set +a
-   psql "$DATABASE_URL" -f db/migrations/001_marketplace_mvp.sql
+   ./db/migrate.sh
    ```
+
+   For brand-new clean bootstrap (canonical entrypoint):
+
+   ```bash
+   MIGRATION_MODE=clean ./db/migrate.sh
+   ```
+
+4. Install Python dependencies with `uv`:
+
+   ```bash
+   # if needed: curl -LsSf https://astral.sh/uv/install.sh | sh
+   ./backend/scripts/build.sh
+   ```
+
+   This uses `backend/pyproject.toml` as source of truth and creates/uses `backend/uv.lock`.
+
+5. (Optional) Export a pip-compatible lock snapshot:
+
+   ```bash
+   ./backend/scripts/export-requirements.sh
+   ```
+
+6. Reset to Toronto-only launch dataset:
+
+   ```bash
+   chmod +x db/reset-single-city-toronto.sh
+   ./db/reset-single-city-toronto.sh
+   ```
+
+7. One-shot reset + admin + fleet sync:
+
+   ```bash
+   chmod +x db/reset-and-sync-toronto.sh
+   ./db/reset-and-sync-toronto.sh
+   ```
+
+   Optional env overrides:
+   - `API_URL` (default `http://localhost:8080`)
+   - `ADMIN_EMAIL` (default `admin@drivebnb.local`)
+   - `ADMIN_PASSWORD` (default `Admin123!`)
+
+8. Scrub all users and recreate only admin + fleet listings:
+
+   ```bash
+   chmod +x db/scrub-users-and-recreate-admin.sh
+   ./db/scrub-users-and-recreate-admin.sh
+   ```
+
+9. Demo mode (company fleet only):
+   - keep `ALLOW_USER_LISTINGS=0` (default)
+   - users can browse/book only
+   - only admin can add listings
+   - later enable user listing with `ALLOW_USER_LISTINGS=1`
+
+10. Admin company listing workflow:
+   - open Admin Dashboard -> Create Listing
+   - choose `Area`, then location source (`Branch` or `Designated Parking`)
+   - choose source location from dropdown (no manual lat/lng for company listings)
+   - confirm auto-filled address + map preview marker
+   - create listing, then upload S3 photos from Listings section
 
 ## Backend API
 
@@ -66,7 +130,7 @@ Server: `http://localhost:8080`
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/auth/register` | Register renter/owner/admin |
+| POST | `/api/auth/register` | Register user/admin |
 | POST | `/api/auth/login` | Login and get JWT |
 | GET | `/api/me` | Current user (Bearer token) |
 | GET | `/api/market/listings` | Map search listings (`bbox`, `cityZone`) |
@@ -85,8 +149,11 @@ Server: `http://localhost:8080`
 | GET | `/api/reservations` | Legacy reservation lookup |
 | GET | `/api/admin/relocation/simulate` | Legacy relocation planner |
 | POST | `/api/admin/fleet/sync-listings` | Mirror available fleet cars into marketplace listings |
+| GET | `/api/admin/company-locations` | Area/branch/parking catalog for admin listing dropdowns |
+| POST | `/api/uploads/presign` | Create presigned S3 upload URL |
+| POST | `/api/uploads/complete` | Persist uploaded file metadata |
 
-> Admin endpoints require `ADMIN` token.
+> Admin endpoints require admin token.
 
 ## Frontend (React + Tailwind)
 

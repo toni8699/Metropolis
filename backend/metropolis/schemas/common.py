@@ -9,3 +9,7 @@ class ErrorSchema(ma.Schema):
     status = ma.String(metadata={"example": "error"})
     message = ma.String()
     error = ma.String(required=False)
+
+
+class StatusSchema(ma.Schema):
+    status = ma.String(required=True)

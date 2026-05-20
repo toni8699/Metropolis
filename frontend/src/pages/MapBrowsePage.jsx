@@ -4,6 +4,14 @@ import SearchResultsView from "../components/SearchResultsView";
 import { apiGet } from "../utils/api";
 import { getUserLocation, haversineKm } from "../lib/location";
 
+function parseCoord(value) {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const normalized = String(value).trim().replace(",", ".");
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default function MapBrowsePage({ hasSearched, searchParams }) {
   const [userLocation, setUserLocation] = useState(null);
   const [listings, setListings] = useState([]);
@@ -13,7 +21,7 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
   const queryPath = useMemo(() => {
     const params = new URLSearchParams();
     if (!hasSearched) {
-      params.set("bbox", "-73.75,45.45,-73.50,45.62");
+      params.set("bbox", "-79.65,43.58,-79.10,43.86");
     }
     if (searchParams?.pickupDate) {
       params.set("start", `${searchParams.pickupDate}T00:00:00Z`);
@@ -72,11 +80,13 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
 
     const maxDistanceKm = 50;
     const nearby = listings.filter((listing) => {
-      if (listing.lat == null || listing.lng == null) return false;
+      const lat = parseCoord(listing.lat);
+      const lng = parseCoord(listing.lng);
+      if (lat == null || lng == null) return false;
       return (
         haversineKm(
           { lat: center.lat, lng: center.lng },
-          { lat: listing.lat, lng: listing.lng },
+          { lat, lng },
         ) <= maxDistanceKm
       );
     });
@@ -86,29 +96,33 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
 
   const cars = useMemo(
     () =>
-      visibleListings.map((listing) => ({
-        id: listing.listingId,
-        listingId: listing.listingId,
-        images: listing.photos?.length ? listing.photos : [],
-        image: listing.photos?.[0],
-        make: listing.make || listing.brand || "",
-        model: listing.model || listing.title || "",
-        year: listing.year || null,
-        rating: 4.9,
-        details:
-          listing.sourceType === "FLEET"
-            ? "Company Fleet • Automatic"
-            : "Host listed • Automatic",
-        locationText: listing.cityZone ? `${listing.cityZone} • nearby` : null,
-        pricePerDay: listing.pricePerDay,
-        favorite: false,
-        lat: listing.lat,
-        lng: listing.lng,
-        distanceKm:
-          listing.lat != null && listing.lng != null
-            ? haversineKm(userLocation, { lat: listing.lat, lng: listing.lng })
+      visibleListings.map((listing) => {
+        const lat = parseCoord(listing.lat);
+        const lng = parseCoord(listing.lng);
+        const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+        return {
+          id: listing.listingId,
+          listingId: listing.listingId,
+          images: listing.photos?.length ? listing.photos : [],
+          image: listing.photos?.[0],
+          make: listing.make || listing.brand || "",
+          model: listing.model || listing.title || "",
+          year: listing.year || null,
+          rating: 4.9,
+          details:
+            listing.sourceType === "FLEET"
+              ? "Company Fleet • Automatic"
+              : "Host listed • Automatic",
+          locationText: listing.cityZone ? `${listing.cityZone} • nearby` : null,
+          pricePerDay: listing.pricePerDay,
+          favorite: false,
+          lat: hasCoords ? lat : null,
+          lng: hasCoords ? lng : null,
+          distanceKm: hasCoords
+            ? haversineKm(userLocation, { lat, lng })
             : null,
-      })),
+        };
+      }),
     [visibleListings, userLocation]
   );
 
@@ -124,7 +138,7 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
     hasSearched ? (
       <SearchResultsView
         cars={cars}
-        cityLabel={searchParams?.location || visibleListings?.[0]?.cityZone || "Montreal"}
+        cityLabel={searchParams?.location || visibleListings?.[0]?.cityZone || "Toronto"}
         searchCenter={searchParams?.coordinates || null}
         isLoading={isLoading}
       />
