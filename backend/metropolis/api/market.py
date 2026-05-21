@@ -8,7 +8,8 @@ from metropolis.schemas.marketplace import (
     ListingItemSchema,
     ListingSearchSchema,
 )
-from metropolis.services import marketplace_service
+from metropolis.schemas.reviews import ReviewCollectionSchema
+from metropolis.services import marketplace_service, review_service
 
 bp = Blueprint("market", __name__, url_prefix="/api/market")
 
@@ -35,6 +36,20 @@ def get_listing(listing_id: int):
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
+    if result["status"] == "not_found":
+        raise NotFound(description=result["message"])
+    return result
+
+
+@bp.get("/listings/<int:listing_id>/reviews")
+@response(ReviewCollectionSchema)
+@other_responses({404: (ErrorSchema, "Listing not found."), 500: (ErrorSchema, "Server error.")})
+def list_listing_reviews(listing_id: int):
+    """List public listing reviews (renter feedback on the vehicle)."""
+    try:
+        result = review_service.list_listing_reviews(listing_id)
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
     if result["status"] == "not_found":
         raise NotFound(description=result["message"])
     return result

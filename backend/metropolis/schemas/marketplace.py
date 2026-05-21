@@ -127,6 +127,8 @@ class ListingSchema(ma.Schema):
     createdByUserId = ma.Integer(allow_none=True)
     createdAt = ma.String(required=True)
     updatedAt = ma.String(required=True)
+    averageRating = ma.Float(allow_none=True)
+    reviewCount = ma.Integer(required=True)
 
 
 class ListingCollectionSchema(ma.Schema):

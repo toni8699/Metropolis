@@ -9,7 +9,8 @@ from metropolis.schemas.bookings import (
     BookingItemSchema,
 )
 from metropolis.schemas.common import ErrorSchema
-from metropolis.services import marketplace_service
+from metropolis.schemas.reviews import ReviewItemSchema, ReviewSubmitSchema
+from metropolis.services import marketplace_service, review_service
 
 bp = Blueprint("bookings", __name__, url_prefix="/api/bookings")
 
@@ -117,6 +118,37 @@ def complete_booking(booking_id: int):
             int(g.current_user["sub"]),
             g.current_user["isAdmin"],
             "COMPLETED",
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+    if result["status"] == "validation_error":
+        raise BadRequest(description=result["message"])
+    if result["status"] == "not_found":
+        raise NotFound(description=result["message"])
+    if result["status"] == "forbidden":
+        raise Forbidden(description=result["message"])
+    return result
+
+
+@bp.post("/<int:booking_id>/reviews")
+@require_auth()
+@body(ReviewSubmitSchema)
+@response(ReviewItemSchema, 201)
+@other_responses({
+    400: (ErrorSchema, "Validation error."),
+    403: (ErrorSchema, "Forbidden."),
+    404: (ErrorSchema, "Not found."),
+    500: (ErrorSchema, "Server error."),
+})
+def submit_review(payload, booking_id: int):
+    """Submit listing or renter feedback for a completed booking."""
+    try:
+        result = review_service.submit_review(
+            booking_id,
+            int(g.current_user["sub"]),
+            payload["targetType"],
+            payload["rating"],
+            payload.get("comment"),
         )
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc

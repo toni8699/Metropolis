@@ -1,0 +1,17 @@
+Alembic migrations for Metropolis Nexus.
+
+Run from `backend/` with `DATABASE_URL` in the project `.env`.
+
+```bash
+alembic upgrade head          # apply pending revisions
+alembic current               # show current revision
+alembic history               # list revisions
+alembic revision -m "message" # new revision (edit upgrade/downgrade)
+alembic stamp head            # mark DB up-to-date without running SQL
+```
+
+With Docker (backend container running):
+
+```bash
+docker compose exec backend alembic upgrade head
+```

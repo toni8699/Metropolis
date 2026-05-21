@@ -47,6 +47,31 @@ def _listing_image_urls(payload: dict) -> list[str]:
     return deduped
 
 
+def _fetch_listing_ratings_map(cur, listing_ids: list[int]) -> dict[int, dict]:
+    if not listing_ids:
+        return {}
+    cur.execute(
+        """
+        SELECT
+          target_listing_id AS listing_id,
+          ROUND(AVG(rating)::numeric, 2) AS average_rating,
+          COUNT(*)::int AS review_count
+        FROM review
+        WHERE target_listing_id = ANY(%s)
+          AND target_type = 'LISTING'
+        GROUP BY target_listing_id
+        """,
+        (listing_ids,),
+    )
+    return {
+        row["listing_id"]: {
+            "average_rating": float(row["average_rating"]) if row["average_rating"] is not None else None,
+            "review_count": int(row["review_count"] or 0),
+        }
+        for row in cur.fetchall()
+    }
+
+
 def _fetch_listing_images_map(cur, listing_ids: list[int]) -> dict[int, list[str]]:
     if not listing_ids:
         return {}
@@ -146,19 +171,35 @@ def _upsert_listing_location(
 def _hydrate_listing_rows(cur, rows: list[dict]) -> list[dict]:
     listing_ids = [row["listing_id"] for row in rows]
     images_by_listing = _fetch_listing_images_map(cur, listing_ids)
+    ratings_by_listing = _fetch_listing_ratings_map(cur, listing_ids)
     return [
-        _to_listing_row(row, images_by_listing.get(row["listing_id"], []))
+        _to_listing_row(
+            row,
+            images_by_listing.get(row["listing_id"], []),
+            ratings_by_listing.get(row["listing_id"]),
+        )
         for row in rows
     ]
 
 
-def _to_listing_row(row: dict, image_urls: list[str] | None = None) -> dict:
+def _to_listing_row(
+    row: dict,
+    image_urls: list[str] | None = None,
+    ratings: dict | None = None,
+) -> dict:
     urls = image_urls if image_urls is not None else []
     lat = row.get("lat")
     lng = row.get("lng")
     guidelines = row.get("guidelines")
     raw_address = row.get("raw_address")
     pickup_address = row.get("pickup_address")
+    rating_stats = ratings or {}
+    average_rating = rating_stats.get("average_rating")
+    if average_rating is None and row.get("average_rating") is not None:
+        average_rating = float(row["average_rating"])
+    review_count = rating_stats.get("review_count")
+    if review_count is None:
+        review_count = int(row.get("review_count") or 0)
     return {
         "listingId": row["listing_id"],
         "sourceType": row["source_type"],
@@ -201,6 +242,8 @@ def _to_listing_row(row: dict, image_urls: list[str] | None = None) -> dict:
         "createdByUserId": row.get("created_by_user_id"),
         "createdAt": row["created_at"].isoformat(),
         "updatedAt": row["updated_at"].isoformat(),
+        "averageRating": average_rating,
+        "reviewCount": review_count,
     }
 
 
@@ -871,12 +914,51 @@ class MarketplaceService:
             },
         }
 
+    def _has_active_booking_conflict(
+        self,
+        cur,
+        *,
+        listing_id: int,
+        source_type: str,
+        fleet_vehicle_vin: str | None,
+        start_at,
+        end_at,
+    ) -> bool:
+        cur.execute(
+            """
+            SELECT 1
+            FROM booking b
+            JOIN vehicle_listing vl ON vl.listing_id = b.listing_id
+            WHERE b.status IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS')
+              AND NOT (%s >= b.end_at OR %s <= b.start_at)
+              AND (
+                b.listing_id = %s
+                OR (
+                  %s = 'FLEET'
+                  AND %s IS NOT NULL
+                  AND vl.fleet_vehicle_vin = %s
+                )
+              )
+            LIMIT 1
+            """,
+            (
+                end_at,
+                start_at,
+                listing_id,
+                source_type,
+                fleet_vehicle_vin,
+                fleet_vehicle_vin,
+            ),
+        )
+        return cur.fetchone() is not None
+
     def create_booking(self, renter_user_id: int, payload: dict) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     """
-                    SELECT listing_id, title, owner_user_id, source_type, price_per_day, active
+                    SELECT listing_id, title, owner_user_id, source_type, fleet_vehicle_vin,
+                           price_per_day, active
                     FROM vehicle_listing
                     WHERE listing_id = %s
                     FOR UPDATE
@@ -886,18 +968,14 @@ class MarketplaceService:
                 listing = cur.fetchone()
                 if not listing or not listing["active"]:
                     return {"status": "not_found", "message": "Listing not found or inactive."}
-                cur.execute(
-                    """
-                    SELECT 1
-                    FROM booking
-                    WHERE listing_id = %s
-                      AND status IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS')
-                      AND NOT (%s >= end_at OR %s <= start_at)
-                    LIMIT 1
-                    """,
-                    (payload["listingId"], payload["startAt"], payload["endAt"]),
-                )
-                if cur.fetchone():
+                if self._has_active_booking_conflict(
+                    cur,
+                    listing_id=listing["listing_id"],
+                    source_type=listing["source_type"],
+                    fleet_vehicle_vin=listing.get("fleet_vehicle_vin"),
+                    start_at=payload["startAt"],
+                    end_at=payload["endAt"],
+                ):
                     return {"status": "validation_error", "message": "Listing unavailable for selected window."}
                 cur.execute(
                     """

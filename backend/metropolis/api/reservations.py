@@ -23,7 +23,7 @@ bp = Blueprint("reservations", __name__, url_prefix="/api/reservations")
     }
 )
 def list_reservations(query):
-    """Look up reservations for a customer by email."""
+    """Look up marketplace bookings for an app_user account by email."""
     try:
         body = rental_service.get_reservations_by_email(query["email"])
     except Exception as exc:  # noqa: BLE001
