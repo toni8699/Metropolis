@@ -100,11 +100,9 @@ frontend/
    ./db/scrub-users-and-recreate-admin.sh
    ```
 
-9. Demo mode (company fleet only):
-   - keep `ALLOW_USER_LISTINGS=0` (default)
-   - users can browse/book only
-   - only admin can add listings
-   - later enable user listing with `ALLOW_USER_LISTINGS=1`
+9. Listing creation mode:
+   - `ALLOW_USER_LISTINGS=1` (default): hosts can create listings via `/host` and `/host/dashboard`
+   - `ALLOW_USER_LISTINGS=0`: admin fleet-only demo (browse/book only for regular users)
 
 10. Admin company listing workflow:
    - open Admin Dashboard -> Create Listing

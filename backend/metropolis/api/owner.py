@@ -11,10 +11,39 @@ from metropolis.schemas.marketplace import (
     ListingItemSchema,
     ListingLocationSchema,
     ListingUpdateSchema,
+    OwnerBookingsSchema,
+    VehicleClassCollectionSchema,
 )
 from metropolis.services import marketplace_service
 
 bp = Blueprint("owner", __name__, url_prefix="/api/owner")
+
+
+@bp.get("/vehicle-classes")
+@require_auth()
+@response(VehicleClassCollectionSchema)
+@other_responses({500: (ErrorSchema, "Server error.")})
+def owner_vehicle_classes():
+    """List vehicle classes for owner listing forms."""
+    try:
+        return {
+            "status": "success",
+            "vehicleClasses": marketplace_service.list_vehicle_classes(),
+        }
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+
+
+@bp.get("/bookings")
+@require_auth()
+@response(OwnerBookingsSchema)
+@other_responses({500: (ErrorSchema, "Server error.")})
+def owner_bookings():
+    """List bookings for listings owned by the authenticated user."""
+    try:
+        return marketplace_service.owner_bookings(g.current_user["userId"])
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
 
 
 @bp.get("/listings")

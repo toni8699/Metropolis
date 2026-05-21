@@ -8,3 +8,4 @@
 \ir ./006_company_location_sources.sql
 \ir ./007_listing_vehicle_specs.sql
 \ir ./008_listing_rich_details.sql
+\ir ./009_schema_standardization.sql

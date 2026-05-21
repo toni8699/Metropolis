@@ -2,11 +2,11 @@ export default function UserMenuDropdown({
   isAuthenticated,
   onLogin,
   onSignup,
-  onSwitchToHosting,
+  onOpenHostDashboard,
   onOpenAdminDashboard,
   onLogout,
-  canHost,
   canAdmin,
+  showHostDashboard,
 }) {
   return (
     <div className="absolute right-0 top-full z-[70] mt-2 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
@@ -33,12 +33,12 @@ export default function UserMenuDropdown({
           <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50">
             Trips
           </button>
-          {canHost && (
+          {showHostDashboard && (
             <button
-              onClick={onSwitchToHosting}
+              onClick={onOpenHostDashboard}
               className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
             >
-              Switch to Hosting
+              Host Dashboard
             </button>
           )}
           {canAdmin && (

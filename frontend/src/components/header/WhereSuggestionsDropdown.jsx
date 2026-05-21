@@ -34,7 +34,7 @@ export default function WhereSuggestionsDropdown({
               prediction.structured_formatting?.secondary_text || "";
             return (
               <button
-                key={prediction.place_id}
+                key={prediction.placeId || prediction.place_id}
                 onClick={() => onPickPrediction(prediction, title)}
                 className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-gray-50"
               >

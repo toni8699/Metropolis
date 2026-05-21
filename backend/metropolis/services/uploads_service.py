@@ -157,18 +157,31 @@ class UploadsService:
                     ),
                 )
                 row = cur.fetchone()
-                if scope == "OWNER_LISTING" and listing_id:
+                if listing_id:
+                    cur.execute(
+                        """
+                        SELECT COALESCE(MAX(display_order), -1) + 1 AS next_order
+                        FROM listing_image
+                        WHERE listing_id = %s
+                        """,
+                        (listing_id,),
+                    )
+                    next_order = int(cur.fetchone()["next_order"])
+                    cur.execute(
+                        """
+                        INSERT INTO listing_image (listing_id, file_id, display_order)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (listing_id, file_id) DO NOTHING
+                        """,
+                        (listing_id, row["file_id"], next_order),
+                    )
                     cur.execute(
                         """
                         UPDATE vehicle_listing
-                        SET photos_json = CASE
-                            WHEN photos_json @> to_jsonb(ARRAY[%s]::text[]) THEN photos_json
-                            ELSE photos_json || to_jsonb(ARRAY[%s]::text[])
-                        END,
-                        updated_at = NOW()
+                        SET updated_at = NOW()
                         WHERE listing_id = %s
                         """,
-                        (file_url, file_url, listing_id),
+                        (listing_id,),
                     )
                 conn.commit()
 

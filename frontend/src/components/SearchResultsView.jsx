@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   GoogleMap,
   OverlayView,
+  OverlayViewF,
   useJsApiLoader,
 } from "@react-google-maps/api";
 import {
@@ -12,6 +13,8 @@ import {
   Star,
 } from "lucide-react";
 import CarGrid from "./CarGrid";
+import { formatPricePerDay } from "../lib/formatPrice";
+import { spreadOverlappingMarkers } from "../lib/mapMarkers";
 
 const fallbackCenter = { lat: 43.6532, lng: -79.3832 };
 const simplifiedMapStyles = [
@@ -30,26 +33,38 @@ function parseCoord(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+const markerOffset = (width, height) => ({
+  x: -(width / 2),
+  y: -(height / 2),
+});
+
 function PriceMarker({ car, isActive, onClick }) {
+  const priceLabel = formatPricePerDay(car.pricePerDay);
+  if (priceLabel == null) return null;
+
   return (
-    <OverlayView
+    <OverlayViewF
       position={{ lat: car.lat, lng: car.lng }}
       mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+      getPixelPositionOffset={markerOffset}
     >
-      <button
-        onClick={(event) => {
-          event.stopPropagation();
-          onClick();
-        }}
-        onMouseDown={(event) => event.stopPropagation()}
-        onTouchStart={(event) => event.stopPropagation()}
-        className={`cursor-pointer rounded-full border border-gray-200 px-3 py-1.5 text-sm font-bold shadow-md transition-transform hover:scale-105 ${
-          isActive ? "bg-gray-900 text-white" : "bg-white text-gray-900"
-        }`}
-      >
-        ${car.pricePerDay}
-      </button>
-    </OverlayView>
+      <div style={{ position: "absolute", left: 0, top: 0 }}>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onClick();
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
+          className={`cursor-pointer whitespace-nowrap rounded-full border border-gray-200 px-3 py-1.5 text-sm font-bold shadow-md transition-transform hover:scale-105 ${
+            isActive ? "bg-gray-900 text-white" : "bg-white text-gray-900"
+          }`}
+        >
+          ${priceLabel}
+        </button>
+      </div>
+    </OverlayViewF>
   );
 }
 
@@ -144,7 +159,7 @@ function MapPopupCard({ car }) {
           {car.details || car.sourceType || "Automatic"}
         </p>
         <p className="mt-1 text-gray-900">
-          <span className="font-bold">${car.pricePerDay}</span>
+          <span className="font-bold">${formatPricePerDay(car.pricePerDay) ?? "—"}</span>
           <span className="font-normal"> / day</span>
         </p>
       </div>
@@ -154,7 +169,7 @@ function MapPopupCard({ car }) {
 
 function ListingPopup({ car }) {
   return (
-    <OverlayView
+    <OverlayViewF
       position={{ lat: car.lat, lng: car.lng }}
       mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
     >
@@ -167,8 +182,17 @@ function ListingPopup({ car }) {
       >
         <MapPopupCard car={car} />
       </div>
-    </OverlayView>
+    </OverlayViewF>
   );
+}
+
+function fitMapToCars(map, cars) {
+  if (!map || !cars.length || !window.google?.maps) return;
+  const bounds = new window.google.maps.LatLngBounds();
+  for (const car of cars) {
+    bounds.extend({ lat: car.lat, lng: car.lng });
+  }
+  map.fitBounds(bounds, { top: 64, right: 48, bottom: 48, left: 48 });
 }
 
 export default function SearchResultsView({
@@ -180,6 +204,7 @@ export default function SearchResultsView({
   const [activeId, setActiveId] = useState(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [selectedCar, setSelectedCar] = useState(null);
+  const mapRef = useRef(null);
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const { isLoaded } = useJsApiLoader({
     id: "google-maps-script",
@@ -187,20 +212,35 @@ export default function SearchResultsView({
     libraries: ["places"],
   });
 
-  const mapCars = useMemo(
-    () =>
-      cars
-        .map((car) => {
-          const lat = parseCoord(car.lat);
-          const lng = parseCoord(car.lng);
-          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-          return { ...car, lat, lng };
-        })
-        .filter(Boolean),
-    [cars]
-  );
+  const mapCars = useMemo(() => {
+    const withCoords = cars
+      .map((car) => {
+        const lat = parseCoord(car.lat ?? car.latitude);
+        const lng = parseCoord(car.lng ?? car.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        const listingId = car.listingId ?? car.id;
+        const pricePerDay =
+          car.pricePerDay ?? car.price_per_day ?? car.priceSnapshot?.pricePerDay;
+        return {
+          ...car,
+          id: listingId,
+          listingId,
+          lat,
+          lng,
+          pricePerDay,
+        };
+      })
+      .filter(Boolean);
+    return spreadOverlappingMarkers(withCoords);
+  }, [cars]);
 
+  // Center on listing pins first — search city can be far from Toronto fleet data.
   const center = useMemo(() => {
+    if (mapCars.length > 0) {
+      const latAvg = mapCars.reduce((sum, c) => sum + c.lat, 0) / mapCars.length;
+      const lngAvg = mapCars.reduce((sum, c) => sum + c.lng, 0) / mapCars.length;
+      return { lat: latAvg, lng: lngAvg };
+    }
     if (
       searchCenter &&
       Number.isFinite(searchCenter.lat) &&
@@ -208,10 +248,25 @@ export default function SearchResultsView({
     ) {
       return { lat: searchCenter.lat, lng: searchCenter.lng };
     }
-    if (mapCars.length === 0) return fallbackCenter;
-    const latAvg = mapCars.reduce((sum, c) => sum + c.lat, 0) / mapCars.length;
-    const lngAvg = mapCars.reduce((sum, c) => sum + c.lng, 0) / mapCars.length;
-    return { lat: latAvg, lng: lngAvg };
+    return fallbackCenter;
+  }, [mapCars, searchCenter]);
+
+  const onMapLoad = useCallback((map) => {
+    mapRef.current = map;
+  }, []);
+
+  useEffect(() => {
+    if (mapCars.length > 0) {
+      fitMapToCars(mapRef.current, mapCars);
+    } else if (
+      mapRef.current &&
+      searchCenter &&
+      Number.isFinite(searchCenter.lat) &&
+      Number.isFinite(searchCenter.lng)
+    ) {
+      mapRef.current.setCenter({ lat: searchCenter.lat, lng: searchCenter.lng });
+      mapRef.current.setZoom(11);
+    }
   }, [mapCars, searchCenter]);
 
   const handleMapClick = (event) => {
@@ -251,6 +306,14 @@ export default function SearchResultsView({
                   <div className="h-4 w-1/2 animate-pulse rounded bg-gray-100" />
                 </div>
               ))}
+            </div>
+          ) : cars.length === 0 ? (
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-8 text-center">
+              <p className="text-lg font-medium text-gray-900">No cars near {cityLabel}</p>
+              <p className="mt-2 text-sm text-gray-600">
+                Try another city or widen your search. Listings only show within 50 km of your
+                picked location.
+              </p>
             </div>
           ) : (
             <CarGrid
@@ -295,7 +358,8 @@ export default function SearchResultsView({
                 <GoogleMap
                   mapContainerStyle={{ width: "100%", height: "100%" }}
                   center={center}
-                  zoom={12}
+                  zoom={mapCars.length > 1 ? 11 : 12}
+                  onLoad={onMapLoad}
                   onClick={handleMapClick}
                   options={{
                     disableDefaultUI: true,
@@ -304,17 +368,20 @@ export default function SearchResultsView({
                     styles: simplifiedMapStyles,
                   }}
                 >
-                  {mapCars.map((car) => (
-                    <PriceMarker
-                      key={car.id}
-                      car={car}
-                      isActive={activeId === car.id}
-                      onClick={() => {
-                        setActiveId(car.id);
-                        setSelectedCar(car);
-                      }}
-                    />
-                  ))}
+                  {mapCars.map((car) => {
+                    const markerKey = car.listingId ?? car.id;
+                    return (
+                      <PriceMarker
+                        key={markerKey}
+                        car={car}
+                        isActive={activeId === markerKey}
+                        onClick={() => {
+                          setActiveId(markerKey);
+                          setSelectedCar(car);
+                        }}
+                      />
+                    );
+                  })}
 
                   {selectedCar && (
                     <ListingPopup

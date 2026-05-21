@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "./context/AuthContext";
 import BookingDetailsPage from "./pages/BookingDetailsPage";
 import BookingCheckoutPage from "./pages/BookingCheckoutPage";
 import ListingDetailPage from "./pages/ListingDetailPage";
@@ -8,7 +9,16 @@ import OwnerDashboardPage from "./pages/OwnerDashboardPage";
 import TripsPage from "./pages/TripsPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import Layout from "./components/Layout";
+import HostOnboardingFlow from "./components/HostOnboardingFlow";
 import { RequireAuth, RequireRole } from "./components/RouteGuards";
+
+function HostEntry() {
+  const { isAdmin } = useAuth();
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
+  return <HostOnboardingFlow />;
+}
 
 export default function App() {
   const [hasSearched, setHasSearched] = useState(false);
@@ -69,7 +79,8 @@ export default function App() {
       <Route path="/app/*" element={mainAppShell} />
 
       <Route element={<RequireAuth />}>
-        <Route path="/host" element={<OwnerDashboardPage />} />
+        <Route path="/host" element={<HostEntry />} />
+        <Route path="/host/dashboard" element={<OwnerDashboardPage />} />
         <Route element={<RequireRole roles={["admin"]} />}>
           <Route path="/admin" element={<AdminDashboardPage />} />
         </Route>

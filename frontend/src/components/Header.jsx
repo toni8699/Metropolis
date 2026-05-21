@@ -16,12 +16,16 @@ import UserMenuDropdown from "./header/UserMenuDropdown";
 import CollapsedSearchPill from "./header/CollapsedSearchPill";
 import WhereSuggestionsDropdown from "./header/WhereSuggestionsDropdown";
 import WhenDateDropdown from "./header/WhenDateDropdown";
+import {
+  fetchPlacePredictions,
+  resolvePredictionCoordinates,
+} from "../lib/placesAutocomplete";
 
 export default function Header({ onSearch, onHome }) {
   const navigate = useNavigate();
-  const { isAuthenticated, hasListings, isAdmin, logout } = useAuth();
-  const canHost = hasListings;
+  const { isAuthenticated, isAdmin, logout } = useAuth();
   const canAdmin = isAdmin;
+  const showHostDashboard = isAuthenticated && !isAdmin;
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
@@ -35,7 +39,6 @@ export default function Header({ onSearch, onHome }) {
   const [selectedCoordinates, setSelectedCoordinates] = useState(null);
   const [selectedRange, setSelectedRange] = useState();
   const searchContainerRef = useRef(null);
-  const autocompleteServiceRef = useRef(null);
   const geocoderRef = useRef(null);
   const mobileUserMenuRef = useRef(null);
   const desktopUserMenuRef = useRef(null);
@@ -157,10 +160,6 @@ export default function Header({ onSearch, onHome }) {
     if (!isPlacesLoaded || !window.google?.maps) return;
 
     try {
-      if (!autocompleteServiceRef.current && window.google.maps.places) {
-        autocompleteServiceRef.current =
-          new window.google.maps.places.AutocompleteService();
-      }
       if (!geocoderRef.current) {
         geocoderRef.current = new window.google.maps.Geocoder();
       }
@@ -182,7 +181,7 @@ export default function Header({ onSearch, onHome }) {
       setPlacesError("Google Maps failed to load.");
       return;
     }
-    if (!autocompleteServiceRef.current) {
+    if (!window.google?.maps?.places) {
       setPlacePredictions([]);
       setPlacesError("Location suggestions are not ready yet.");
       return;
@@ -193,35 +192,12 @@ export default function Header({ onSearch, onHome }) {
       setIsLoading(true);
       setPlacesError("");
       try {
-        await new Promise((resolve) => {
-          autocompleteServiceRef.current.getPlacePredictions(
-            {
-              input: searchQuery,
-              types: ["geocode"],
-            },
-            (predictions, status) => {
-              if (isCancelled) {
-                resolve();
-                return;
-              }
-              if (
-                status === window.google.maps.places.PlacesServiceStatus.OK &&
-                predictions
-              ) {
-                setPlacePredictions(predictions);
-              } else if (
-                status ===
-                window.google.maps.places.PlacesServiceStatus.ZERO_RESULTS
-              ) {
-                setPlacePredictions([]);
-              } else {
-                setPlacePredictions([]);
-                setPlacesError("Could not fetch location suggestions.");
-              }
-              resolve();
-            },
-          );
+        const predictions = await fetchPlacePredictions(searchQuery, {
+          types: ["geocode"],
         });
+        if (!isCancelled) {
+          setPlacePredictions(predictions);
+        }
       } catch {
         if (!isCancelled) {
           setPlacePredictions([]);
@@ -239,27 +215,6 @@ export default function Header({ onSearch, onHome }) {
       window.clearTimeout(debounceId);
     };
   }, [searchQuery, isSearchExpanded, activeSection, placesLoadError]);
-
-  const geocodePlace = (placeId) =>
-    new Promise((resolve, reject) => {
-      if (!geocoderRef.current) {
-        reject(new Error("Geocoder unavailable"));
-        return;
-      }
-      geocoderRef.current.geocode({ placeId }, (results, status) => {
-        if (
-          status === "OK" &&
-          results?.[0]?.geometry?.location &&
-          typeof results[0].geometry.location.lat === "function" &&
-          typeof results[0].geometry.location.lng === "function"
-        ) {
-          const point = results[0].geometry.location;
-          resolve({ lat: point.lat(), lng: point.lng() });
-          return;
-        }
-        reject(new Error("Could not resolve place coordinates"));
-      });
-    });
 
   const setToday = () => {
     const today = new Date();
@@ -297,11 +252,15 @@ export default function Header({ onSearch, onHome }) {
   };
 
   const handleHostClick = () => {
-    if (isAuthenticated) {
-      navigate("/host");
+    if (!isAuthenticated) {
+      openAuthModal("login");
       return;
     }
-    openAuthModal("login");
+    if (isAdmin) {
+      navigate("/admin");
+      return;
+    }
+    navigate("/host");
   };
 
   const handleLogout = () => {
@@ -315,7 +274,7 @@ export default function Header({ onSearch, onHome }) {
     setSearchQuery(title);
     setPlacesError("");
     try {
-      const coords = await geocodePlace(prediction.place_id);
+      const coords = await resolvePredictionCoordinates(prediction);
       setSelectedCoordinates(coords);
     } catch {
       setSelectedCoordinates(null);
@@ -360,8 +319,8 @@ export default function Header({ onSearch, onHome }) {
                   isAuthenticated={isAuthenticated}
                   onLogin={() => openAuthModal("login")}
                   onSignup={() => openAuthModal("signup")}
-                  onSwitchToHosting={() => {
-                    navigate("/host");
+                  onOpenHostDashboard={() => {
+                    navigate("/host/dashboard");
                     setIsUserMenuOpen(false);
                   }}
                   onOpenAdminDashboard={() => {
@@ -369,7 +328,7 @@ export default function Header({ onSearch, onHome }) {
                     setIsUserMenuOpen(false);
                   }}
                   onLogout={handleLogout}
-                  canHost={canHost}
+                  showHostDashboard={showHostDashboard}
                   canAdmin={canAdmin}
                 />
               )}
@@ -457,7 +416,7 @@ export default function Header({ onSearch, onHome }) {
               onClick={handleHostClick}
               className="rounded-full px-5 py-3 text-base font-semibold hover:bg-gray-100"
             >
-              {canHost ? "Switch to Hosting" : "Host your car"}
+              {isAdmin ? "Admin dashboard" : "Host your car"}
             </button>
             <button
               className="rounded-full p-3 hover:bg-gray-100"
@@ -479,8 +438,8 @@ export default function Header({ onSearch, onHome }) {
                   isAuthenticated={isAuthenticated}
                   onLogin={() => openAuthModal("login")}
                   onSignup={() => openAuthModal("signup")}
-                  onSwitchToHosting={() => {
-                    navigate("/host");
+                  onOpenHostDashboard={() => {
+                    navigate("/host/dashboard");
                     setIsUserMenuOpen(false);
                   }}
                   onOpenAdminDashboard={() => {
@@ -488,7 +447,7 @@ export default function Header({ onSearch, onHome }) {
                     setIsUserMenuOpen(false);
                   }}
                   onLogout={handleLogout}
-                  canHost={canHost}
+                  showHostDashboard={showHostDashboard}
                   canAdmin={canAdmin}
                 />
               )}

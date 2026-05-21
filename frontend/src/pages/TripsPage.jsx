@@ -16,10 +16,10 @@ export default function TripsPage() {
           Back to search
         </Link>
         <Link
-          to="/host"
+          to="/host/dashboard"
           className="rounded-lg border border-gray-300 px-5 py-2.5 font-medium text-gray-700 hover:bg-gray-50"
         >
-          Switch to Hosting
+          Host Dashboard
         </Link>
       </div>
     </div>

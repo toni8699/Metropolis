@@ -65,6 +65,8 @@ class ListingLocationSchema(ma.Schema):
     lat = ma.Float(required=True)
     lng = ma.Float(required=True)
     cityZone = ma.String(required=True)
+    rawAddress = ma.String(required=False, allow_none=True)
+    address = ma.String(required=False, allow_none=True)
 
 
 class ListingAvailabilitySchema(ma.Schema):
@@ -135,3 +137,13 @@ class ListingCollectionSchema(ma.Schema):
 class ListingItemSchema(ma.Schema):
     status = ma.String(required=True)
     listing = ma.Nested(ListingSchema)
+
+
+class VehicleClassCollectionSchema(ma.Schema):
+    status = ma.String(required=True)
+    vehicleClasses = ma.List(ma.Raw(), required=True)
+
+
+class OwnerBookingsSchema(ma.Schema):
+    status = ma.String(required=True)
+    bookings = ma.List(ma.Raw(), required=True)

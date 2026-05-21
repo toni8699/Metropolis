@@ -9,7 +9,156 @@ from psycopg2.extras import Json, RealDictCursor
 from metropolis.db import get_connection
 
 
-def _to_listing_row(row: dict) -> dict:
+LISTING_SELECT_SQL = """
+    SELECT l.*,
+           loc.lat,
+           loc.lng,
+           loc.geohash,
+           loc.city_zone,
+           loc.raw_address,
+           u.full_name AS owner_name
+    FROM vehicle_listing l
+    LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
+    LEFT JOIN app_user u ON u.user_id = l.owner_user_id
+"""
+
+
+def _resolve_guidelines(payload: dict) -> str | None:
+    guidelines = payload.get("guidelines")
+    if guidelines is None:
+        guidelines = payload.get("rules")
+    return guidelines
+
+
+def _listing_image_urls(payload: dict) -> list[str]:
+    urls: list[str] = []
+    for key in ("images", "photos"):
+        values = payload.get(key)
+        if not values:
+            continue
+        if isinstance(values, list):
+            urls.extend(str(value).strip() for value in values if str(value).strip())
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        if url not in seen:
+            seen.add(url)
+            deduped.append(url)
+    return deduped
+
+
+def _fetch_listing_images_map(cur, listing_ids: list[int]) -> dict[int, list[str]]:
+    if not listing_ids:
+        return {}
+    cur.execute(
+        """
+        SELECT li.listing_id, fa.file_url
+        FROM listing_image li
+        JOIN file_asset fa ON fa.file_id = li.file_id
+        WHERE li.listing_id = ANY(%s)
+        ORDER BY li.listing_id, li.display_order, fa.created_at
+        """,
+        (listing_ids,),
+    )
+    images_by_listing: dict[int, list[str]] = {}
+    for row in cur.fetchall():
+        images_by_listing.setdefault(row["listing_id"], []).append(row["file_url"])
+    return images_by_listing
+
+
+def _associate_listing_image_urls(
+    cur,
+    listing_id: int,
+    urls: list[str],
+    owner_user_id: int | None,
+) -> None:
+    for display_order, url in enumerate(urls):
+        cur.execute(
+            """
+            SELECT file_id
+            FROM file_asset
+            WHERE listing_id = %s AND file_url = %s
+            """,
+            (listing_id, url),
+        )
+        existing = cur.fetchone()
+        if existing:
+            file_id = existing["file_id"]
+        else:
+            object_key = f"external/{listing_id}/{hashlib.sha256(url.encode('utf-8')).hexdigest()}"
+            cur.execute(
+                """
+                INSERT INTO file_asset (
+                  owner_user_id, listing_id, bucket, object_key, file_url, scope
+                )
+                VALUES (%s, %s, 'external', %s, %s, 'OWNER_LISTING')
+                ON CONFLICT (object_key) DO UPDATE
+                SET listing_id = COALESCE(file_asset.listing_id, EXCLUDED.listing_id),
+                    file_url = EXCLUDED.file_url
+                RETURNING file_id
+                """,
+                (owner_user_id, listing_id, object_key, url),
+            )
+            file_id = cur.fetchone()["file_id"]
+        cur.execute(
+            """
+            INSERT INTO listing_image (listing_id, file_id, display_order)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (listing_id, file_id) DO UPDATE
+            SET display_order = EXCLUDED.display_order
+            """,
+            (listing_id, file_id, display_order),
+        )
+
+
+def _upsert_listing_location(
+    cur,
+    listing_id: int,
+    *,
+    lat: float,
+    lng: float,
+    city_zone: str,
+    raw_address: str | None,
+) -> None:
+    cur.execute(
+        """
+        INSERT INTO listing_location (listing_id, lat, lng, geohash, city_zone, raw_address, last_parked_at)
+        VALUES (%s, %s, %s, %s, %s, %s, NOW())
+        ON CONFLICT (listing_id) DO UPDATE
+        SET lat = EXCLUDED.lat,
+            lng = EXCLUDED.lng,
+            geohash = EXCLUDED.geohash,
+            city_zone = EXCLUDED.city_zone,
+            raw_address = COALESCE(EXCLUDED.raw_address, listing_location.raw_address),
+            last_parked_at = NOW()
+        """,
+        (
+            listing_id,
+            lat,
+            lng,
+            _simple_geohash(lat, lng),
+            city_zone,
+            raw_address,
+        ),
+    )
+
+
+def _hydrate_listing_rows(cur, rows: list[dict]) -> list[dict]:
+    listing_ids = [row["listing_id"] for row in rows]
+    images_by_listing = _fetch_listing_images_map(cur, listing_ids)
+    return [
+        _to_listing_row(row, images_by_listing.get(row["listing_id"], []))
+        for row in rows
+    ]
+
+
+def _to_listing_row(row: dict, image_urls: list[str] | None = None) -> dict:
+    urls = image_urls if image_urls is not None else []
+    lat = row.get("lat")
+    lng = row.get("lng")
+    guidelines = row.get("guidelines")
+    raw_address = row.get("raw_address")
+    pickup_address = row.get("pickup_address")
     return {
         "listingId": row["listing_id"],
         "sourceType": row["source_type"],
@@ -20,32 +169,32 @@ def _to_listing_row(row: dict) -> dict:
         "year": row.get("year"),
         "mileage": row.get("mileage"),
         "vehicleClassId": row.get("vehicle_class_id"),
-        "description": row["description"],
-        "guidelines": row.get("guidelines") or row.get("rules"),
+        "description": row.get("description"),
+        "guidelines": guidelines,
         "transmission": row.get("transmission"),
         "fuelType": row.get("fuel_type"),
         "seats": row.get("seats"),
         "doors": row.get("doors"),
         "features": row.get("features") or [],
-        "images": row.get("images") or row.get("photos_json") or [],
-        "address": row.get("address") or row.get("pickup_address"),
-        "latitude": float(row.get("latitude")) if row.get("latitude") is not None else (float(row["lat"]) if row["lat"] is not None else None),
-        "longitude": float(row.get("longitude")) if row.get("longitude") is not None else (float(row["lng"]) if row["lng"] is not None else None),
-        "rules": row["rules"],
-        "pickupNotesTemplate": row["pickup_notes_template"],
+        "images": urls,
+        "address": raw_address or pickup_address,
+        "latitude": float(lat) if lat is not None else None,
+        "longitude": float(lng) if lng is not None else None,
+        "rules": guidelines,
+        "pickupNotesTemplate": row.get("pickup_notes_template"),
         "pricePerDay": float(row["price_per_day"]),
-        "photos": row["photos_json"] or [],
+        "photos": urls,
         "active": row["active"],
         "status": row.get("status"),
         "ownerUserId": row["owner_user_id"],
         "isCompanyOwned": bool(row.get("is_company_owned")),
         "ownerName": row["owner_name"],
         "fleetVehicleVin": row["fleet_vehicle_vin"],
-        "lat": float(row["lat"]) if row["lat"] is not None else None,
-        "lng": float(row["lng"]) if row["lng"] is not None else None,
+        "lat": float(lat) if lat is not None else None,
+        "lng": float(lng) if lng is not None else None,
         "cityZone": row["city_zone"],
         "geohash": row["geohash"],
-        "pickupAddress": row.get("pickup_address"),
+        "pickupAddress": pickup_address,
         "locationSourceType": row.get("location_source_type"),
         "branchId": row.get("branch_id"),
         "parkingSpotId": row.get("parking_spot_id"),
@@ -63,6 +212,7 @@ def _to_booking_row(row: dict, instructions: list[dict]) -> dict:
         "sourceType": row["source_type"],
         "ownerUserId": row["owner_user_id"],
         "renterUserId": row["renter_user_id"],
+        "renterEmail": row.get("renter_email"),
         "startAt": row["start_at"].isoformat(),
         "endAt": row["end_at"].isoformat(),
         "status": row["status"],
@@ -197,10 +347,11 @@ class MarketplaceService:
         seats = payload.get("seats")
         doors = payload.get("doors")
         features = payload.get("features")
-        images = payload.get("images")
+        image_urls = _listing_image_urls(payload)
         address = payload.get("address")
         latitude = payload.get("latitude")
         longitude = payload.get("longitude")
+        guidelines = _resolve_guidelines(payload)
         if mileage is not None:
             mileage = int(mileage)
         if vehicle_class_id is not None:
@@ -221,8 +372,6 @@ class MarketplaceService:
             return {"status": "validation_error", "message": "doors must be > 0."}
         if features is None:
             features = []
-        if images is None:
-            images = payload.get("photos", [])
         title = payload.get("title")
         if not title:
             parts = [p for p in [brand, make, model, str(year) if year else None] if p]
@@ -321,19 +470,20 @@ class MarketplaceService:
                     """,
                     (owner_user_id,),
                 )
+                raw_address = address or pickup_address
                 cur.execute(
                     """
                     INSERT INTO vehicle_listing
                     (
                       owner_user_id, created_by_user_id, source_type, title, brand, make, model, year, mileage, vehicle_class_id,
-                      description, guidelines, transmission, fuel_type, seats, doors, features, images, address, latitude, longitude,
-                      rules, pickup_notes_template, price_per_day, photos_json, active, status,
+                      description, guidelines, transmission, fuel_type, seats, doors, features,
+                      pickup_notes_template, price_per_day, active, status,
                       is_company_owned, location_source_type, branch_id, parking_spot_id, pickup_address
                     )
                     VALUES (
                       %s, %s, %s::listing_source_type, %s, %s, %s, %s, %s, %s, %s,
-                      %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s,
-                      %s, %s, %s, %s::jsonb, TRUE, 'ACTIVE',
+                      %s, %s, %s, %s, %s, %s, %s::jsonb,
+                      %s, %s, TRUE, 'ACTIVE',
                       %s, %s, %s, %s, %s
                     )
                     RETURNING listing_id
@@ -350,20 +500,14 @@ class MarketplaceService:
                         mileage,
                         vehicle_class_id,
                         payload.get("description"),
-                        payload.get("guidelines") or payload.get("rules"),
+                        guidelines,
                         transmission,
                         fuel_type,
                         seats,
                         doors,
                         Json(features),
-                        Json(images),
-                        address,
-                        latitude,
-                        longitude,
-                        payload.get("rules"),
                         payload.get("pickupNotesTemplate"),
                         payload["pricePerDay"],
-                        Json(payload.get("photos", images)),
                         is_company_owned,
                         location_source_type,
                         branch_id,
@@ -372,19 +516,16 @@ class MarketplaceService:
                     ),
                 )
                 listing_id = cur.fetchone()["listing_id"]
-                cur.execute(
-                    """
-                    INSERT INTO listing_location (listing_id, lat, lng, geohash, city_zone)
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (
-                        listing_id,
-                        lat,
-                        lng,
-                        _simple_geohash(lat, lng),
-                        city_zone,
-                    ),
+                _upsert_listing_location(
+                    cur,
+                    listing_id,
+                    lat=float(lat),
+                    lng=float(lng),
+                    city_zone=city_zone,
+                    raw_address=raw_address,
                 )
+                if image_urls:
+                    _associate_listing_image_urls(cur, listing_id, image_urls, owner_user_id)
                 conn.commit()
             return self.get_listing(listing_id)
         except Exception as exc:  # noqa: BLE001
@@ -400,52 +541,44 @@ class MarketplaceService:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
-                    """
-                    SELECT l.*, loc.lat, loc.lng, loc.geohash, loc.city_zone, u.full_name AS owner_name
-                    FROM vehicle_listing l
-                    LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
-                    LEFT JOIN app_user u ON u.user_id = l.owner_user_id
+                    f"""
+                    {LISTING_SELECT_SQL}
                     WHERE l.listing_id = %s
                     """,
                     (listing_id,),
                 )
                 row = cur.fetchone()
-        if not row:
-            return {"status": "not_found", "message": "Listing not found."}
-        return {"status": "success", "listing": _to_listing_row(row)}
+                if not row:
+                    return {"status": "not_found", "message": "Listing not found."}
+                listing = _hydrate_listing_rows(cur, [row])[0]
+        return {"status": "success", "listing": listing}
 
     def owner_listings(self, actor: dict) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
-                    """
-                    SELECT l.*, loc.lat, loc.lng, loc.geohash, loc.city_zone, u.full_name AS owner_name
-                    FROM vehicle_listing l
-                    LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
-                    LEFT JOIN app_user u ON u.user_id = l.owner_user_id
+                    f"""
+                    {LISTING_SELECT_SQL}
                     WHERE l.owner_user_id = %s
                     ORDER BY l.created_at DESC
                     """,
                     (actor["userId"],),
                 )
-                rows = cur.fetchall()
-        return {"status": "success", "listings": [_to_listing_row(row) for row in rows]}
+                listings = _hydrate_listing_rows(cur, cur.fetchall())
+        return {"status": "success", "listings": listings}
 
     def admin_listings(self) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
-                    """
-                    SELECT l.*, loc.lat, loc.lng, loc.geohash, loc.city_zone, u.full_name AS owner_name
-                    FROM vehicle_listing l
-                    LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
-                    LEFT JOIN app_user u ON u.user_id = l.owner_user_id
+                    f"""
+                    {LISTING_SELECT_SQL}
                     ORDER BY l.created_at DESC
                     LIMIT 500
                     """
                 )
-                rows = cur.fetchall()
-        return {"status": "success", "listings": [_to_listing_row(row) for row in rows]}
+                listings = _hydrate_listing_rows(cur, cur.fetchall())
+        return {"status": "success", "listings": listings}
 
     def admin_company_locations(self) -> dict:
         with get_connection() as conn:
@@ -519,6 +652,19 @@ class MarketplaceService:
             "vehicleClasses": vehicle_classes,
         }
 
+    def list_vehicle_classes(self) -> list[dict]:
+        with get_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT classid, classname
+                FROM vehicleclass
+                ORDER BY classname ASC
+                """
+            )
+            return [
+                {"vehicleClassId": row["classid"], "name": row["classname"]} for row in cur.fetchall()
+            ]
+
     def search_listings(self, query: dict) -> dict:
         clauses = ["l.active = TRUE"]
         params = []
@@ -535,23 +681,21 @@ class MarketplaceService:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     f"""
-                    SELECT l.*, loc.lat, loc.lng, loc.geohash, loc.city_zone, u.full_name AS owner_name
-                    FROM vehicle_listing l
-                    LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
-                    LEFT JOIN app_user u ON u.user_id = l.owner_user_id
+                    {LISTING_SELECT_SQL}
                     WHERE {where_sql}
                     ORDER BY l.updated_at DESC
                     LIMIT 500
                     """,
                     tuple(params),
                 )
-                rows = cur.fetchall()
-        return {"status": "success", "listings": [_to_listing_row(row) for row in rows]}
+                listings = _hydrate_listing_rows(cur, cur.fetchall())
+        return {"status": "success", "listings": listings}
 
     def update_listing(self, actor: dict, listing_id: int, payload: dict) -> dict:
-        fields = []
-        params = []
-        mapping = {
+        if "rules" in payload and "guidelines" not in payload:
+            payload = {**payload, "guidelines": payload["rules"]}
+
+        vehicle_mapping = {
             "title": "title",
             "brand": "brand",
             "make": "make",
@@ -566,22 +710,32 @@ class MarketplaceService:
             "seats": "seats",
             "doors": "doors",
             "features": "features",
-            "images": "images",
-            "address": "address",
-            "latitude": "latitude",
-            "longitude": "longitude",
-            "rules": "rules",
             "pickupNotesTemplate": "pickup_notes_template",
+            "pickupAddress": "pickup_address",
             "pricePerDay": "price_per_day",
-            "photos": "photos_json",
             "active": "active",
             "isCompanyOwned": "is_company_owned",
         }
-        for key, column in mapping.items():
+        vehicle_fields = []
+        vehicle_params = []
+        for key, column in vehicle_mapping.items():
             if key in payload:
-                fields.append(f"{column} = %s")
-                params.append(Json(payload[key]) if key in {"photos", "features", "images"} else payload[key])
-        if not fields:
+                vehicle_fields.append(f"{column} = %s")
+                vehicle_params.append(Json(payload[key]) if key == "features" else payload[key])
+
+        image_urls = _listing_image_urls(payload)
+        location_keys = {
+            "lat",
+            "lng",
+            "cityZone",
+            "address",
+            "latitude",
+            "longitude",
+            "rawAddress",
+        }
+        has_location_update = any(key in payload for key in location_keys)
+
+        if not vehicle_fields and not has_location_update and not image_urls:
             return {"status": "validation_error", "message": "No fields to update."}
 
         with get_connection() as conn:
@@ -589,20 +743,78 @@ class MarketplaceService:
                 listing = self._fetch_listing_ownership(cur, listing_id)
                 if not listing or not self._can_manage_listing(actor, listing):
                     return {"status": "not_found", "message": "Listing not found for actor."}
-                fields.append("updated_at = %s")
-                params.append(datetime.utcnow())
-                params.append(listing_id)
-                cur.execute(
-                    f"""
-                    UPDATE vehicle_listing
-                    SET {", ".join(fields)}
-                    WHERE listing_id = %s
-                    RETURNING listing_id
-                    """,
-                    tuple(params),
-                )
-                if not cur.fetchone():
-                    return {"status": "not_found", "message": "Listing not found for actor."}
+
+                if vehicle_fields:
+                    vehicle_fields.append("updated_at = %s")
+                    vehicle_params.append(datetime.utcnow())
+                    vehicle_params.append(listing_id)
+                    cur.execute(
+                        f"""
+                        UPDATE vehicle_listing
+                        SET {", ".join(vehicle_fields)}
+                        WHERE listing_id = %s
+                        RETURNING listing_id
+                        """,
+                        tuple(vehicle_params),
+                    )
+                    if not cur.fetchone():
+                        return {"status": "not_found", "message": "Listing not found for actor."}
+
+                if has_location_update:
+                    cur.execute(
+                        """
+                        SELECT lat, lng, city_zone, raw_address
+                        FROM listing_location
+                        WHERE listing_id = %s
+                        """,
+                        (listing_id,),
+                    )
+                    current_location = cur.fetchone()
+                    lat = payload.get("lat", payload.get("latitude"))
+                    lng = payload.get("lng", payload.get("longitude"))
+                    city_zone = payload.get("cityZone")
+                    raw_address = payload.get("rawAddress", payload.get("address"))
+
+                    if lat is None and current_location:
+                        lat = current_location["lat"]
+                    if lng is None and current_location:
+                        lng = current_location["lng"]
+                    if city_zone is None and current_location:
+                        city_zone = current_location["city_zone"]
+                    if raw_address is None and current_location:
+                        raw_address = current_location["raw_address"]
+
+                    if lat is None or lng is None or not city_zone:
+                        return {
+                            "status": "validation_error",
+                            "message": "lat, lng, and cityZone required when updating listing location.",
+                        }
+
+                    _upsert_listing_location(
+                        cur,
+                        listing_id,
+                        lat=float(lat),
+                        lng=float(lng),
+                        city_zone=str(city_zone),
+                        raw_address=raw_address,
+                    )
+                    cur.execute(
+                        "UPDATE vehicle_listing SET updated_at = %s WHERE listing_id = %s",
+                        (datetime.utcnow(), listing_id),
+                    )
+
+                if image_urls:
+                    _associate_listing_image_urls(
+                        cur,
+                        listing_id,
+                        image_urls,
+                        listing.get("owner_user_id"),
+                    )
+                    cur.execute(
+                        "UPDATE vehicle_listing SET updated_at = %s WHERE listing_id = %s",
+                        (datetime.utcnow(), listing_id),
+                    )
+
                 conn.commit()
         return self.get_listing(listing_id)
 
@@ -612,24 +824,17 @@ class MarketplaceService:
                 listing = self._fetch_listing_ownership(cur, listing_id)
                 if not listing or not self._can_manage_listing(actor, listing):
                     return {"status": "not_found", "message": "Listing not found for actor."}
+                _upsert_listing_location(
+                    cur,
+                    listing_id,
+                    lat=float(payload["lat"]),
+                    lng=float(payload["lng"]),
+                    city_zone=str(payload["cityZone"]),
+                    raw_address=payload.get("rawAddress", payload.get("address")),
+                )
                 cur.execute(
-                    """
-                    INSERT INTO listing_location (listing_id, lat, lng, geohash, city_zone, last_parked_at)
-                    VALUES (%s, %s, %s, %s, %s, NOW())
-                    ON CONFLICT (listing_id) DO UPDATE
-                    SET lat = EXCLUDED.lat,
-                        lng = EXCLUDED.lng,
-                        geohash = EXCLUDED.geohash,
-                        city_zone = EXCLUDED.city_zone,
-                        last_parked_at = NOW()
-                    """,
-                    (
-                        listing_id,
-                        payload["lat"],
-                        payload["lng"],
-                        _simple_geohash(payload["lat"], payload["lng"]),
-                        payload["cityZone"],
-                    ),
+                    "UPDATE vehicle_listing SET updated_at = %s WHERE listing_id = %s",
+                    (datetime.utcnow(), listing_id),
                 )
                 conn.commit()
         return self.get_listing(listing_id)
@@ -868,12 +1073,36 @@ class MarketplaceService:
                     SELECT
                         b.booking_id, b.listing_id, b.renter_user_id, b.start_at, b.end_at, b.status,
                         b.price_snapshot_json, b.created_at, b.updated_at,
-                        l.title AS listing_title, l.source_type, l.owner_user_id
+                        l.title AS listing_title, l.source_type, l.owner_user_id,
+                        u.email AS renter_email
                     FROM booking b
                     JOIN vehicle_listing l ON l.listing_id = b.listing_id
+                    LEFT JOIN app_user u ON u.user_id = b.renter_user_id
                     ORDER BY b.created_at DESC
                     LIMIT 200
                     """
+                )
+                rows = cur.fetchall()
+        return {"status": "success", "bookings": [_to_booking_row(row, []) for row in rows]}
+
+    def owner_bookings(self, owner_user_id: int) -> dict:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        b.booking_id, b.listing_id, b.renter_user_id, b.start_at, b.end_at, b.status,
+                        b.price_snapshot_json, b.created_at, b.updated_at,
+                        l.title AS listing_title, l.source_type, l.owner_user_id,
+                        u.email AS renter_email
+                    FROM booking b
+                    JOIN vehicle_listing l ON l.listing_id = b.listing_id
+                    LEFT JOIN app_user u ON u.user_id = b.renter_user_id
+                    WHERE l.owner_user_id = %s
+                    ORDER BY b.created_at DESC
+                    LIMIT 200
+                    """,
+                    (owner_user_id,),
                 )
                 rows = cur.fetchall()
         return {"status": "success", "bookings": [_to_booking_row(row, []) for row in rows]}
@@ -945,10 +1174,10 @@ class MarketplaceService:
                         INSERT INTO vehicle_listing
                         (
                           source_type, fleet_vehicle_vin, title, brand, make, model, year,
-                          description, rules, pickup_notes_template, price_per_day, photos_json, active,
+                          description, guidelines, pickup_notes_template, price_per_day, active,
                           is_company_owned
                         )
-                        VALUES ('FLEET', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, TRUE, TRUE)
+                        VALUES ('FLEET', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE)
                         RETURNING listing_id
                         """,
                         (
@@ -962,16 +1191,16 @@ class MarketplaceService:
                             "Return with same fuel level.",
                             "Follow app instructions for pickup kiosk.",
                             65.0,
-                            Json([]),
                         ),
                     )
                     listing_id = cur.fetchone()["listing_id"]
-                    cur.execute(
-                        """
-                        INSERT INTO listing_location (listing_id, lat, lng, geohash, city_zone)
-                        VALUES (%s, %s, %s, %s, %s)
-                        """,
-                        (listing_id, lat, lng, _simple_geohash(lat, lng), city_zone),
+                    _upsert_listing_location(
+                        cur,
+                        listing_id,
+                        lat=lat,
+                        lng=lng,
+                        city_zone=city_zone,
+                        raw_address=f"Fleet branch area ({row['city']})",
                     )
                     created += 1
                 conn.commit()

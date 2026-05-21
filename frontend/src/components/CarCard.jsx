@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Heart, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const fallbackPhoto =
@@ -7,8 +7,28 @@ const fallbackPhoto =
 
 export default function CarCard({ car, distanceKm }) {
   const [isFavorite, setIsFavorite] = useState(Boolean(car.favorite));
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const row1Title = `${car.make || car.brand || "Car"} ${car.model || ""} ${car.year || ""}`.trim();
   const details = car.details || "Automatic • 5 Seats";
+  const carouselImages = useMemo(() => {
+    const all = Array.isArray(car.images) && car.images.length ? car.images : [];
+    if (all.length) return all;
+    const fallback = [car.image, car.photos?.[0]].filter(Boolean);
+    return fallback.length ? fallback : [fallbackPhoto];
+  }, [car.image, car.images, car.photos]);
+  const hasCarousel = carouselImages.length > 1;
+  const visibleDots = carouselImages.slice(0, 5);
+
+  const handleNextImage = () => {
+    if (!hasCarousel) return;
+    setCurrentImageIndex((idx) => (idx + 1) % carouselImages.length);
+  };
+
+  const handlePrevImage = () => {
+    if (!hasCarousel) return;
+    setCurrentImageIndex((idx) => (idx - 1 + carouselImages.length) % carouselImages.length);
+  };
+
   const distanceText = useMemo(() => {
     if (car.locationText) return car.locationText;
     if (distanceKm == null) return "Location unavailable";
@@ -24,10 +44,39 @@ export default function CarCard({ car, distanceKm }) {
       <Link to={href} className="block">
         <div className="relative aspect-[20/19] overflow-hidden rounded-2xl">
           <img
-            src={car.image || car.photos?.[0] || fallbackPhoto}
+            src={carouselImages[currentImageIndex] || fallbackPhoto}
             alt={row1Title}
             className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02] group-hover:brightness-95"
           />
+
+          {hasCarousel && (
+            <>
+              <button
+                type="button"
+                aria-label="Previous image"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handlePrevImage();
+                }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-gray-900 h-7 w-7 rounded-full flex items-center justify-center shadow-sm hover:scale-105 hover:bg-white transition opacity-0 group-hover:opacity-100"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="Next image"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleNextImage();
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-gray-900 h-7 w-7 rounded-full flex items-center justify-center shadow-sm hover:scale-105 hover:bg-white transition opacity-0 group-hover:opacity-100"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </>
+          )}
 
           <button
             type="button"
@@ -45,11 +94,21 @@ export default function CarCard({ car, distanceKm }) {
             />
           </button>
 
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-white" />
-            <span className="h-1.5 w-1.5 rounded-full bg-white/70" />
-            <span className="h-1.5 w-1.5 rounded-full bg-white/45" />
-          </div>
+          {hasCarousel && (
+            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+              {visibleDots.map((_, idx) => {
+                const active = idx === currentImageIndex % visibleDots.length;
+                return (
+                  <span
+                    key={idx}
+                    className={`h-1.5 w-1.5 rounded-full transition ${
+                      active ? "bg-white scale-110" : "bg-white/60"
+                    }`}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="mt-3 space-y-0.5 leading-tight">

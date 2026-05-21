@@ -40,7 +40,7 @@ SQL
   echo "Applying clean bootstrap migration 000_initial_clean.sql..."
   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT_DIR/db/migrations/000_initial_clean.sql"
 else
-echo "Applying migrations 001 -> 008..."
+echo "Applying migrations 001 -> 009..."
   for migration in \
     001_marketplace_mvp.sql \
     002_listing_vehicle_fields.sql \
@@ -49,7 +49,8 @@ echo "Applying migrations 001 -> 008..."
     005_simplify_rbac_to_user_admin.sql \
     006_company_location_sources.sql \
     007_listing_vehicle_specs.sql \
-    008_listing_rich_details.sql
+    008_listing_rich_details.sql \
+    009_schema_standardization.sql
   do
     echo "  - $migration"
     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$ROOT_DIR/db/migrations/$migration"

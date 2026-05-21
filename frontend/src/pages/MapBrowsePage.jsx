@@ -75,13 +75,14 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
 
     const center = searchParams?.coordinates;
     if (center?.lat == null || center?.lng == null) {
-      return listings;
+      // Search without resolved coordinates — don't show unrelated city inventory.
+      return [];
     }
 
     const maxDistanceKm = 50;
-    const nearby = listings.filter((listing) => {
-      const lat = parseCoord(listing.lat);
-      const lng = parseCoord(listing.lng);
+    return listings.filter((listing) => {
+      const lat = parseCoord(listing.lat ?? listing.latitude);
+      const lng = parseCoord(listing.lng ?? listing.longitude);
       if (lat == null || lng == null) return false;
       return (
         haversineKm(
@@ -90,15 +91,13 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
         ) <= maxDistanceKm
       );
     });
-
-    return nearby.length > 0 ? nearby : listings;
   }, [hasSearched, listings, searchParams]);
 
   const cars = useMemo(
     () =>
       visibleListings.map((listing) => {
-        const lat = parseCoord(listing.lat);
-        const lng = parseCoord(listing.lng);
+        const lat = parseCoord(listing.lat ?? listing.latitude);
+        const lng = parseCoord(listing.lng ?? listing.longitude);
         const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
         return {
           id: listing.listingId,
@@ -110,11 +109,11 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
           year: listing.year || null,
           rating: 4.9,
           details:
-            listing.sourceType === "FLEET"
+            listing.isCompanyOwned || listing.sourceType === "FLEET"
               ? "Company Fleet • Automatic"
               : "Host listed • Automatic",
           locationText: listing.cityZone ? `${listing.cityZone} • nearby` : null,
-          pricePerDay: listing.pricePerDay,
+          pricePerDay: Number(listing.pricePerDay ?? listing.price_per_day ?? 0),
           favorite: false,
           lat: hasCoords ? lat : null,
           lng: hasCoords ? lng : null,

@@ -15,7 +15,6 @@ INSERT INTO vehicle_listing (
   title,
   description,
   price_per_day,
-  photos_json,
   active,
   status,
   is_company_owned
@@ -27,7 +26,6 @@ SELECT
   'Host-owned compact car',
   'Direct host listing for RBAC demo.',
   79.00,
-  '[]'::jsonb,
   TRUE,
   'ACTIVE',
   FALSE
@@ -42,7 +40,6 @@ INSERT INTO vehicle_listing (
   title,
   description,
   price_per_day,
-  photos_json,
   active,
   status,
   is_company_owned
@@ -54,7 +51,6 @@ SELECT
   'Company-owned demo listing',
   'Managed by admin account with company ownership flag.',
   110.00,
-  '[]'::jsonb,
   TRUE,
   'ACTIVE',
   TRUE

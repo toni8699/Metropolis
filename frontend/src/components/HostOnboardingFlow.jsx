@@ -1,64 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { APIProvider, AdvancedMarker, Map as VisMap, Pin } from "@vis.gl/react-google-maps";
-import {
-  Bluetooth,
-  CarFront,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  KeyRound,
-  Minus,
-  Plus,
-  Search,
-  ShieldCheck,
-  Smartphone,
-  Snowflake,
-  Sun,
-  UploadCloud,
-  X,
-} from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useJsApiLoader } from "@react-google-maps/api";
+import { CarFront, Crosshair, UploadCloud, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { apiPost } from "../utils/api";
+import { useAuth } from "../context/AuthContext";
+import {
+  fetchPlacePredictions,
+  resolvePredictionCoordinates,
+} from "../lib/placesAutocomplete";
 
-const TOTAL_STEPS = 6;
-const vehicleTypes = ["Sedan", "SUV", "Truck", "Electric"];
-const FEATURE_OPTIONS = [
-  "Apple CarPlay",
-  "Android Auto",
-  "Bluetooth",
-  "Sunroof",
-  "Heated Seats",
-  "AWD",
-  "Backup Camera",
-  "Blind Spot Warning",
-  "Keyless Entry",
-];
-const FEATURE_ICONS = {
-  "Apple CarPlay": Smartphone,
-  "Android Auto": Smartphone,
-  Bluetooth,
-  Sunroof: Sun,
-  "Heated Seats": Snowflake,
-  AWD: ShieldCheck,
-  "Backup Camera": UploadCloud,
-  "Blind Spot Warning": ShieldCheck,
-  "Keyless Entry": KeyRound,
-};
+const TOTAL_STEPS = 4;
 const FALLBACK_CENTER = { lat: 43.6532, lng: -79.3832 };
-
-const stepHeadlines = {
-  1: "What kind of car are you listing?",
-  2: "Where will guests pick up your car?",
-  3: "Show off your car with great photos",
-  4: "Add car details guests care about",
-  5: "Add features and host guidelines",
-  6: "Set your daily price",
-};
+const vehicleTypes = ["Sedan", "SUV", "Truck", "Electric"];
 
 export default function HostOnboardingFlow() {
   const navigate = useNavigate();
+  const { refreshMe } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+  const [headlineVisible, setHeadlineVisible] = useState(true);
   const [listingData, setListingData] = useState({
     make: "",
     model: "",
@@ -67,27 +29,15 @@ export default function HostOnboardingFlow() {
     address: "",
     lat: null,
     lng: null,
-    transmission: "Automatic",
-    fuelType: "Gas",
-    seats: 5,
-    doors: 4,
-    description: "",
-    guidelines: "",
-    features: [],
     price: 50,
     images: [],
-    imageFiles: [],
   });
-
-  const [addressQuery, setAddressQuery] = useState("");
   const [placePredictions, setPlacePredictions] = useState([]);
   const [isPlacesLoading, setIsPlacesLoading] = useState(false);
   const [placesError, setPlacesError] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
-  const [publishError, setPublishError] = useState("");
-  const [isHeadlineVisible, setIsHeadlineVisible] = useState(true);
-  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [imageFiles, setImageFiles] = useState([]);
   const [tempLocation, setTempLocation] = useState({
     lat: FALLBACK_CENTER.lat,
     lng: FALLBACK_CENTER.lng,
@@ -95,9 +45,7 @@ export default function HostOnboardingFlow() {
   });
 
   const fileInputRef = useRef(null);
-  const autocompleteServiceRef = useRef(null);
   const geocoderRef = useRef(null);
-
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const { isLoaded: isPlacesLoaded, loadError: placesLoadError } = useJsApiLoader({
     id: "google-maps-script",
@@ -106,32 +54,24 @@ export default function HostOnboardingFlow() {
   });
 
   useEffect(() => {
-    setIsHeadlineVisible(false);
-    const timer = window.setTimeout(() => setIsHeadlineVisible(true), 50);
+    setHeadlineVisible(false);
+    const timer = window.setTimeout(() => setHeadlineVisible(true), 60);
     return () => window.clearTimeout(timer);
   }, [currentStep]);
 
   useEffect(() => {
     if (!isPlacesLoaded || !window.google?.maps) return;
-    try {
-      if (!autocompleteServiceRef.current && window.google.maps.places) {
-        autocompleteServiceRef.current =
-          new window.google.maps.places.AutocompleteService();
-      }
-      if (!geocoderRef.current) {
-        geocoderRef.current = new window.google.maps.Geocoder();
-      }
-    } catch {
-      setPlacesError("Google Places failed to initialize.");
+    if (!geocoderRef.current) {
+      geocoderRef.current = new window.google.maps.Geocoder();
     }
   }, [isPlacesLoaded]);
 
   useEffect(() => {
     if (currentStep !== 2) return;
-    if (!addressQuery.trim()) {
+    if (!listingData.address.trim() || !window.google?.maps?.places) {
       setPlacePredictions([]);
-      setPlacesError("");
       setIsPlacesLoading(false);
+      setPlacesError("");
       return;
     }
     if (placesLoadError) {
@@ -139,49 +79,44 @@ export default function HostOnboardingFlow() {
       setPlacePredictions([]);
       return;
     }
-    if (!autocompleteServiceRef.current) {
-      setPlacePredictions([]);
-      return;
-    }
 
     let cancelled = false;
-    const timeoutId = window.setTimeout(() => {
+    const timeoutId = window.setTimeout(async () => {
       setIsPlacesLoading(true);
-      setPlacesError("");
-      autocompleteServiceRef.current.getPlacePredictions(
-        { input: addressQuery, types: ["geocode"] },
-        (predictions, status) => {
-          if (cancelled) return;
-          if (
-            status === window.google.maps.places.PlacesServiceStatus.OK &&
-            predictions
-          ) {
-            setPlacePredictions(predictions);
-          } else if (
-            status === window.google.maps.places.PlacesServiceStatus.ZERO_RESULTS
-          ) {
-            setPlacePredictions([]);
-          } else {
-            setPlacePredictions([]);
-            setPlacesError("Could not fetch location suggestions.");
-          }
+      try {
+        const predictions = await fetchPlacePredictions(listingData.address, {
+          types: ["geocode"],
+        });
+        if (!cancelled) {
+          setPlacePredictions(predictions);
+          setPlacesError("");
+        }
+      } catch {
+        if (!cancelled) {
+          setPlacePredictions([]);
+          setPlacesError("Could not fetch location suggestions.");
+        }
+      } finally {
+        if (!cancelled) {
           setIsPlacesLoading(false);
-        },
-      );
-    }, 300);
+        }
+      }
+    }, 250);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [addressQuery, currentStep, placesLoadError]);
+  }, [currentStep, listingData.address, placesLoadError]);
 
   useEffect(() => {
     if (!isMapModalOpen) return;
-    const lat = Number(listingData.lat);
-    const lng = Number(listingData.lng);
-    const safeLat = Number.isFinite(lat) ? lat : FALLBACK_CENTER.lat;
-    const safeLng = Number.isFinite(lng) ? lng : FALLBACK_CENTER.lng;
+    const safeLat = Number.isFinite(Number(listingData.lat))
+      ? Number(listingData.lat)
+      : FALLBACK_CENTER.lat;
+    const safeLng = Number.isFinite(Number(listingData.lng))
+      ? Number(listingData.lng)
+      : FALLBACK_CENTER.lng;
     setTempLocation({
       lat: safeLat,
       lng: safeLng,
@@ -203,55 +138,51 @@ export default function HostOnboardingFlow() {
     if (currentStep === 2) {
       return (
         listingData.address.trim() &&
-        Number.isFinite(listingData.lat) &&
-        Number.isFinite(listingData.lng)
+        Number.isFinite(Number(listingData.lat)) &&
+        Number.isFinite(Number(listingData.lng))
       );
     }
     if (currentStep === 3) {
-      return listingData.images.length > 0;
+      return imageFiles.length > 0;
     }
-    if (currentStep === 4) {
-      return (
-        listingData.transmission &&
-        listingData.fuelType &&
-        Number(listingData.seats) > 0 &&
-        Number(listingData.doors) > 0
-      );
-    }
-    if (currentStep === 5) {
-      return listingData.description.trim().length > 0;
-    }
-    return true;
-  }, [currentStep, listingData]);
+    return Number(listingData.price) > 0;
+  }, [currentStep, listingData, imageFiles.length]);
 
-  const updateListingData = (updates) => {
-    setListingData((current) => ({ ...current, ...updates }));
+  const stepHeadline = {
+    1: "What kind of car are you listing?",
+    2: "Where can guests find your car?",
+    3: "Show guests your car",
+    4: "Now set your price",
+  }[currentStep];
+
+  const handleBack = () => {
+    if (currentStep === 1) return;
+    setCurrentStep((step) => Math.max(1, step - 1));
   };
 
-  const geocodePlace = (placeId) =>
-    new Promise((resolve, reject) => {
-      if (!geocoderRef.current) {
-        reject(new Error("Geocoder unavailable"));
-        return;
-      }
-      geocoderRef.current.geocode({ placeId }, (results, status) => {
-        if (
-          status === "OK" &&
-          results?.[0]?.geometry?.location &&
-          typeof results[0].geometry.location.lat === "function" &&
-          typeof results[0].geometry.location.lng === "function"
-        ) {
-          const point = results[0].geometry.location;
-          resolve({
-            lat: point.lat(),
-            lng: point.lng(),
-            formattedAddress: results[0].formatted_address || "",
-          });
-          return;
-        }
-        reject(new Error("Could not geocode selected place"));
-      });
-    });
+  const handleNext = async () => {
+    if (!canProceed) return;
+    if (currentStep < TOTAL_STEPS) {
+      setCurrentStep((step) => Math.min(TOTAL_STEPS, step + 1));
+      return;
+    }
+    await submitListing();
+  };
+
+  const selectAddressPrediction = async (prediction) => {
+    try {
+      const { lat, lng } = await resolvePredictionCoordinates(prediction);
+      setListingData((prev) => ({
+        ...prev,
+        address: prediction.description || prev.address,
+        lat,
+        lng,
+      }));
+      setPlacePredictions([]);
+    } catch {
+      setPlacesError("Could not resolve that address.");
+    }
+  };
 
   const reverseGeocodeLocation = (lat, lng) =>
     new Promise((resolve) => {
@@ -270,535 +201,335 @@ export default function HostOnboardingFlow() {
       });
     });
 
-  const openMapPicker = () => {
-    setIsMapModalOpen(true);
-  };
-
-  const handlePinDrop = async (newLat, newLng) => {
-    setTempLocation((prev) => ({ ...prev, lat: newLat, lng: newLng }));
-    const address = await reverseGeocodeLocation(newLat, newLng);
-    if (address) {
-      setTempLocation((prev) => ({ ...prev, address }));
+  const handlePinDrop = async (lat, lng) => {
+    setTempLocation((prev) => ({ ...prev, lat, lng }));
+    const resolved = await reverseGeocodeLocation(lat, lng);
+    if (resolved) {
+      setTempLocation((prev) => ({ ...prev, address: resolved }));
     }
   };
 
-  const confirmMapLocation = () => {
-    updateListingData({
-      address: tempLocation.address || listingData.address,
-      lat: tempLocation.lat,
-      lng: tempLocation.lng,
-    });
-    if (tempLocation.address) {
-      setAddressQuery(tempLocation.address);
+  const uploadListingPhotos = async (listingId, files) => {
+    for (const file of files) {
+      const presign = await apiPost(
+        "/api/uploads/presign",
+        {
+          scope: "OWNER_LISTING",
+          listingId: Number(listingId),
+          fileName: file.name,
+          contentType: file.type || "application/octet-stream",
+        },
+        true,
+      );
+      const uploadResponse = await fetch(presign.presignedUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      });
+      if (!uploadResponse.ok) {
+        throw new Error(`S3 upload failed for ${file.name}.`);
+      }
+      await apiPost(
+        "/api/uploads/complete",
+        {
+          scope: "OWNER_LISTING",
+          listingId: Number(listingId),
+          objectKey: presign.objectKey,
+          contentType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+        },
+        true,
+      );
     }
-    setIsMapModalOpen(false);
-  };
-
-  const processFiles = (fileList) => {
-    const files = Array.from(fileList || []).filter((file) =>
-      file.type.startsWith("image/"),
-    );
-    if (files.length === 0) return;
-    const imageUrls = files.map((file) => URL.createObjectURL(file));
-    updateListingData({
-      images: [...listingData.images, ...imageUrls],
-      imageFiles: [...listingData.imageFiles, ...files],
-    });
-  };
-
-  const handleDrop = (event) => {
-    event.preventDefault();
-    processFiles(event.dataTransfer.files);
   };
 
   const submitListing = async () => {
-    setPublishError("");
     setIsPublishing(true);
+    setSubmitError("");
     try {
-      // Ensure backend CORS allows requests from Vite frontend (e.g., http://localhost:5173).
-      const cityZoneFromAddress = (listingData.address || "")
-        .split(",")[0]
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, "-") || "custom-host-zone";
-
-      const payload = {
-        title: `${listingData.make} ${listingData.model} ${listingData.year}`.trim(),
-        brand: listingData.make || null,
-        make: listingData.make || null,
-        model: listingData.model || null,
-        year: listingData.year ? Number(listingData.year) : null,
-        transmission: listingData.transmission || null,
-        fuelType: listingData.fuelType || null,
-        seats: listingData.seats ? Number(listingData.seats) : null,
-        doors: listingData.doors ? Number(listingData.doors) : null,
-        description:
-          listingData.description ||
-          `${listingData.type || "Vehicle"} listed by host at ${listingData.address}.`,
-        guidelines: listingData.guidelines || "Please return clean and on time.",
-        features: listingData.features || [],
-        images: [],
-        address: listingData.address || null,
-        latitude: listingData.lat,
-        longitude: listingData.lng,
-        rules: listingData.guidelines || "Please return clean and on time.",
-        pickupNotesTemplate: `Pickup location: ${listingData.address}`,
-        pricePerDay: Number(listingData.price),
-        photos: [],
-        lat: listingData.lat,
-        lng: listingData.lng,
-        cityZone: cityZoneFromAddress,
-      };
-
-      const createResult = await apiPost("/api/owner/listings", payload, true);
-      const listingId = createResult?.listing?.listingId;
+      const lat = Number(listingData.lat);
+      const lng = Number(listingData.lng);
+      const cityZone = "toronto-core";
+      const title = `${listingData.make} ${listingData.model}`.trim();
+      const response = await apiPost(
+        "/api/owner/listings",
+        {
+          title: title || "My listing",
+          make: listingData.make,
+          model: listingData.model,
+          year: listingData.year ? Number(listingData.year) : undefined,
+          pricePerDay: Number(listingData.price),
+          isCompanyOwned: false,
+          address: listingData.address,
+          latitude: lat,
+          longitude: lng,
+          lat,
+          lng,
+          cityZone,
+          description: listingData.type ? `Vehicle type: ${listingData.type}` : undefined,
+        },
+        true,
+      );
+      const listingId = response?.listing?.listingId;
       if (!listingId) {
-        throw new Error("Listing created but missing listing id.");
+        throw new Error("Listing created but no listing id returned.");
       }
 
-      for (const file of listingData.imageFiles) {
-        const contentType = file.type || "application/octet-stream";
-        const presign = await apiPost(
-          "/api/uploads/presign",
-          {
-            fileName: file.name,
-            contentType,
-            scope: "OWNER_LISTING",
-            listingId,
-          },
-          true,
-        );
-        const uploadResp = await fetch(presign.presignedUrl, {
-          method: "PUT",
-          headers: { "Content-Type": contentType },
-          body: file,
-        });
-        if (!uploadResp.ok) {
-          throw new Error(`S3 upload failed for ${file.name}`);
-        }
-        await apiPost(
-          "/api/uploads/complete",
-          {
-            objectKey: presign.objectKey,
-            contentType,
-            sizeBytes: file.size,
-            scope: "OWNER_LISTING",
-            listingId,
-          },
-          true,
-        );
+      await apiPost(
+        `/api/owner/listings/${listingId}/location`,
+        { lat, lng, cityZone },
+        true,
+      );
+
+      if (imageFiles.length) {
+        await uploadListingPhotos(listingId, imageFiles);
       }
 
-      setCurrentStep(1);
-      listingData.images.forEach((url) => URL.revokeObjectURL(url));
-      setListingData({
-        make: "",
-        model: "",
-        year: "",
-        type: "",
-        address: "",
-        lat: null,
-        lng: null,
-        transmission: "Automatic",
-        fuelType: "Gas",
-        seats: 5,
-        doors: 4,
-        description: "",
-        guidelines: "",
-        features: [],
-        price: 50,
-        images: [],
-        imageFiles: [],
-      });
-      setAddressQuery("");
-      navigate("/owner");
-    } catch (err) {
-      const message = err?.message || "Could not publish listing. Try again.";
-      setPublishError(message);
-      window.alert(message);
+      await refreshMe();
+      navigate("/host/dashboard");
+    } catch (error) {
+      setSubmitError(error?.message || "Could not publish listing.");
     } finally {
       setIsPublishing(false);
     }
   };
 
-  const handleNext = async () => {
-    if (!canProceed) return;
-    if (currentStep < TOTAL_STEPS) {
-      setCurrentStep((step) => step + 1);
-      return;
-    }
-    await submitListing();
-  };
-
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep((step) => step - 1);
-    }
+  const applyImageFiles = (files) => {
+    const images = files.filter((file) => file.type.startsWith("image/"));
+    if (!images.length) return;
+    setImageFiles(images);
+    setListingData((prev) => ({
+      ...prev,
+      images: images.map((file) => file.name),
+    }));
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      <header className="fixed top-0 left-0 right-0 z-50 h-20 border-b bg-white px-10">
-        <div className="flex h-full items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-indigo-600">
-            <CarFront className="h-7 w-7" />
-            <span className="text-xl font-bold">DriveBnb</span>
-          </Link>
-          <button
-            onClick={() => navigate("/")}
-            className="rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-          >
-            Exit
-          </button>
+    <div className="min-h-screen bg-white text-gray-900 flex flex-col">
+      <header className="fixed top-0 left-0 right-0 h-20 flex justify-between items-center px-10 border-b bg-white z-50">
+        <div className="flex items-center gap-3 text-indigo-600">
+          <CarFront className="h-8 w-8" />
+          <span className="text-2xl font-bold">DriveBnb</span>
         </div>
+        <button
+          type="button"
+          onClick={() => navigate("/app")}
+          className="rounded-full px-4 py-2 text-sm font-medium hover:bg-gray-100"
+        >
+          Exit
+        </button>
       </header>
 
-      <main className="mt-20 mb-24 flex h-[calc(100vh-176px)] flex-grow overflow-y-auto">
-        <div className="flex w-full flex-col md:flex-row">
-          <section className="flex w-full items-center justify-center bg-gradient-to-br from-indigo-50 to-white p-10 md:w-1/2 lg:p-20">
+      <div className="fixed top-20 left-0 h-1 bg-gray-200 w-full z-50">
+        <div
+          className="bg-gray-900 h-full transition-all duration-500"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <main className="flex-grow h-[calc(100vh-176px)] mt-20 mb-24 overflow-y-auto flex">
+        <div className="flex flex-col md:flex-row w-full">
+          <section className="w-full md:w-1/2 flex items-center justify-center p-10 lg:p-20 bg-gradient-to-br from-indigo-50 to-white">
             <h1
-              key={currentStep}
-              className={`max-w-xl text-4xl font-semibold leading-tight transition-opacity duration-500 md:text-5xl ${
-                isHeadlineVisible ? "opacity-100" : "opacity-0"
+              className={`font-semibold text-4xl md:text-5xl leading-tight transition-opacity duration-500 ${
+                headlineVisible ? "opacity-100" : "opacity-0"
               }`}
             >
-              {stepHeadlines[currentStep]}
+              {stepHeadline}
             </h1>
           </section>
 
-          <section className="flex w-full items-center justify-center p-10 md:w-1/2">
-            <div className="w-full max-w-xl">
+          <section className="w-full md:w-1/2 flex items-center justify-center p-10">
+            <div className="w-full max-w-xl space-y-6">
               {currentStep === 1 && (
-                <div className="space-y-6">
-                  <div className="grid gap-4 md:grid-cols-2">
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <input
                       value={listingData.make}
-                      onChange={(event) =>
-                        updateListingData({ make: event.target.value })
-                      }
+                      onChange={(e) => setListingData((prev) => ({ ...prev, make: e.target.value }))}
                       placeholder="Make"
-                      className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                     />
                     <input
                       value={listingData.model}
-                      onChange={(event) =>
-                        updateListingData({ model: event.target.value })
+                      onChange={(e) =>
+                        setListingData((prev) => ({ ...prev, model: e.target.value }))
                       }
                       placeholder="Model"
-                      className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    />
+                    <input
+                      value={listingData.year}
+                      onChange={(e) => setListingData((prev) => ({ ...prev, year: e.target.value }))}
+                      type="number"
+                      placeholder="Year"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
                     />
                   </div>
-                  <input
-                    value={listingData.year}
-                    onChange={(event) =>
-                      updateListingData({ year: event.target.value })
-                    }
-                    placeholder="Year"
-                    type="number"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-                  />
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-3">
                     {vehicleTypes.map((type) => {
-                      const isActive = listingData.type === type;
+                      const active = listingData.type === type;
                       return (
                         <button
                           key={type}
-                          onClick={() => updateListingData({ type })}
-                          className={`rounded-2xl border p-4 text-left transition ${
-                            isActive
-                              ? "border-gray-900 bg-gray-900 text-white"
-                              : "border-gray-300 bg-white hover:border-gray-900"
-                          }`}
-                        >
-                          <p className="font-semibold">{type}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 2 && (
-                <div className="space-y-3">
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                    <input
-                      value={addressQuery}
-                      onChange={(event) => {
-                        setAddressQuery(event.target.value);
-                        updateListingData({ address: "", lat: null, lng: null });
-                      }}
-                      placeholder="Type your pickup address"
-                      className="w-full rounded-2xl border border-gray-300 py-4 pl-12 pr-4 outline-none focus:border-gray-900"
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <button
-                        type="button"
-                        onClick={openMapPicker}
-                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                      >
-                        Pick from map
-                      </button>
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-gray-200 bg-white p-2">
-                    {isPlacesLoading ? (
-                      <p className="px-3 py-4 text-sm text-gray-500">Loading suggestions...</p>
-                    ) : placePredictions.length > 0 ? (
-                      placePredictions.map((prediction) => {
-                        const title =
-                          prediction.structured_formatting?.main_text ||
-                          prediction.description;
-                        const subtitle =
-                          prediction.structured_formatting?.secondary_text || "";
-                        return (
-                          <button
-                            key={prediction.place_id}
-                            onClick={async () => {
-                              try {
-                                const result = await geocodePlace(prediction.place_id);
-                                setAddressQuery(result.formattedAddress || title);
-                                updateListingData({
-                                  address: result.formattedAddress || title,
-                                  lat: result.lat,
-                                  lng: result.lng,
-                                });
-                                setPlacePredictions([]);
-                                setPlacesError("");
-                              } catch {
-                                setPlacesError("Could not resolve selected address.");
-                              }
-                            }}
-                            className="w-full rounded-xl px-3 py-3 text-left hover:bg-gray-50"
-                          >
-                            <p className="font-medium text-gray-900">{title}</p>
-                            <p className="text-sm text-gray-500">{subtitle}</p>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <p className="px-3 py-4 text-sm text-gray-500">
-                        Start typing to see address suggestions.
-                      </p>
-                    )}
-                  </div>
-                  {placesError && (
-                    <p className="text-sm text-red-500">{placesError}</p>
-                  )}
-                  {listingData.address && (
-                    <p className="text-sm text-gray-600">
-                      Selected: <span className="font-medium">{listingData.address}</span>
-                    </p>
-                  )}
-                  {Number.isFinite(listingData.lat) && Number.isFinite(listingData.lng) && (
-                    <div className="rounded-2xl overflow-hidden border border-gray-200">
-                      {!apiKey ? (
-                        <div className="p-4 text-sm text-gray-600 bg-gray-50">
-                          Add `VITE_GOOGLE_MAPS_API_KEY` to show mini map preview.
-                        </div>
-                      ) : (
-                        <GoogleMap
-                          mapContainerStyle={{ width: "100%", height: "220px" }}
-                          center={{ lat: listingData.lat, lng: listingData.lng }}
-                          zoom={14}
-                          options={{
-                            zoomControl: true,
-                            streetViewControl: false,
-                            mapTypeControl: false,
-                            fullscreenControl: false,
-                          }}
-                        >
-                          <Marker position={{ lat: listingData.lat, lng: listingData.lng }} />
-                        </GoogleMap>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {currentStep === 3 && (
-                <div className="space-y-4">
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => fileInputRef.current?.click()}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        fileInputRef.current?.click();
-                      }
-                    }}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={handleDrop}
-                    className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 p-10 transition hover:border-gray-900"
-                  >
-                    <UploadCloud className="mb-3 h-10 w-10 text-gray-500" />
-                    <p className="text-lg font-medium text-gray-800">
-                      Drag your photos here
-                    </p>
-                    <p className="text-sm text-gray-500">or click to upload</p>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => processFiles(event.target.files)}
-                  />
-                  {listingData.images.length > 0 && (
-                    <div className="grid grid-cols-3 gap-3">
-                      {listingData.images.map((image, idx) => (
-                        <img
-                          key={`${image}-${idx}`}
-                          src={image}
-                          alt={`Upload ${idx + 1}`}
-                          className="h-24 w-full rounded-lg object-cover"
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {currentStep === 4 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-gray-700">Transmission</span>
-                    <select
-                      value={listingData.transmission}
-                      onChange={(event) => updateListingData({ transmission: event.target.value })}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-                    >
-                      <option>Automatic</option>
-                      <option>Manual</option>
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-medium text-gray-700">Fuel Type</span>
-                    <select
-                      value={listingData.fuelType}
-                      onChange={(event) => updateListingData({ fuelType: event.target.value })}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-                    >
-                      <option>Gas</option>
-                      <option>Electric</option>
-                      <option>Hybrid</option>
-                      <option>Diesel</option>
-                    </select>
-                  </label>
-                  <input
-                    value={listingData.seats}
-                    onChange={(event) => updateListingData({ seats: event.target.value })}
-                    type="number"
-                    min="1"
-                    placeholder="Seats"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-                  />
-                  <input
-                    value={listingData.doors}
-                    onChange={(event) => updateListingData({ doors: event.target.value })}
-                    type="number"
-                    min="1"
-                    placeholder="Doors"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-                  />
-                </div>
-              )}
-
-              {currentStep === 5 && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {FEATURE_OPTIONS.map((featureName) => {
-                      const Icon = FEATURE_ICONS[featureName] || Check;
-                      const active = listingData.features.includes(featureName);
-                      return (
-                        <button
-                          key={featureName}
                           type="button"
-                          onClick={() =>
-                            updateListingData({
-                              features: active
-                                ? listingData.features.filter((item) => item !== featureName)
-                                : [...listingData.features, featureName],
-                            })
-                          }
-                          className={`flex items-center gap-2 border p-3 rounded-xl text-left transition ${
+                          onClick={() => setListingData((prev) => ({ ...prev, type }))}
+                          className={`rounded-xl border px-4 py-4 text-left font-medium transition ${
                             active
                               ? "border-gray-900 bg-gray-900 text-white"
                               : "border-gray-300 hover:border-gray-900"
                           }`}
                         >
-                          <Icon className="h-4 w-4" />
-                          <span className="text-sm">{featureName}</span>
+                          {type}
                         </button>
                       );
                     })}
                   </div>
-                  <textarea
-                    value={listingData.description}
-                    onChange={(event) => updateListingData({ description: event.target.value })}
-                    placeholder="Describe your car and why guests should book it."
-                    className="w-full min-h-28 rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-                  />
-                  <textarea
-                    value={listingData.guidelines}
-                    onChange={(event) => updateListingData({ guidelines: event.target.value })}
-                    placeholder="e.g., No smoking, pet fees..."
-                    className="w-full min-h-24 rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
+                </>
+              )}
+
+              {currentStep === 2 && (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-gray-300 px-4 py-3">
+                    <input
+                      value={listingData.address}
+                      onChange={(e) =>
+                        setListingData((prev) => ({ ...prev, address: e.target.value }))
+                      }
+                      placeholder="Type your address"
+                      className="w-full bg-transparent outline-none"
+                    />
+                  </div>
+                  {isPlacesLoading && <p className="text-xs text-gray-500">Loading suggestions...</p>}
+                  {placePredictions.length > 0 && (
+                    <div className="rounded-xl border border-gray-200 p-2 max-h-52 overflow-y-auto">
+                      {placePredictions.map((prediction) => (
+                        <button
+                          key={prediction.placeId || prediction.place_id}
+                          type="button"
+                          onClick={() => selectAddressPrediction(prediction)}
+                          className="w-full text-left rounded-lg px-3 py-2 hover:bg-gray-50"
+                        >
+                          <p className="text-sm font-medium text-gray-900">
+                            {prediction.structured_formatting?.main_text || prediction.description}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {prediction.structured_formatting?.secondary_text || ""}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {placesError && <p className="text-xs text-red-600">{placesError}</p>}
+                  <button
+                    type="button"
+                    onClick={() => setIsMapModalOpen(true)}
+                    className="w-full py-3 border border-gray-300 rounded-lg flex justify-center items-center gap-2 font-medium hover:bg-gray-50 transition text-gray-900"
+                  >
+                    <Crosshair className="h-4 w-4" />
+                    Drop Pin on Map
+                  </button>
+                </div>
+              )}
+
+              {currentStep === 3 && (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    applyImageFiles(Array.from(e.dataTransfer.files || []));
+                  }}
+                  className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center hover:border-gray-900 cursor-pointer transition"
+                >
+                  <UploadCloud className="h-10 w-10 text-gray-400 mb-2" />
+                  <p className="font-semibold text-gray-900">Drag your photos here</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {listingData.images.length
+                      ? `Selected ${listingData.images.length} image(s)`
+                      : "or click to upload"}
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => {
+                      applyImageFiles(Array.from(e.target.files || []));
+                    }}
                   />
                 </div>
               )}
 
-              {currentStep === 6 && (
+              {currentStep === 4 && (
                 <div className="flex items-center justify-center gap-8">
                   <button
+                    type="button"
                     onClick={() =>
-                      updateListingData({ price: Math.max(5, listingData.price - 5) })
+                      setListingData((prev) => ({ ...prev, price: Math.max(5, Number(prev.price) - 5) }))
                     }
-                    className="rounded-full border border-gray-300 p-3 hover:border-gray-900"
-                    aria-label="Decrease price"
+                    className="h-12 w-12 rounded-full border border-gray-300 text-2xl hover:bg-gray-50"
                   >
-                    <Minus className="h-6 w-6" />
+                    -
                   </button>
                   <input
-                    type="number"
                     value={listingData.price}
-                    onChange={(event) =>
-                      updateListingData({
-                        price: Number(event.target.value || listingData.price),
-                      })
+                    onChange={(e) =>
+                      setListingData((prev) => ({ ...prev, price: Number(e.target.value) || 0 }))
                     }
-                    className="w-56 border-0 bg-transparent text-center text-6xl font-bold text-gray-900 outline-none"
+                    type="number"
+                    className="w-44 bg-transparent text-center font-bold text-6xl text-gray-900 outline-none"
                   />
                   <button
+                    type="button"
                     onClick={() =>
-                      updateListingData({ price: Math.max(5, listingData.price + 5) })
+                      setListingData((prev) => ({ ...prev, price: Number(prev.price) + 5 }))
                     }
-                    className="rounded-full border border-gray-300 p-3 hover:border-gray-900"
-                    aria-label="Increase price"
+                    className="h-12 w-12 rounded-full border border-gray-300 text-2xl hover:bg-gray-50"
                   >
-                    <Plus className="h-6 w-6" />
+                    +
                   </button>
                 </div>
               )}
 
-              {publishError && (
-                <p className="mt-4 text-sm text-red-500">{publishError}</p>
+              {submitError && (
+                <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                  {submitError}
+                </div>
               )}
             </div>
           </section>
         </div>
       </main>
 
+      <footer className="fixed bottom-0 left-0 right-0 h-24 bg-white border-t flex justify-between items-center px-10 z-50">
+        <button
+          type="button"
+          onClick={handleBack}
+          className={`underline font-medium ${currentStep === 1 ? "invisible" : ""}`}
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={!canProceed || isPublishing}
+          className="bg-gray-900 text-white px-8 py-3 rounded-md font-semibold disabled:opacity-40"
+        >
+          {currentStep === TOTAL_STEPS ? (isPublishing ? "Publishing..." : "Publish Listing") : "Next"}
+        </button>
+      </footer>
+
       {isMapModalOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden relative">
+        <div className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[78vh] flex flex-col overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Drag the pin to your exact location</h3>
-                {isReverseGeocoding && (
-                  <p className="text-xs text-gray-500 mt-1">Finding address...</p>
-                )}
+                <h3 className="text-lg font-semibold text-gray-900">Drop pin for pickup location</h3>
+                {isReverseGeocoding && <p className="text-xs text-gray-500 mt-1">Resolving address...</p>}
               </div>
               <button
                 type="button"
@@ -808,98 +539,68 @@ export default function HostOnboardingFlow() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-grow w-full relative">
-              {!apiKey ? (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 m-6">
-                  Add `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env.local` to use map picker.
-                </div>
-              ) : !isPlacesLoaded ? (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 m-6">
-                  Loading map...
+            <div className="flex-grow relative">
+              {!apiKey || !isPlacesLoaded ? (
+                <div className="h-full flex items-center justify-center text-sm text-gray-600">
+                  Add Google Maps key to use map picker.
                 </div>
               ) : (
-                <>
-                  <div className="absolute z-10 top-4 left-4 right-4 bg-white/95 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 shadow-sm">
-                    {tempLocation.address || "Drop or drag pin to resolve address."}
-                  </div>
-                  <APIProvider apiKey={apiKey}>
-                    <VisMap
-                      mapId="DEMO_MAP_ID"
-                      defaultCenter={{ lat: tempLocation.lat, lng: tempLocation.lng }}
-                      defaultZoom={14}
-                      zoomControl={true}
-                      streetViewControl={false}
-                      mapTypeControl={false}
-                      fullscreenControl={false}
-                      style={{ width: "100%", height: "100%" }}
+                <APIProvider apiKey={apiKey}>
+                  <VisMap
+                    mapId="DEMO_MAP_ID"
+                    defaultCenter={{ lat: tempLocation.lat, lng: tempLocation.lng }}
+                    defaultZoom={13}
+                    clickableIcons={false}
+                    zoomControl={true}
+                    streetViewControl={false}
+                    mapTypeControl={false}
+                    fullscreenControl={false}
+                    style={{ width: "100%", height: "100%" }}
+                  >
+                    <AdvancedMarker
+                      position={{ lat: tempLocation.lat, lng: tempLocation.lng }}
+                      draggable
+                      onDragEnd={(event) => {
+                        const lat = event?.latLng?.lat?.();
+                        const lng = event?.latLng?.lng?.();
+                        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                          handlePinDrop(lat, lng);
+                        }
+                      }}
                     >
-                      <AdvancedMarker
-                        position={{ lat: tempLocation.lat, lng: tempLocation.lng }}
-                        draggable
-                        onDragEnd={(event) => {
-                          const newLat = event?.latLng?.lat?.();
-                          const newLng = event?.latLng?.lng?.();
-                          if (Number.isFinite(newLat) && Number.isFinite(newLng)) {
-                            handlePinDrop(newLat, newLng);
-                          }
-                        }}
-                      >
-                        <Pin background={"#EF4444"} borderColor={"#7F1D1D"} glyphColor={"#7F1D1D"} />
-                      </AdvancedMarker>
-                    </VisMap>
-                  </APIProvider>
-                </>
+                      <Pin background={"#EF4444"} borderColor={"#7F1D1D"} glyphColor={"#7F1D1D"} />
+                    </AdvancedMarker>
+                  </VisMap>
+                </APIProvider>
               )}
             </div>
-            <div className="p-4 border-t bg-white flex justify-end gap-3">
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setIsMapModalOpen(false)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 transition"
+                className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={confirmMapLocation}
-                className="rounded-lg bg-gray-900 px-4 py-2 text-white font-semibold hover:bg-black transition"
+                onClick={() => {
+                  setListingData((prev) => ({
+                    ...prev,
+                    address: tempLocation.address || prev.address,
+                    lat: tempLocation.lat,
+                    lng: tempLocation.lng,
+                  }));
+                  setIsMapModalOpen(false);
+                }}
+                className="rounded-lg bg-gray-900 text-white px-4 py-2 font-semibold"
               >
-                Confirm Location
+                Confirm
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <footer className="fixed bottom-0 left-0 right-0 z-50 h-24 border-t bg-white px-10">
-        <div className="absolute left-0 right-0 top-0 h-1 w-full bg-gray-200">
-          <div
-            className="h-full bg-gray-900 transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <div className="flex h-full items-center justify-between">
-          <button
-            onClick={handleBack}
-            className={`font-medium underline ${
-              currentStep === 1 ? "invisible" : "text-gray-900"
-            }`}
-          >
-            Back
-          </button>
-          <button
-            onClick={handleNext}
-            disabled={!canProceed || isPublishing}
-            className="rounded-md bg-gray-900 px-8 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {currentStep === TOTAL_STEPS
-              ? isPublishing
-                ? "Publishing..."
-                : "Publish Listing"
-              : "Next"}
-          </button>
-        </div>
-      </footer>
     </div>
   );
 }

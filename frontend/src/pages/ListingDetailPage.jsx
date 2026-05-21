@@ -16,6 +16,7 @@ export default function ListingDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [reserveError, setReserveError] = useState("");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [calendarMonths, setCalendarMonths] = useState(2);
@@ -64,6 +65,15 @@ export default function ListingDetailPage() {
     return () => window.removeEventListener("resize", syncCalendarMonths);
   }, []);
 
+  useEffect(() => {
+    if (!isGalleryOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isGalleryOpen]);
+
   const images = useMemo(() => {
     const raw = listing?.photos?.filter(Boolean) || [];
     if (raw.length >= 5) return raw.slice(0, 5);
@@ -74,6 +84,13 @@ export default function ListingDetailPage() {
     }
     return repeated.slice(0, 5);
   }, [listing]);
+  const galleryImages = useMemo(() => {
+    const all = [
+      ...(Array.isArray(listing?.images) ? listing.images : []),
+      ...(Array.isArray(listing?.photos) ? listing.photos : []),
+    ].filter(Boolean);
+    return Array.from(new Set(all));
+  }, [listing?.images, listing?.photos]);
 
   if (isLoading) {
     return (
@@ -114,6 +131,8 @@ export default function ListingDetailPage() {
   const reviews = 42;
   const rating = 4.92;
   const locationText = listing.cityZone ? listing.cityZone.replace(/-/g, " ") : "Location";
+  const hostedByName = listing.isCompanyOwned ? "DriveBnb Fleet" : listing.ownerName || "DriveBnb Host";
+  const hostRoleLabel = listing.isCompanyOwned ? "Company fleet" : "Individual host";
 
   const nights =
     dateRange.from && dateRange.to
@@ -179,13 +198,18 @@ export default function ListingDetailPage() {
                 src={images[index]}
                 alt={`${title} photo ${index + 1}`}
                 className="h-full w-full cursor-pointer object-cover transition hover:opacity-90"
+                onClick={() => setIsGalleryOpen(true)}
               />
             ) : (
               <div className="h-full w-full bg-gray-200" />
             )}
           </div>
         ))}
-        <button className="absolute bottom-4 right-4 flex items-center gap-2 rounded-lg border border-black bg-white px-4 py-1.5 text-sm font-semibold shadow-md transition hover:bg-gray-50">
+        <button
+          type="button"
+          onClick={() => setIsGalleryOpen(true)}
+          className="absolute bottom-4 right-4 flex items-center gap-2 rounded-lg border border-black bg-white px-4 py-1.5 text-sm font-semibold shadow-md transition hover:bg-gray-50"
+        >
           <CarFront className="h-4 w-4" />
           Show all photos
         </button>
@@ -197,10 +221,10 @@ export default function ListingDetailPage() {
             <UserCircle2 className="h-10 w-10 text-gray-500" />
             <div>
               <p className="text-xl font-semibold text-gray-900">
-                Hosted by {listing.ownerName || "DriveBnb Host"}
+                Hosted by {hostedByName}
               </p>
               <p className="text-sm text-gray-500">
-                {listing.sourceType === "FLEET" ? "Fleet manager" : "Individual host"}
+                {hostRoleLabel}
               </p>
             </div>
           </div>
@@ -370,6 +394,36 @@ export default function ListingDetailPage() {
         </div>
       </div>
       </div>
+      {isGalleryOpen && (
+        <div className="fixed inset-0 z-[100] bg-white overflow-y-auto">
+          <div className="sticky top-0 bg-white py-4 px-6 flex items-center border-b z-10">
+            <button
+              type="button"
+              onClick={() => setIsGalleryOpen(false)}
+              className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium hover:bg-gray-100"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back to listing
+            </button>
+          </div>
+          <div className="max-w-3xl mx-auto py-10 px-4 flex flex-col gap-4">
+            {galleryImages.length ? (
+              galleryImages.map((imageUrl, idx) => (
+                <img
+                  key={`${imageUrl}-${idx}`}
+                  src={imageUrl}
+                  alt={`${title} gallery ${idx + 1}`}
+                  className="w-full h-auto object-cover rounded-xl"
+                />
+              ))
+            ) : (
+              <div className="w-full h-80 rounded-xl bg-gray-200 flex items-center justify-center text-gray-500">
+                No photos available.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <AuthModal
         isOpen={isAuthModalOpen}
         mode="login"
