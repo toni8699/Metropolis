@@ -4,6 +4,7 @@ from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotF
 
 from metropolis.auth import require_auth, require_listing_access
 from metropolis.schemas.common import ErrorSchema, StatusSchema
+from metropolis.schemas.admin import AdminAnalyticsSchema
 from metropolis.schemas.marketplace import (
     ListingAvailabilitySchema,
     ListingCollectionSchema,
@@ -42,6 +43,18 @@ def owner_bookings():
     """List bookings for listings owned by the authenticated user."""
     try:
         return marketplace_service.owner_bookings(g.current_user["userId"])
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+
+
+@bp.get("/analytics")
+@require_auth()
+@response(AdminAnalyticsSchema)
+@other_responses({500: (ErrorSchema, "Server error.")})
+def owner_analytics():
+    """Dashboard metrics for the authenticated host's own listings."""
+    try:
+        return marketplace_service.owner_analytics(g.current_user["userId"])
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 

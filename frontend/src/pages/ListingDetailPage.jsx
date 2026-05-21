@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CarFront, ChevronLeft, ChevronRight, Fuel, Settings, Star, UserCircle2 } from "lucide-react";
+import { CarFront, ChevronLeft, ChevronRight, Fuel, Settings, UserCircle2 } from "lucide-react";
 import { differenceInCalendarDays, format } from "date-fns";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/style.css";
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/AuthModal";
 import { useNavigate, useParams } from "react-router-dom";
+import ListingReviewsSection from "../components/ListingReviewsSection";
+import ListingRatingLine from "../components/ListingRatingLine";
 import { apiGet } from "../utils/api";
 
 export default function ListingDetailPage() {
@@ -13,6 +15,8 @@ export default function ListingDetailPage() {
   const { isAuthenticated } = useAuth();
   const { listingId } = useParams();
   const [listing, setListing] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -39,6 +43,30 @@ export default function ListingDetailPage() {
       .finally(() => {
         if (!cancelled) {
           setIsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [listingId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setReviewsLoading(true);
+    apiGet(`/api/market/listings/${listingId}/reviews`)
+      .then((data) => {
+        if (!cancelled) {
+          setReviews(data?.reviews || []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setReviews([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setReviewsLoading(false);
         }
       });
     return () => {
@@ -128,8 +156,6 @@ export default function ListingDetailPage() {
     `${listing.make || listing.brand || "Car"} ${listing.model || ""} ${
       listing.year || ""
     }`.trim();
-  const reviews = 42;
-  const rating = 4.92;
   const locationText = listing.cityZone ? listing.cityZone.replace(/-/g, " ") : "Location";
   const hostedByName = listing.isCompanyOwned ? "DriveBnb Fleet" : listing.ownerName || "DriveBnb Host";
   const hostRoleLabel = listing.isCompanyOwned ? "Company fleet" : "Individual host";
@@ -176,15 +202,10 @@ export default function ListingDetailPage() {
     <>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-10">
       <h1 className="mb-2 text-3xl font-semibold text-gray-900">{title}</h1>
-      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-        <span className="flex items-center gap-1 underline">
-          <Star className="h-4 w-4 fill-current" />
-          {rating.toFixed(2)}
-        </span>
+      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+        <ListingRatingLine listing={listing} />
         <span>·</span>
-        <span className="underline">{reviews} reviews</span>
-        <span>·</span>
-        <span className="underline">{locationText}</span>
+        <span className="font-medium capitalize">{locationText}</span>
       </div>
 
       <div className="group relative mt-6 grid h-[50vh] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-2xl md:h-[60vh]">
@@ -252,20 +273,22 @@ export default function ListingDetailPage() {
           </p>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              "Instant booking",
-              "Free cancellation in 24h",
-              "Apple CarPlay",
-              "Bluetooth audio",
-              "Backup camera",
-              "Unlimited support",
-            ].map((feature) => (
+            {(Array.isArray(listing.features) && listing.features.length
+              ? listing.features
+              : ["Instant booking", "Free cancellation in 24h"]
+            ).map((feature) => (
               <div key={feature} className="flex items-center gap-2 text-sm text-gray-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-gray-900" />
                 {feature}
               </div>
             ))}
           </div>
+
+          <ListingReviewsSection
+            listing={listing}
+            reviews={reviews}
+            isLoading={reviewsLoading}
+          />
         </div>
 
         <div className="w-full md:w-[35%]">

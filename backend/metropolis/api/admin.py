@@ -51,7 +51,7 @@ def sync_fleet_listings():
 @response(AdminBookingsSchema)
 @other_responses({500: (ErrorSchema, "Database or server error.")})
 def admin_bookings():
-    """List bookings visible to current admin."""
+    """List bookings for company fleet listings only."""
     try:
         return marketplace_service.admin_bookings()
     except Exception as exc:  # noqa: BLE001
@@ -63,9 +63,21 @@ def admin_bookings():
 @response(AdminListingsSchema)
 @other_responses({500: (ErrorSchema, "Database or server error.")})
 def admin_listings():
-    """List all listings for admin."""
+    """List company fleet listings for admin."""
     try:
         return marketplace_service.admin_listings()
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+
+
+@bp.get("/host-listings")
+@require_admin()
+@response(AdminListingsSchema)
+@other_responses({500: (ErrorSchema, "Database or server error.")})
+def admin_host_listings():
+    """List host-owned (non-fleet) listings for admin moderation."""
+    try:
+        return marketplace_service.admin_host_listings()
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
@@ -99,7 +111,7 @@ def admin_users():
 @response(AdminAnalyticsSchema)
 @other_responses({500: (ErrorSchema, "Database or server error.")})
 def admin_analytics():
-    """Get admin analytics overview."""
+    """Get analytics for company fleet listings only."""
     try:
         return marketplace_service.admin_analytics()
     except Exception as exc:  # noqa: BLE001

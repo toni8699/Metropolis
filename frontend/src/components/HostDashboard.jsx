@@ -81,13 +81,19 @@ const mapContainerStyle = {
 const FALLBACK_CENTER = { lat: 43.6532, lng: -79.3832 };
 
 function getNavItems(isAdmin) {
-  const items = [
-    { id: "overview", label: "Overview", icon: LayoutDashboard },
-    { id: "listings", label: "Listings", icon: CarFront },
-    { id: "create_listing", label: "Create Listing", icon: UploadCloud },
-  ];
+  const items = [{ id: "overview", label: "Overview", icon: LayoutDashboard }];
   if (isAdmin) {
-    items.push({ id: "users", label: "Users", icon: Users });
+    items.push(
+      { id: "fleet_listings", label: "Fleet Listings", icon: CarFront },
+      { id: "host_listings", label: "Host Listings", icon: Building2 },
+      { id: "create_listing", label: "Create Listing", icon: UploadCloud },
+      { id: "users", label: "Users", icon: Users },
+    );
+  } else {
+    items.push(
+      { id: "listings", label: "Listings", icon: CarFront },
+      { id: "create_listing", label: "Create Listing", icon: UploadCloud },
+    );
   }
   items.push({ id: "bookings", label: "Bookings", icon: CalendarDays });
   return items;
@@ -96,26 +102,12 @@ function getNavItems(isAdmin) {
 const pageTitles = {
   overview: "Overview",
   listings: "Manage Listings",
+  fleet_listings: "Fleet Listings",
+  host_listings: "Host Listings",
   create_listing: "Create Listing",
   users: "Users",
   bookings: "Bookings",
 };
-
-const revenueSeries = [
-  { day: "Mon", revenue: 620 },
-  { day: "Tue", revenue: 780 },
-  { day: "Wed", revenue: 730 },
-  { day: "Thu", revenue: 910 },
-  { day: "Fri", revenue: 1190 },
-  { day: "Sat", revenue: 1360 },
-  { day: "Sun", revenue: 980 },
-];
-
-const bookingsByLocationSeries = [
-  { location: "Toronto", bookings: 38 },
-  { location: "Montreal", bookings: 22 },
-  { location: "Vancouver", bookings: 12 },
-];
 
 const pieColors = ["#4f46e5", "#818cf8", "#c7d2fe"];
 const FEATURE_OPTIONS = [
@@ -150,6 +142,7 @@ export default function HostDashboard({ mode = "admin" }) {
   const [analytics, setAnalytics] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [listings, setListings] = useState([]);
+  const [hostListings, setHostListings] = useState([]);
   const [users, setUsers] = useState([]);
   const [companyLocations, setCompanyLocations] = useState({
     areas: [],
@@ -277,21 +270,37 @@ export default function HostDashboard({ mode = "admin" }) {
     [bookings],
   );
 
+  const revenueSeries = useMemo(() => buildRevenueSeries(bookings), [bookings]);
+  const bookingsByLocationSeries = useMemo(
+    () => buildBookingsByLocation(bookings),
+    [bookings],
+  );
+
+  const fleetUtilization = useMemo(() => {
+    const total = Number(analytics?.listingCount || 0);
+    const active = Number(analytics?.activeListings || 0);
+    if (!total) return "0%";
+    return `${Math.round((active / total) * 100)}%`;
+  }, [analytics]);
+
   const loadAll = async () => {
     setError("");
     setIsLoading(true);
     try {
       if (isAdmin) {
-        const [analyticsRes, bookingsRes, listingsRes, usersRes, locationsRes] = await Promise.all([
-          apiGet("/api/admin/analytics", true),
-          apiGet("/api/admin/bookings", true),
-          apiGet("/api/admin/listings", true),
-          apiGet("/api/admin/users", true),
-          apiGet("/api/admin/company-locations", true),
-        ]);
+        const [analyticsRes, bookingsRes, listingsRes, hostListingsRes, usersRes, locationsRes] =
+          await Promise.all([
+            apiGet("/api/admin/analytics", true),
+            apiGet("/api/admin/bookings", true),
+            apiGet("/api/admin/listings", true),
+            apiGet("/api/admin/host-listings", true),
+            apiGet("/api/admin/users", true),
+            apiGet("/api/admin/company-locations", true),
+          ]);
         setAnalytics(analyticsRes?.analytics || null);
         setBookings(bookingsRes?.bookings || []);
         setListings(listingsRes?.listings || []);
+        setHostListings(hostListingsRes?.listings || []);
         setUsers(usersRes?.users || []);
         const nextLocations = {
           areas: locationsRes?.areas || [],
@@ -309,32 +318,23 @@ export default function HostDashboard({ mode = "admin" }) {
           }));
         }
       } else {
-        const [listingsRes, bookingsRes, vehicleClassesRes] = await Promise.all([
+        const [listingsRes, bookingsRes, analyticsRes, vehicleClassesRes] = await Promise.all([
           apiGet("/api/owner/listings", true),
           apiGet("/api/owner/bookings", true).catch(() => ({ bookings: [] })),
+          apiGet("/api/owner/analytics", true).catch(() => ({ analytics: null })),
           apiGet("/api/owner/vehicle-classes", true).catch(() => ({ vehicleClasses: [] })),
         ]);
         const ownerListings = listingsRes?.listings || [];
         const ownerBookings = bookingsRes?.bookings || [];
         setListings(ownerListings);
         setBookings(ownerBookings);
+        setAnalytics(analyticsRes?.analytics || null);
         setUsers([]);
         setCompanyLocations({
           areas: [],
           branches: [],
           parkingSpots: [],
           vehicleClasses: vehicleClassesRes?.vehicleClasses || [],
-        });
-        const activeCount = ownerListings.filter((listing) => listing.active !== false).length;
-        const grossDailyRevenue = ownerListings.reduce(
-          (sum, listing) => sum + Number(listing.pricePerDay || 0),
-          0,
-        );
-        setAnalytics({
-          listingCount: ownerListings.length,
-          bookingCount: ownerBookings.length,
-          grossDailyRevenue,
-          activeListings: activeCount,
         });
       }
     } catch (err) {
@@ -808,7 +808,7 @@ export default function HostDashboard({ mode = "admin" }) {
                 />
                 <AnalyticsCard
                   label={isAdmin ? "Fleet Utilization" : "Active Listings"}
-                  value={isAdmin ? "78%" : String(analytics?.activeListings ?? 0)}
+                  value={isAdmin ? fleetUtilization : String(analytics?.activeListings ?? 0)}
                 />
               </section>
 
@@ -1292,92 +1292,23 @@ export default function HostDashboard({ mode = "admin" }) {
             </section>
           )}
 
-          {activeTab === "listings" && (
-            <section className="mx-10 mt-6 mb-10">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-semibold text-gray-900">
-                  {isAdmin ? "All Listings" : "My Listings"}
-                </h2>
-                <button
-                  onClick={() => setActiveTab("create_listing")}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition"
-                >
-                  Add New Listing
-                </button>
-              </div>
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
-                      <th className="px-6 py-4">Listing</th>
-                      <th className="px-6 py-4">Specs</th>
-                      {isAdmin && <th className="px-6 py-4">Type</th>}
-                      <th className="px-6 py-4">Price</th>
-                      <th className="px-6 py-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {listings.map((listing) => (
-                      <tr
-                        key={listing.listingId}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition"
-                      >
-                        <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                          <Link
-                            to={`/app/listings/${listing.listingId}`}
-                            className="text-indigo-700 hover:text-indigo-900 hover:underline"
-                          >
-                            {listing.title}
-                          </Link>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
-                          {listing.make || "-"} {listing.model || ""}
-                        </td>
-                        {isAdmin && (
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                listing.isCompanyOwned
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-gray-100 text-gray-700"
-                              }`}
-                            >
-                              {listing.isCompanyOwned ? "Company" : "User"}
-                            </span>
-                          </td>
-                        )}
-                        <td className="px-6 py-4 text-sm text-gray-900">${listing.pricePerDay}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEditListing(listing)}
-                              className="h-9 w-9 rounded-lg text-gray-400 hover:text-indigo-700 hover:bg-indigo-50 transition flex items-center justify-center"
-                              aria-label="Edit listing"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <Link
-                              to={`/app/listings/${listing.listingId}`}
-                              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition"
-                            >
-                              View
-                            </Link>
-                            <button
-                              onClick={() => deleteListing(listing.listingId)}
-                              className="h-9 w-9 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition flex items-center justify-center"
-                              aria-label="Delete listing"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+          {(activeTab === "listings" || activeTab === "fleet_listings" || activeTab === "host_listings") && (
+            <ListingsTableSection
+              title={
+                activeTab === "host_listings"
+                  ? "Host Listings"
+                  : isAdmin
+                    ? "Fleet Listings"
+                    : "My Listings"
+              }
+              listings={activeTab === "host_listings" ? hostListings : listings}
+              showHostColumn={activeTab === "host_listings"}
+              showTypeColumn={isAdmin && activeTab !== "host_listings"}
+              showAddButton={activeTab !== "host_listings"}
+              onAdd={() => setActiveTab("create_listing")}
+              onEdit={startEditListing}
+              onDelete={deleteListing}
+            />
           )}
 
           {isAdmin && activeTab === "users" && (
@@ -1539,6 +1470,166 @@ export default function HostDashboard({ mode = "admin" }) {
       </div>
     </Layout>
   );
+}
+
+function ListingsTableSection({
+  title,
+  listings,
+  showHostColumn,
+  showTypeColumn,
+  showAddButton = true,
+  onAdd,
+  onEdit,
+  onDelete,
+}) {
+  return (
+    <section className="mx-10 mt-6 mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
+        {showAddButton && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition"
+          >
+            Add New Listing
+          </button>
+        )}
+      </div>
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
+              <th className="px-6 py-4">Listing</th>
+              <th className="px-6 py-4">Specs</th>
+              {showHostColumn && <th className="px-6 py-4">Host</th>}
+              {showTypeColumn && <th className="px-6 py-4">Type</th>}
+              <th className="px-6 py-4">Price</th>
+              <th className="px-6 py-4">Reviews</th>
+              <th className="px-6 py-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {listings.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={5 + (showHostColumn ? 1 : 0) + (showTypeColumn ? 1 : 0)}
+                  className="px-6 py-8 text-sm text-gray-500 text-center"
+                >
+                  No listings found.
+                </td>
+              </tr>
+            ) : (
+              listings.map((listing) => (
+                <tr
+                  key={listing.listingId}
+                  className="border-b border-gray-100 hover:bg-gray-50 transition"
+                >
+                  <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                    <Link
+                      to={`/app/listings/${listing.listingId}`}
+                      className="text-indigo-700 hover:text-indigo-900 hover:underline"
+                    >
+                      {listing.title}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {listing.make || "-"} {listing.model || ""}
+                  </td>
+                  {showHostColumn && (
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {listing.ownerName || `User #${listing.ownerUserId ?? "n/a"}`}
+                    </td>
+                  )}
+                  {showTypeColumn && (
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          listing.isCompanyOwned
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {listing.isCompanyOwned ? "Company" : "User"}
+                      </span>
+                    </td>
+                  )}
+                  <td className="px-6 py-4 text-sm text-gray-900">${listing.pricePerDay}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    {listing.reviewCount ?? 0} review{(listing.reviewCount ?? 0) === 1 ? "" : "s"}
+                    {listing.averageRating != null
+                      ? ` · ${Number(listing.averageRating).toFixed(1)}★`
+                      : ""}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onEdit(listing)}
+                        className="h-9 w-9 rounded-lg text-gray-400 hover:text-indigo-700 hover:bg-indigo-50 transition flex items-center justify-center"
+                        aria-label="Edit listing"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <Link
+                        to={`/app/listings/${listing.listingId}`}
+                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition"
+                      >
+                        View
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(listing.listingId)}
+                        className="h-9 w-9 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition flex items-center justify-center"
+                        aria-label="Delete listing"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function buildRevenueSeries(bookings) {
+  if (!bookings.length) {
+    return [{ day: "—", revenue: 0 }];
+  }
+  const totals = {};
+  for (const booking of bookings) {
+    const day = formatShortDay(booking.createdAt || booking.startAt);
+    const amount = Number(booking.priceSnapshot?.pricePerDay ?? 0);
+    totals[day] = (totals[day] || 0) + amount;
+  }
+  return Object.entries(totals).map(([day, revenue]) => ({ day, revenue }));
+}
+
+function buildBookingsByLocation(bookings) {
+  if (!bookings.length) {
+    return [{ location: "No bookings", bookings: 0 }];
+  }
+  const counts = {};
+  for (const booking of bookings) {
+    const location = booking.cityZone || booking.listingTitle || "Unknown";
+    counts[location] = (counts[location] || 0) + 1;
+  }
+  return Object.entries(counts).map(([location, bookingsCount]) => ({
+    location,
+    bookings: bookingsCount,
+  }));
+}
+
+function formatShortDay(isoValue) {
+  if (!isoValue) return "—";
+  const date = new Date(isoValue);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function formatBookingWindow(startAt, endAt) {

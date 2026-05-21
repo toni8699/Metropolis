@@ -1,4 +1,6 @@
 -- Metropolis rental schema (PostgreSQL / Neon)
+-- Reference snapshot of the base schema. Incremental changes: Alembic (backend/alembic).
+-- When adding tables/columns via Alembic, update this file to match the final state.
 
 CREATE TABLE Area
 (
@@ -46,32 +48,6 @@ CREATE TABLE BranchManager
 ALTER TABLE Branch
   ADD CONSTRAINT fk_branch_manager FOREIGN KEY (managerID) REFERENCES Employee(eID);
 
-CREATE TABLE Customer
-(
-  email VARCHAR(255) NOT NULL PRIMARY KEY,
-  name VARCHAR(150),
-  address VARCHAR(200),
-  license_expiry DATE
-);
-
-CREATE TABLE Reservation
-(
-  resID INT NOT NULL PRIMARY KEY,
-  bookedAtTime TIMESTAMP NOT NULL,
-  email VARCHAR(255) NOT NULL,
-  FOREIGN KEY (email) REFERENCES Customer(email)
-);
-
-CREATE TABLE RentalPeriod
-(
-  resID INT NOT NULL,
-  periodID INT NOT NULL,
-  pickupDate DATE,
-  returnDate DATE,
-  PRIMARY KEY (resID, periodID),
-  FOREIGN KEY (resID) REFERENCES Reservation(resID)
-);
-
 CREATE TABLE Vehicle
 (
   vin CHAR(17) NOT NULL PRIMARY KEY,
@@ -84,19 +60,6 @@ CREATE TABLE Vehicle
   branchID INT NOT NULL,
   FOREIGN KEY (classID) REFERENCES VehicleClass(classID),
   FOREIGN KEY (branchID) REFERENCES Branch(branchID)
-);
-
-CREATE TABLE Agreement
-(
-  contractID INT NOT NULL PRIMARY KEY,
-  planType VARCHAR(50),
-  totalCost DECIMAL(12,2),
-  eID INT NOT NULL,
-  vin CHAR(17) NOT NULL,
-  resID INT NOT NULL,
-  FOREIGN KEY (eID) REFERENCES Employee(eID),
-  FOREIGN KEY (vin) REFERENCES Vehicle(vin),
-  FOREIGN KEY (resID) REFERENCES Reservation(resID)
 );
 
 CREATE TABLE Relocation

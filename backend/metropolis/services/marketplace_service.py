@@ -22,6 +22,55 @@ LISTING_SELECT_SQL = """
     LEFT JOIN app_user u ON u.user_id = l.owner_user_id
 """
 
+# Admin dashboard: company fleet only (not third-party host listings).
+_COMPANY_FLEET_FILTER = "l.is_company_owned = TRUE"
+_HOST_LISTING_FILTER = "l.source_type = 'OWNER' AND l.is_company_owned = FALSE"
+
+_BOOKING_SELECT_SQL = """
+    SELECT
+        b.booking_id,
+        b.listing_id,
+        b.renter_user_id,
+        b.start_at,
+        b.end_at,
+        b.status,
+        b.price_snapshot_json,
+        b.created_at,
+        b.updated_at,
+        l.title AS listing_title,
+        l.source_type,
+        l.owner_user_id,
+        loc.city_zone,
+        u.email AS renter_email
+    FROM booking b
+    JOIN vehicle_listing l ON l.listing_id = b.listing_id
+    LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
+    LEFT JOIN app_user u ON u.user_id = b.renter_user_id
+"""
+
+
+def _fetch_dashboard_analytics(cur, listing_where: str, params: tuple = ()) -> dict:
+    cur.execute(
+        f"""
+        SELECT
+            COUNT(DISTINCT l.listing_id) AS listing_count,
+            COUNT(DISTINCT l.listing_id) FILTER (WHERE l.active) AS active_listings,
+            COUNT(DISTINCT b.booking_id) AS booking_count,
+            COALESCE(SUM((b.price_snapshot_json->>'pricePerDay')::numeric), 0) AS gross_daily_revenue
+        FROM vehicle_listing l
+        LEFT JOIN booking b ON b.listing_id = l.listing_id
+        WHERE {listing_where}
+        """,
+        params,
+    )
+    row = cur.fetchone()
+    return {
+        "listingCount": int(row["listing_count"] or 0),
+        "activeListings": int(row["active_listings"] or 0),
+        "bookingCount": int(row["booking_count"] or 0),
+        "grossDailyRevenue": float(row["gross_daily_revenue"] or 0),
+    }
+
 
 def _resolve_guidelines(payload: dict) -> str | None:
     guidelines = payload.get("guidelines")
@@ -256,6 +305,7 @@ def _to_booking_row(row: dict, instructions: list[dict]) -> dict:
         "ownerUserId": row["owner_user_id"],
         "renterUserId": row["renter_user_id"],
         "renterEmail": row.get("renter_email"),
+        "cityZone": row.get("city_zone"),
         "startAt": row["start_at"].isoformat(),
         "endAt": row["end_at"].isoformat(),
         "status": row["status"],
@@ -603,6 +653,7 @@ class MarketplaceService:
                     f"""
                     {LISTING_SELECT_SQL}
                     WHERE l.owner_user_id = %s
+                      AND l.source_type = 'OWNER'
                     ORDER BY l.created_at DESC
                     """,
                     (actor["userId"],),
@@ -616,6 +667,21 @@ class MarketplaceService:
                 cur.execute(
                     f"""
                     {LISTING_SELECT_SQL}
+                    WHERE {_COMPANY_FLEET_FILTER}
+                    ORDER BY l.created_at DESC
+                    LIMIT 500
+                    """
+                )
+                listings = _hydrate_listing_rows(cur, cur.fetchall())
+        return {"status": "success", "listings": listings}
+
+    def admin_host_listings(self) -> dict:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    f"""
+                    {LISTING_SELECT_SQL}
+                    WHERE {_HOST_LISTING_FILTER}
                     ORDER BY l.created_at DESC
                     LIMIT 500
                     """
@@ -1147,15 +1213,9 @@ class MarketplaceService:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
-                    """
-                    SELECT
-                        b.booking_id, b.listing_id, b.renter_user_id, b.start_at, b.end_at, b.status,
-                        b.price_snapshot_json, b.created_at, b.updated_at,
-                        l.title AS listing_title, l.source_type, l.owner_user_id,
-                        u.email AS renter_email
-                    FROM booking b
-                    JOIN vehicle_listing l ON l.listing_id = b.listing_id
-                    LEFT JOIN app_user u ON u.user_id = b.renter_user_id
+                    f"""
+                    {_BOOKING_SELECT_SQL}
+                    WHERE {_COMPANY_FLEET_FILTER}
                     ORDER BY b.created_at DESC
                     LIMIT 200
                     """
@@ -1167,16 +1227,10 @@ class MarketplaceService:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
-                    """
-                    SELECT
-                        b.booking_id, b.listing_id, b.renter_user_id, b.start_at, b.end_at, b.status,
-                        b.price_snapshot_json, b.created_at, b.updated_at,
-                        l.title AS listing_title, l.source_type, l.owner_user_id,
-                        u.email AS renter_email
-                    FROM booking b
-                    JOIN vehicle_listing l ON l.listing_id = b.listing_id
-                    LEFT JOIN app_user u ON u.user_id = b.renter_user_id
+                    f"""
+                    {_BOOKING_SELECT_SQL}
                     WHERE l.owner_user_id = %s
+                      AND l.source_type = 'OWNER'
                     ORDER BY b.created_at DESC
                     LIMIT 200
                     """,
@@ -1185,28 +1239,21 @@ class MarketplaceService:
                 rows = cur.fetchall()
         return {"status": "success", "bookings": [_to_booking_row(row, []) for row in rows]}
 
+    def owner_analytics(self, owner_user_id: int) -> dict:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                analytics = _fetch_dashboard_analytics(
+                    cur,
+                    "l.owner_user_id = %s AND l.source_type = 'OWNER'",
+                    (owner_user_id,),
+                )
+        return {"status": "success", "analytics": analytics}
+
     def admin_analytics(self) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    """
-                    SELECT
-                        COUNT(DISTINCT l.listing_id) AS listing_count,
-                        COUNT(DISTINCT b.booking_id) AS booking_count,
-                        COALESCE(SUM((b.price_snapshot_json->>'pricePerDay')::numeric), 0) AS gross_daily_revenue
-                    FROM vehicle_listing l
-                    LEFT JOIN booking b ON b.listing_id = l.listing_id
-                    """
-                )
-                row = cur.fetchone()
-        return {
-            "status": "success",
-            "analytics": {
-                "listingCount": int(row["listing_count"] or 0),
-                "bookingCount": int(row["booking_count"] or 0),
-                "grossDailyRevenue": float(row["gross_daily_revenue"] or 0),
-            },
-        }
+                analytics = _fetch_dashboard_analytics(cur, _COMPANY_FLEET_FILTER)
+        return {"status": "success", "analytics": analytics}
 
     def sync_fleet_listings(self) -> dict:
         created = 0

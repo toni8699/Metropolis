@@ -10,9 +10,9 @@ import {
   ChevronRight,
   List,
   Map as MapIcon,
-  Star,
 } from "lucide-react";
 import CarGrid from "./CarGrid";
+import ListingRatingLine from "./ListingRatingLine";
 import { formatPricePerDay } from "../lib/formatPrice";
 import { spreadOverlappingMarkers } from "../lib/mapMarkers";
 
@@ -150,10 +150,7 @@ function MapPopupCard({ car }) {
           <p className="min-w-0 flex-1 truncate font-semibold text-gray-900">
             {title || car.title || "Vehicle"}
           </p>
-          <span className="flex items-center gap-1 text-sm font-medium text-gray-900">
-            <Star className="h-4 w-4 fill-gray-900 text-gray-900" />
-            {Number(car.rating || 4.9).toFixed(2)}
-          </span>
+          <ListingRatingLine listing={car} />
         </div>
         <p className="truncate text-sm text-gray-500">
           {car.details || car.sourceType || "Automatic"}

@@ -9,3 +9,5 @@
 \ir ./007_listing_vehicle_specs.sql
 \ir ./008_listing_rich_details.sql
 \ir ./009_schema_standardization.sql
+\ir ./010_drop_legacy_booking_tables.sql
+\ir ./011_reviews.sql

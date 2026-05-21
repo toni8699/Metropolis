@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, Star } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import ListingRatingLine from "../components/ListingRatingLine";
 import { differenceInDays, format, parseISO } from "date-fns";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPost } from "../utils/api";
@@ -187,10 +188,9 @@ export default function BookingCheckoutPage() {
                 <p className="truncate text-sm text-gray-500">
                   {listing.sourceType === "FLEET" ? "Fleet vehicle" : "Hosted vehicle"}
                 </p>
-                <p className="mt-1 flex items-center gap-1 text-sm text-gray-700">
-                  <Star className="h-4 w-4 fill-current" />
-                  4.90
-                </p>
+                <div className="mt-1">
+                  <ListingRatingLine listing={listing} />
+                </div>
               </div>
             </div>
 

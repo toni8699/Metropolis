@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Heart, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+import ListingRatingLine from "./ListingRatingLine";
 
 const fallbackPhoto =
   "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1200&q=80";
@@ -114,10 +115,7 @@ export default function CarCard({ car, distanceKm }) {
         <div className="mt-3 space-y-0.5 leading-tight">
           <div className="flex items-start justify-between gap-2">
             <p className="truncate font-semibold text-gray-900">{row1Title}</p>
-            <div className="flex shrink-0 items-center gap-1 text-sm text-gray-900">
-              <Star className="h-4 w-4 fill-current" />
-              <span>{Number(car.rating ?? 4.9).toFixed(2)}</span>
-            </div>
+            <ListingRatingLine listing={car} />
           </div>
 
           <p className="text-sm text-zinc-500">{details}</p>

@@ -107,7 +107,8 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
           make: listing.make || listing.brand || "",
           model: listing.model || listing.title || "",
           year: listing.year || null,
-          rating: 4.9,
+          averageRating: listing.averageRating,
+          reviewCount: listing.reviewCount,
           details:
             listing.isCompanyOwned || listing.sourceType === "FLEET"
               ? "Company Fleet • Automatic"
