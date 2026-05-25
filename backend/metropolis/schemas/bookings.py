@@ -37,6 +37,12 @@ class BookingSchema(ma.Schema):
     createdAt = ma.String(required=True)
     updatedAt = ma.String(required=True)
     instructions = ma.List(ma.Nested(BookingInstructionSchema))
+    needsReview = ma.Boolean(required=True)
+
+
+class BookingCollectionSchema(ma.Schema):
+    status = ma.String(required=True)
+    bookings = ma.List(ma.Nested(BookingSchema))
 
 
 class BookingItemSchema(ma.Schema):

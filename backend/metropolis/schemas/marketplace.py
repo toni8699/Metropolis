@@ -1,3 +1,5 @@
+from marshmallow import EXCLUDE, pre_load
+
 from metropolis.extensions import ma
 
 
@@ -35,6 +37,19 @@ class ListingCreateSchema(ma.Schema):
 
 
 class ListingUpdateSchema(ma.Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    @pre_load
+    def coerce_empty_numeric_fields(self, data, **_kwargs):
+        if not isinstance(data, dict):
+            return data
+        cleaned = dict(data)
+        for key in ("year", "mileage", "vehicleClassId"):
+            if cleaned.get(key) == "":
+                cleaned[key] = None
+        return cleaned
+
     title = ma.String(required=False)
     brand = ma.String(required=False, allow_none=True)
     make = ma.String(required=False, allow_none=True)
@@ -59,6 +74,9 @@ class ListingUpdateSchema(ma.Schema):
     photos = ma.List(ma.String(), required=False)
     active = ma.Boolean(required=False)
     isCompanyOwned = ma.Boolean(required=False)
+    lat = ma.Float(required=False, allow_none=True)
+    lng = ma.Float(required=False, allow_none=True)
+    cityZone = ma.String(required=False, allow_none=True)
 
 
 class ListingLocationSchema(ma.Schema):

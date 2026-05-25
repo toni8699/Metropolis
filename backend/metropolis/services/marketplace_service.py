@@ -48,6 +48,20 @@ _BOOKING_SELECT_SQL = """
     LEFT JOIN app_user u ON u.user_id = b.renter_user_id
 """
 
+_BOOKING_NEEDS_REVIEW_SQL = """
+  (
+    b.status = 'COMPLETED'
+    AND (NOW() AT TIME ZONE 'UTC') <= b.end_at + INTERVAL '30 days'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM review r
+      WHERE r.booking_id = b.booking_id
+        AND r.author_user_id = b.renter_user_id
+        AND r.target_type = 'LISTING'
+    )
+  )
+"""
+
 
 def _fetch_dashboard_analytics(cur, listing_where: str, params: tuple = ()) -> dict:
     cur.execute(
@@ -249,6 +263,7 @@ def _to_listing_row(
     review_count = rating_stats.get("review_count")
     if review_count is None:
         review_count = int(row.get("review_count") or 0)
+
     return {
         "listingId": row["listing_id"],
         "sourceType": row["source_type"],
@@ -313,6 +328,7 @@ def _to_booking_row(row: dict, instructions: list[dict]) -> dict:
         "createdAt": row["created_at"].isoformat(),
         "updatedAt": row["updated_at"].isoformat(),
         "instructions": instructions,
+        "needsReview": bool(row.get("needs_review")),
     }
 
 
@@ -1072,8 +1088,13 @@ class MarketplaceService:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
-                    """
-                    SELECT b.*, l.title AS listing_title, l.owner_user_id, l.source_type
+                    f"""
+                    SELECT
+                      b.*,
+                      l.title AS listing_title,
+                      l.owner_user_id,
+                      l.source_type,
+                      {_BOOKING_NEEDS_REVIEW_SQL} AS needs_review
                     FROM booking b
                     JOIN vehicle_listing l ON l.listing_id = b.listing_id
                     WHERE b.booking_id = %s
@@ -1107,6 +1128,43 @@ class MarketplaceService:
                     for r in cur.fetchall()
                 ]
         return {"status": "success", "booking": _to_booking_row(row, instructions)}
+
+    def list_renter_bookings(self, renter_user_id: int) -> dict:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    f"""
+                    SELECT
+                        b.booking_id,
+                        b.listing_id,
+                        b.renter_user_id,
+                        b.start_at,
+                        b.end_at,
+                        b.status,
+                        b.price_snapshot_json,
+                        b.created_at,
+                        b.updated_at,
+                        l.title AS listing_title,
+                        l.source_type,
+                        l.owner_user_id,
+                        loc.city_zone,
+                        u.email AS renter_email,
+                        {_BOOKING_NEEDS_REVIEW_SQL} AS needs_review
+                    FROM booking b
+                    JOIN vehicle_listing l ON l.listing_id = b.listing_id
+                    LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
+                    LEFT JOIN app_user u ON u.user_id = b.renter_user_id
+                    WHERE b.renter_user_id = %s
+                    ORDER BY b.end_at DESC
+                    LIMIT 200
+                    """,
+                    (renter_user_id,),
+                )
+                rows = cur.fetchall()
+        return {
+            "status": "success",
+            "bookings": [_to_booking_row(row, []) for row in rows],
+        }
 
     def send_instruction(self, booking_id: int, owner_user_id: int, message: str) -> dict:
         with get_connection() as conn:

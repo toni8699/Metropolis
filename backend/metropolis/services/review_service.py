@@ -1,8 +1,35 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from psycopg2.extras import RealDictCursor
 
 from metropolis.db import get_connection
+
+REVIEW_WINDOW_DAYS = 30
+
+
+def _as_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _review_window_expired(end_at: datetime) -> bool:
+    end_utc = _as_utc(end_at)
+    return datetime.now(timezone.utc) > end_utc + timedelta(days=REVIEW_WINDOW_DAYS)
+
+
+def _parse_optional_sub_rating(value, field_name: str) -> int | None:
+    if value is None:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{field_name} must be an integer from 1 to 5.") from None
+    if parsed < 1 or parsed > 5:
+        raise ValueError(f"{field_name} must be between 1 and 5.")
+    return parsed
 
 
 def _to_review_row(row: dict) -> dict:
@@ -15,6 +42,9 @@ def _to_review_row(row: dict) -> dict:
         "targetUserId": row.get("target_user_id"),
         "targetListingId": row.get("target_listing_id"),
         "rating": int(row["rating"]),
+        "cleanliness": int(row["cleanliness"]) if row.get("cleanliness") is not None else None,
+        "accuracy": int(row["accuracy"]) if row.get("accuracy") is not None else None,
+        "communication": int(row["communication"]) if row.get("communication") is not None else None,
         "comment": row.get("comment"),
         "createdAt": row["created_at"].isoformat(),
     }
@@ -28,6 +58,9 @@ class ReviewService:
         target_type: str,
         rating: int,
         comment: str | None,
+        cleanliness: int | None = None,
+        accuracy: int | None = None,
+        communication: int | None = None,
     ) -> dict:
         normalized_type = str(target_type or "").upper()
         if normalized_type not in {"LISTING", "RENTER"}:
@@ -45,6 +78,21 @@ class ReviewService:
 
         trimmed_comment = (comment or "").strip() or None
 
+        try:
+            cleanliness_value = _parse_optional_sub_rating(cleanliness, "cleanliness")
+            accuracy_value = _parse_optional_sub_rating(accuracy, "accuracy")
+            communication_value = _parse_optional_sub_rating(communication, "communication")
+        except ValueError as exc:
+            return {"status": "validation_error", "message": str(exc)}
+
+        if normalized_type == "RENTER":
+            if accuracy_value is not None:
+                return {
+                    "status": "validation_error",
+                    "message": "accuracy is not applicable when reviewing a renter.",
+                }
+            accuracy_value = None
+
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
@@ -52,6 +100,7 @@ class ReviewService:
                     SELECT
                       b.booking_id,
                       b.status,
+                      b.end_at,
                       b.renter_user_id,
                       b.listing_id,
                       l.owner_user_id,
@@ -70,6 +119,8 @@ class ReviewService:
                         "status": "validation_error",
                         "message": "Reviews are allowed only after the booking is COMPLETED.",
                     }
+                if _review_window_expired(booking["end_at"]):
+                    raise ValueError("The 30-day review window for this trip has expired.")
 
                 is_renter = booking["renter_user_id"] == author_id
                 is_host = author_id in {
@@ -118,11 +169,16 @@ class ReviewService:
                       target_user_id,
                       target_listing_id,
                       rating,
+                      cleanliness,
+                      accuracy,
+                      communication,
                       comment
                     )
-                    VALUES (%s, %s, %s::review_target_type, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s::review_target_type, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING review_id, booking_id, author_user_id, target_type,
-                              target_user_id, target_listing_id, rating, comment, created_at
+                              target_user_id, target_listing_id, rating,
+                              cleanliness, accuracy, communication,
+                              comment, created_at
                     """,
                     (
                         booking_id,
@@ -131,6 +187,9 @@ class ReviewService:
                         target_user_id,
                         target_listing_id,
                         rating_value,
+                        cleanliness_value,
+                        accuracy_value,
+                        communication_value,
                         trimmed_comment,
                     ),
                 )
@@ -167,6 +226,9 @@ class ReviewService:
                       r.target_user_id,
                       r.target_listing_id,
                       r.rating,
+                      r.cleanliness,
+                      r.accuracy,
+                      r.communication,
                       r.comment,
                       r.created_at
                     FROM review r

@@ -4,6 +4,7 @@ from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotF
 
 from metropolis.auth import require_auth
 from metropolis.schemas.bookings import (
+    BookingCollectionSchema,
     BookingCreateSchema,
     BookingInstructionCreateSchema,
     BookingItemSchema,
@@ -13,6 +14,18 @@ from metropolis.schemas.reviews import ReviewItemSchema, ReviewSubmitSchema
 from metropolis.services import marketplace_service, review_service
 
 bp = Blueprint("bookings", __name__, url_prefix="/api/bookings")
+
+
+@bp.get("/mine")
+@require_auth()
+@response(BookingCollectionSchema)
+@other_responses({500: (ErrorSchema, "Server error.")})
+def list_my_bookings():
+    """List bookings for the authenticated renter (includes needsReview)."""
+    try:
+        return marketplace_service.list_renter_bookings(int(g.current_user["userId"]))
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
 
 
 @bp.post("")
@@ -149,7 +162,12 @@ def submit_review(payload, booking_id: int):
             payload["targetType"],
             payload["rating"],
             payload.get("comment"),
+            payload.get("cleanliness"),
+            payload.get("accuracy"),
+            payload.get("communication"),
         )
+    except ValueError as exc:
+        raise BadRequest(description=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
     if result["status"] == "validation_error":
