@@ -5,6 +5,7 @@ import hashlib
 
 from flask import current_app
 from psycopg2.extras import Json, RealDictCursor
+from werkzeug.exceptions import BadRequest
 
 from metropolis.db import get_connection
 
@@ -61,6 +62,38 @@ _BOOKING_NEEDS_REVIEW_SQL = """
     )
   )
 """
+
+_LISTING_AVAILABLE_FOR_WINDOW_SQL = """
+NOT EXISTS (
+  SELECT 1
+  FROM booking b
+  JOIN vehicle_listing vl ON vl.listing_id = b.listing_id
+  WHERE b.status IN ('CONFIRMED', 'IN_PROGRESS')
+    AND b.start_at < %s
+    AND b.end_at > %s
+    AND (
+      b.listing_id = l.listing_id
+      OR (
+        l.source_type = 'FLEET'
+        AND l.fleet_vehicle_vin IS NOT NULL
+        AND vl.fleet_vehicle_vin = l.fleet_vehicle_vin
+      )
+    )
+)
+"""
+
+
+def _resolve_search_window(query: dict) -> tuple[datetime, datetime] | None:
+    """Return (start_at, end_at) when both provided; None when neither (no date filter)."""
+    start_at = query.get("start_at") or query.get("start")
+    end_at = query.get("end_at") or query.get("end")
+    if start_at is None and end_at is None:
+        return None
+    if start_at is None or end_at is None:
+        raise BadRequest(description="Both start_at and end_at are required for date-aware search.")
+    if end_at <= start_at:
+        raise BadRequest(description="end_at must be after start_at.")
+    return start_at, end_at
 
 
 def _fetch_dashboard_analytics(cur, listing_where: str, params: tuple = ()) -> dict:
@@ -792,7 +825,7 @@ class MarketplaceService:
 
     def search_listings(self, query: dict) -> dict:
         clauses = ["l.active = TRUE"]
-        params = []
+        params: list = []
         if query.get("cityZone"):
             clauses.append("loc.city_zone = %s")
             params.append(query["cityZone"])
@@ -800,6 +833,12 @@ class MarketplaceService:
             min_lng, min_lat, max_lng, max_lat = [float(x) for x in query["bbox"].split(",")]
             clauses.extend(["loc.lng BETWEEN %s AND %s", "loc.lat BETWEEN %s AND %s"])
             params.extend([min_lng, max_lng, min_lat, max_lat])
+
+        window = _resolve_search_window(query)
+        if window is not None:
+            start_at, end_at = window
+            clauses.append(_LISTING_AVAILABLE_FOR_WINDOW_SQL)
+            params.extend([end_at, start_at])
 
         where_sql = " AND ".join(clauses)
         with get_connection() as conn:

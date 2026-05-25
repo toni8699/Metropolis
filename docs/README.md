@@ -1,5 +1,9 @@
 # Documentation
 
+## Architecture summary (AI / reviewer handoff)
+
+[**architecture-summary.md**](./architecture-summary.md) — Tech stack, P2P vs fleet integration, data models, testing, DevOps, and known pain points.
+
 ## Architecture diagrams
 
 [**architecture-diagrams.md**](./architecture-diagrams.md) — Mermaid diagrams:

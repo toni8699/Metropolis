@@ -1,6 +1,6 @@
 from apifairy import arguments, other_responses, response
 from flask import Blueprint
-from werkzeug.exceptions import InternalServerError, NotFound
+from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
 
 from metropolis.schemas.common import ErrorSchema
 from metropolis.schemas.marketplace import (
@@ -17,11 +17,13 @@ bp = Blueprint("market", __name__, url_prefix="/api/market")
 @bp.get("/listings")
 @arguments(ListingSearchSchema)
 @response(ListingCollectionSchema)
-@other_responses({500: (ErrorSchema, "Server error.")})
+@other_responses({400: (ErrorSchema, "Validation error."), 500: (ErrorSchema, "Server error.")})
 def search_listings(query):
-    """Search visible listings for map viewport."""
+    """Search visible listings for map viewport; optional start_at/end_at availability filter."""
     try:
         return marketplace_service.search_listings(query)
+    except BadRequest:
+        raise
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 

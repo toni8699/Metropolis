@@ -98,9 +98,32 @@ class ListingSearchSchema(ma.Schema):
         required=False,
         metadata={"description": "minLng,minLat,maxLng,maxLat", "example": "-73.75,45.45,-73.50,45.62"},
     )
+    start_at = ma.DateTime(
+        required=False,
+        metadata={"description": "Search window start (ISO 8601)."},
+    )
+    end_at = ma.DateTime(
+        required=False,
+        metadata={"description": "Search window end (ISO 8601)."},
+    )
     start = ma.DateTime(required=False)
     end = ma.DateTime(required=False)
     cityZone = ma.String(required=False)
+
+    @pre_load
+    def normalize_search_window(self, data, **_kwargs):
+        # Flask query args are MultiDict, not dict — must flatten before alias copy.
+        if hasattr(data, "to_dict"):
+            cleaned = data.to_dict(flat=True)
+        elif isinstance(data, dict):
+            cleaned = dict(data)
+        else:
+            cleaned = dict(data)
+        if cleaned.get("start_at") is None and cleaned.get("start") is not None:
+            cleaned["start_at"] = cleaned["start"]
+        if cleaned.get("end_at") is None and cleaned.get("end") is not None:
+            cleaned["end_at"] = cleaned["end"]
+        return cleaned
 
 
 class ListingSchema(ma.Schema):
