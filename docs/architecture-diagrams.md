@@ -171,15 +171,56 @@ Schema from `db/schema.sql` plus migrations `004`–`012`. PostgreSQL lowercases
 
 ```mermaid
 erDiagram
-    app_user ||--o| owner_profile : "user_id PK/FK 1:1"
-    app_user }o--o{ roles : "user_roles M:N"
-    app_user ||--o{ vehicle_listing : "owner_user_id 1:N"
-    app_user ||--o{ booking : "renter_user_id 1:N"
-    app_user ||--o{ booking_instruction : "owner_user_id 1:N"
-    app_user ||--o{ trip_event : "actor_user_id 0..N"
-    app_user ||--o{ review : "author_user_id 1:N"
-    app_user ||--o{ organization_members : "user_id M:N"
-    app_user ||--o{ file_asset : "owner_user_id 0..N"
+    app_user ||--o| owner_profile : has
+    app_user }o--o{ roles : has
+    app_user ||--o{ vehicle_listing : owns
+    app_user ||--o{ booking : rents
+    app_user ||--o{ booking_instruction : sends
+    app_user ||--o{ trip_event : acts
+    app_user ||--o{ review : writes
+    app_user ||--o{ organization_members : member
+    app_user ||--o{ file_asset : uploads
+
+    organizations ||--o{ organization_members : has
+    organizations ||--o{ vehicle_listing : owns
+
+    area ||--o{ branch : has
+    branch ||--o{ employee : employs
+    branch ||--o| branchmanager : managed_by
+    vehicleclass ||--o{ vehicle : classifies
+    branch ||--o{ vehicle : stations
+    area ||--o{ relocation : routes
+    branch ||--o{ company_parking_spot : has
+    area ||--o{ company_parking_spot : contains
+
+    vehicle ||--o| vehicle_listing : listed_as
+    vehicleclass ||--o{ vehicle_listing : classifies
+    branch ||--o{ vehicle_listing : at_branch
+    company_parking_spot ||--o{ vehicle_listing : at_spot
+
+    vehicle_listing ||--|| listing_location : located
+    vehicle_listing ||--o{ listing_availability : windows
+    vehicle_listing ||--o{ booking : receives
+    vehicle_listing }o--o{ file_asset : images
+    vehicle_listing ||--o{ review : reviewed
+
+    booking ||--o{ booking_instruction : has
+    booking ||--o{ trip_event : logs
+    booking ||--o{ review : source
+
+    app_user {
+        bigint user_id PK
+        string email UK
+        string password_hash
+        string role
+        boolean is_admin
+    }
+
+    owner_profile {
+        bigint user_id PK
+        string verification_status
+        string payout_ref
+    }
 
     roles {
         int id PK
@@ -187,18 +228,9 @@ erDiagram
     }
 
     user_roles {
-        bigint user_id PK_FK
-        int role_id PK_FK
+        bigint user_id PK
+        int role_id PK
     }
-
-    owner_profile {
-        bigint user_id PK_FK
-        string verification_status
-        text payout_ref
-    }
-
-    organizations ||--o{ organization_members : "organization_id 1:N"
-    organizations ||--o{ vehicle_listing : "owner_organization_id 0..N"
 
     organizations {
         bigint id PK
@@ -206,18 +238,9 @@ erDiagram
     }
 
     organization_members {
-        bigint user_id PK_FK
-        bigint organization_id PK_FK
+        bigint user_id PK
+        bigint organization_id PK
     }
-
-    area ||--o{ branch : "areaid 1:N"
-    branch ||--o{ employee : "branchid 1:N"
-    branch ||--o| branchmanager : "branchid 1:1"
-    vehicleclass ||--o{ vehicle : "classid 1:N"
-    branch ||--o{ vehicle : "branchid 1:N"
-    area ||--o{ relocation : "source_target M:N pair"
-    branch ||--o{ company_parking_spot : "branch_id 0..N"
-    area ||--o{ company_parking_spot : "area_id 1:N"
 
     area {
         int areaid PK
@@ -232,8 +255,19 @@ erDiagram
         decimal lng
     }
 
+    employee {
+        int eid PK
+        int branchid FK
+        int supervisorid FK
+    }
+
+    branchmanager {
+        int eid PK
+        int branchid FK
+    }
+
     vehicle {
-        char17 vin PK
+        string vin PK
         int classid FK
         int branchid FK
         string status
@@ -248,6 +282,12 @@ erDiagram
         decimal securitydeposit
     }
 
+    relocation {
+        int sourceareaid PK
+        int targetareaid PK
+        decimal fee
+    }
+
     company_parking_spot {
         bigint id PK
         int area_id FK
@@ -256,30 +296,19 @@ erDiagram
         decimal lng
     }
 
-    vehicle ||--o| vehicle_listing : "fleet_vehicle_vin"
-    vehicleclass ||--o{ vehicle_listing : "vehicle_class_id"
-    branch ||--o{ vehicle_listing : "branch_id"
-    company_parking_spot ||--o{ vehicle_listing : "parking_spot_id"
-
-    vehicle_listing ||--|| listing_location : "listing_id PK/FK 1:1"
-    vehicle_listing ||--o{ listing_availability : "listing_id 1:N"
-    vehicle_listing ||--o{ booking : "listing_id 1:N"
-    vehicle_listing }o--o{ file_asset : "listing_image M:N"
-    vehicle_listing ||--o{ review : "target_listing_id"
-
     vehicle_listing {
         bigint listing_id PK
         bigint owner_user_id FK
-        char17 fleet_vehicle_vin FK
+        string fleet_vehicle_vin FK
         bigint owner_organization_id FK
-        enum source_type "OWNER or FLEET"
+        string source_type
         decimal price_per_day
         boolean is_company_owned
         boolean active
     }
 
     listing_location {
-        bigint listing_id PK_FK
+        bigint listing_id PK
         decimal lat
         decimal lng
         string city_zone
@@ -288,30 +317,26 @@ erDiagram
     listing_availability {
         bigint availability_id PK
         bigint listing_id FK
-        timestamptz start_at
-        timestamptz end_at
-        enum status "AVAILABLE or BLOCKED"
+        datetime start_at
+        datetime end_at
+        string status
     }
-
-    booking ||--o{ booking_instruction : "booking_id 1:N"
-    booking ||--o{ trip_event : "booking_id 1:N"
-    booking ||--o{ review : "booking_id 1:N"
 
     booking {
         bigint booking_id PK
         bigint listing_id FK
         bigint renter_user_id FK
-        timestamptz start_at
-        timestamptz end_at
-        enum status "PENDING CONFIRMED IN_PROGRESS COMPLETED CANCELLED"
-        jsonb price_snapshot_json
+        datetime start_at
+        datetime end_at
+        string status
+        string price_snapshot_json
     }
 
     booking_instruction {
         bigint instruction_id PK
         bigint booking_id FK
         bigint owner_user_id FK
-        text message
+        string message
     }
 
     trip_event {
@@ -319,7 +344,7 @@ erDiagram
         bigint booking_id FK
         bigint actor_user_id FK
         string event_type
-        jsonb metadata_json
+        string metadata_json
     }
 
     file_asset {
@@ -327,12 +352,12 @@ erDiagram
         bigint owner_user_id FK
         bigint listing_id FK
         string object_key UK
-        enum scope "FLEET OWNER_LISTING USER_DOC"
+        string scope
     }
 
     listing_image {
-        bigint listing_id PK_FK
-        bigint file_id PK_FK
+        bigint listing_id PK
+        bigint file_id PK
         int display_order
     }
 
@@ -342,7 +367,7 @@ erDiagram
         bigint author_user_id FK
         bigint target_user_id FK
         bigint target_listing_id FK
-        enum target_type "LISTING or RENTER"
+        string target_type
         int rating
         int cleanliness
         int accuracy
