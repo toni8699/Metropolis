@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useState } from "react";
+import { AppPathRedirect } from "./components/AppPathRedirect";
 import { useAuth } from "./context/AuthContext";
 import BookingDetailsPage from "./pages/BookingDetailsPage";
 import BookingCheckoutPage from "./pages/BookingCheckoutPage";
@@ -86,6 +87,10 @@ export default function App() {
         </Route>
       </Route>
 
+      <Route path="/trips" element={<Navigate to="/app/trips" replace />} />
+      <Route path="/book/:id" element={<AppPathRedirect prefix="/app/book" />} />
+      <Route path="/listings/:listingId" element={<AppPathRedirect prefix="/app/listings" />} />
+      <Route path="/bookings/:bookingId" element={<AppPathRedirect prefix="/app/bookings" />} />
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>
   );

@@ -3,6 +3,7 @@ import { ChevronLeft } from "lucide-react";
 import ListingRatingLine from "../components/ListingRatingLine";
 import { differenceInDays, format, parseISO } from "date-fns";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { bookingWindowFromDateStrings } from "../lib/bookingDates";
 import { apiGet, apiPost } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -30,11 +31,11 @@ export default function BookingCheckoutPage() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate(`/listings/${id}`, { replace: true });
+      navigate(`/app/listings/${id}`, { replace: true });
       return;
     }
     if (!startDate || !endDate) {
-      navigate(`/listings/${id}`, { replace: true });
+      navigate(`/app/listings/${id}`, { replace: true });
       return;
     }
 
@@ -69,21 +70,21 @@ export default function BookingCheckoutPage() {
     start && end ? `${format(start, "MMM d, yyyy")} - ${format(end, "MMM d, yyyy")}` : "";
 
   const handleRequestBooking = async () => {
-    if (!listing) return;
+    if (!listing || !startDate || !endDate) return;
     setSubmitError("");
     setIsSubmitting(true);
     try {
+      const { startAt, endAt } = bookingWindowFromDateStrings(startDate, endDate);
       await apiPost(
         "/api/bookings",
         {
-          // Backend currently expects camelCase fields:
           listingId: Number(id),
-          startAt: start.toISOString(),
-          endAt: end.toISOString(),
+          startAt,
+          endAt,
         },
         true,
       );
-      navigate("/trips");
+      navigate("/app/trips");
     } catch (err) {
       setSubmitError(err?.message || "Could not request booking.");
     } finally {
@@ -123,7 +124,7 @@ export default function BookingCheckoutPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 pb-12 pt-24 sm:px-6 lg:px-10">
       <Link
-        to={`/listings/${id}`}
+        to={`/app/listings/${id}`}
         className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:underline"
       >
         <ChevronLeft className="h-4 w-4" />

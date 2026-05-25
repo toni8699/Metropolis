@@ -319,6 +319,10 @@ export default function Header({ onSearch, onHome }) {
                   isAuthenticated={isAuthenticated}
                   onLogin={() => openAuthModal("login")}
                   onSignup={() => openAuthModal("signup")}
+                  onOpenTrips={() => {
+                    navigate("/app/trips");
+                    setIsUserMenuOpen(false);
+                  }}
                   onOpenHostDashboard={() => {
                     navigate("/host/dashboard");
                     setIsUserMenuOpen(false);
@@ -438,6 +442,10 @@ export default function Header({ onSearch, onHome }) {
                   isAuthenticated={isAuthenticated}
                   onLogin={() => openAuthModal("login")}
                   onSignup={() => openAuthModal("signup")}
+                  onOpenTrips={() => {
+                    navigate("/app/trips");
+                    setIsUserMenuOpen(false);
+                  }}
                   onOpenHostDashboard={() => {
                     navigate("/host/dashboard");
                     setIsUserMenuOpen(false);

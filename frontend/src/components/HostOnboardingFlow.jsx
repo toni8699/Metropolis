@@ -9,6 +9,7 @@ import {
   fetchPlacePredictions,
   resolvePredictionCoordinates,
 } from "../lib/placesAutocomplete";
+import { MIN_LISTING_PHOTOS } from "../lib/listingPhotos";
 
 const TOTAL_STEPS = 4;
 const FALLBACK_CENTER = { lat: 43.6532, lng: -79.3832 };
@@ -38,6 +39,8 @@ export default function HostOnboardingFlow() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState([]);
+  const [imageError, setImageError] = useState("");
   const [tempLocation, setTempLocation] = useState({
     lat: FALLBACK_CENTER.lat,
     lng: FALLBACK_CENTER.lng,
@@ -124,6 +127,14 @@ export default function HostOnboardingFlow() {
     });
   }, [isMapModalOpen, listingData.address, listingData.lat, listingData.lng]);
 
+  useEffect(() => {
+    const urls = imageFiles.map((file) => URL.createObjectURL(file));
+    setImagePreviewUrls(urls);
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [imageFiles]);
+
   const progress = (currentStep / TOTAL_STEPS) * 100;
 
   const canProceed = useMemo(() => {
@@ -143,7 +154,7 @@ export default function HostOnboardingFlow() {
       );
     }
     if (currentStep === 3) {
-      return imageFiles.length > 0;
+      return imageFiles.length >= MIN_LISTING_PHOTOS;
     }
     return Number(listingData.price) > 0;
   }, [currentStep, listingData, imageFiles.length]);
@@ -246,6 +257,11 @@ export default function HostOnboardingFlow() {
   };
 
   const submitListing = async () => {
+    if (imageFiles.length < MIN_LISTING_PHOTOS) {
+      setSubmitError(`Add at least ${MIN_LISTING_PHOTOS} photos before publishing.`);
+      return;
+    }
+
     setIsPublishing(true);
     setSubmitError("");
     try {
@@ -283,9 +299,7 @@ export default function HostOnboardingFlow() {
         true,
       );
 
-      if (imageFiles.length) {
-        await uploadListingPhotos(listingId, imageFiles);
-      }
+      await uploadListingPhotos(listingId, imageFiles);
 
       await refreshMe();
       navigate("/host/dashboard");
@@ -297,13 +311,35 @@ export default function HostOnboardingFlow() {
   };
 
   const applyImageFiles = (files) => {
-    const images = files.filter((file) => file.type.startsWith("image/"));
-    if (!images.length) return;
-    setImageFiles(images);
-    setListingData((prev) => ({
-      ...prev,
-      images: images.map((file) => file.name),
-    }));
+    const images = Array.from(files || []).filter((file) => file?.type?.startsWith("image/"));
+    if (!images.length) {
+      setImageError("Choose image files only (JPEG, PNG, WebP, etc.).");
+      return;
+    }
+    setImageError("");
+    setImageFiles((prev) => {
+      const byKey = new Map(prev.map((f) => [`${f.name}:${f.size}:${f.lastModified}`, f]));
+      images.forEach((file) => {
+        byKey.set(`${file.name}:${file.size}:${file.lastModified}`, file);
+      });
+      const merged = Array.from(byKey.values());
+      setListingData((prevListing) => ({
+        ...prevListing,
+        images: merged.map((file) => file.name),
+      }));
+      return merged;
+    });
+  };
+
+  const removeImageFile = (index) => {
+    setImageFiles((prev) => {
+      const next = prev.filter((_, fileIndex) => fileIndex !== index);
+      setListingData((prevListing) => ({
+        ...prevListing,
+        images: next.map((file) => file.name),
+      }));
+      return next;
+    });
   };
 
   return (
@@ -435,32 +471,89 @@ export default function HostOnboardingFlow() {
               )}
 
               {currentStep === 3 && (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    applyImageFiles(Array.from(e.dataTransfer.files || []));
-                  }}
-                  className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center hover:border-gray-900 cursor-pointer transition"
-                >
-                  <UploadCloud className="h-10 w-10 text-gray-400 mb-2" />
-                  <p className="font-semibold text-gray-900">Drag your photos here</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {listingData.images.length
-                      ? `Selected ${listingData.images.length} image(s)`
-                      : "or click to upload"}
-                  </p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    multiple
-                    accept="image/*"
-                    onChange={(e) => {
-                      applyImageFiles(Array.from(e.target.files || []));
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm text-gray-600">
+                      Add at least {MIN_LISTING_PHOTOS} photos of your car.
+                    </p>
+                    <p
+                      className={`text-sm font-semibold ${
+                        imageFiles.length >= MIN_LISTING_PHOTOS
+                          ? "text-emerald-700"
+                          : "text-amber-700"
+                      }`}
+                    >
+                      {imageFiles.length} / {MIN_LISTING_PHOTOS} selected
+                    </p>
+                  </div>
+
+                  {imagePreviewUrls.length > 0 && (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {imagePreviewUrls.map((url, index) => (
+                        <div
+                          key={`${imageFiles[index]?.name}-${index}`}
+                          className="relative aspect-[4/3] overflow-hidden rounded-xl border border-gray-200 bg-gray-100"
+                        >
+                          <img
+                            src={url}
+                            alt={imageFiles[index]?.name || `Photo ${index + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImageFile(index)}
+                            className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80"
+                            aria-label={`Remove ${imageFiles[index]?.name || "photo"}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      applyImageFiles(e.dataTransfer.files);
                     }}
-                  />
+                    className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center hover:border-gray-900 cursor-pointer transition"
+                  >
+                    <UploadCloud className="h-10 w-10 text-gray-400 mb-2" />
+                    <p className="font-semibold text-gray-900">Add photos</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Drag images here or click to choose (images only)
+                    </p>
+                    {imageFiles.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setImageFiles([]);
+                          setListingData((prev) => ({ ...prev, images: [] }));
+                          setImageError("");
+                        }}
+                        className="mt-3 text-xs font-semibold text-gray-600 hover:text-gray-900"
+                      >
+                        Clear all photos
+                      </button>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => {
+                        applyImageFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+
+                  {imageError && <p className="text-sm text-red-600">{imageError}</p>}
                 </div>
               )}
 

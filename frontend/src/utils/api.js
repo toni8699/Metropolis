@@ -28,7 +28,9 @@ export async function apiRequest(path, options = {}) {
   if (!response.ok) {
     const message =
       payload?.message ||
+      payload?.description ||
       payload?.error?.message ||
+      payload?.error?.description ||
       payload?.error ||
       "Request failed";
     throw new Error(message);

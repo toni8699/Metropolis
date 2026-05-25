@@ -135,6 +135,9 @@ def test_reviews_integration_flow():
     review_payload = {
         "targetType": "LISTING",
         "rating": 5,
+        "cleanliness": 5,
+        "accuracy": 4,
+        "communication": 5,
         "comment": "integration test review",
     }
 
@@ -146,6 +149,30 @@ def test_reviews_integration_flow():
 
     _set_booking_completed(booking_id)
 
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE booking
+                SET end_at = (NOW() AT TIME ZONE 'UTC') - INTERVAL '31 days'
+                WHERE booking_id = %s
+                """,
+                (booking_id,),
+            )
+        conn.commit()
+
+    expired_resp = _api("POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload)
+    assert expired_resp.status_code == 400, expired_resp.text
+    assert "30-day review window" in _error_message(expired_resp)
+
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE booking SET end_at = NOW() AT TIME ZONE 'UTC' WHERE booking_id = %s",
+                (booking_id,),
+            )
+        conn.commit()
+
     new_rating = 4
     review_payload["rating"] = new_rating
     ok_resp = _api("POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload)
@@ -154,6 +181,9 @@ def test_reviews_integration_flow():
     assert body.get("status") == "success"
     assert body["review"]["targetType"] == "LISTING"
     assert body["review"]["rating"] == new_rating
+    assert body["review"]["cleanliness"] == review_payload["cleanliness"]
+    assert body["review"]["accuracy"] == review_payload["accuracy"]
+    assert body["review"]["communication"] == review_payload["communication"]
 
     dup_resp = _api("POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload)
     assert dup_resp.status_code == 400, dup_resp.text

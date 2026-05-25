@@ -112,6 +112,11 @@ export default function ListingDetailPage() {
     }
     return repeated.slice(0, 5);
   }, [listing]);
+  const guidelinesText = useMemo(() => {
+    const text = (listing?.guidelines || listing?.rules || "").trim();
+    return text || null;
+  }, [listing]);
+
   const galleryImages = useMemo(() => {
     const all = [
       ...(Array.isArray(listing?.images) ? listing.images : []),
@@ -188,7 +193,12 @@ export default function ListingDetailPage() {
       return;
     }
 
-    navigate(`/book/${listingId}`, {
+    goToCheckout();
+  };
+
+  const goToCheckout = () => {
+    if (!dateRange.from || !dateRange.to) return;
+    navigate(`/app/book/${listingId}`, {
       state: {
         startDate: format(dateRange.from, "yyyy-MM-dd"),
         endDate: format(dateRange.to, "yyyy-MM-dd"),
@@ -271,6 +281,13 @@ export default function ListingDetailPage() {
             {listing.description ||
               "Enjoy a smooth and reliable ride. Perfect for city commutes or weekend escapes."}
           </p>
+
+          {guidelinesText && (
+            <section className="border-t border-gray-200 py-6">
+              <h2 className="mb-3 text-xl font-semibold text-gray-900">Guidelines</h2>
+              <p className="whitespace-pre-wrap text-base leading-7 text-gray-700">{guidelinesText}</p>
+            </section>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-2">
             {(Array.isArray(listing.features) && listing.features.length
@@ -451,6 +468,7 @@ export default function ListingDetailPage() {
         isOpen={isAuthModalOpen}
         mode="login"
         onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={goToCheckout}
       />
     </>
   );

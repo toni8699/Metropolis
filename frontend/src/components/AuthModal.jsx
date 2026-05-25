@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-export default function AuthModal({ isOpen, mode = "login", onClose }) {
+export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }) {
   const [authMode, setAuthMode] = useState(mode);
   const [form, setForm] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +37,7 @@ export default function AuthModal({ isOpen, mode = "login", onClose }) {
         await register({ ...form });
       }
       onClose?.();
+      onSuccess?.();
     } catch (err) {
       setError(err?.message || "Could not authenticate. Please try again.");
     } finally {

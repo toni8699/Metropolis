@@ -44,6 +44,13 @@ import {
   fetchPlacePredictions,
   resolvePredictionCoordinates,
 } from "../lib/placesAutocomplete";
+import { MIN_LISTING_PHOTOS } from "../lib/listingPhotos";
+
+function omitUndefined(obj) {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined),
+  );
+}
 
 const emptyListingForm = {
   title: "",
@@ -156,6 +163,7 @@ export default function HostDashboard({ mode = "admin" }) {
   }));
   const [editingListingId, setEditingListingId] = useState(null);
   const [pendingPhotoFiles, setPendingPhotoFiles] = useState([]);
+  const [pendingPhotoPreviewUrls, setPendingPhotoPreviewUrls] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSavingListing, setIsSavingListing] = useState(false);
@@ -348,15 +356,42 @@ export default function HostDashboard({ mode = "admin" }) {
     loadAll();
   }, [isAdmin, location.pathname]);
 
+  useEffect(() => {
+    const urls = pendingPhotoFiles.map((file) => URL.createObjectURL(file));
+    setPendingPhotoPreviewUrls(urls);
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [pendingPhotoFiles]);
+
+  const existingListingPhotoUrls = useMemo(
+    () =>
+      (Array.isArray(listingForm.images) ? listingForm.images : [])
+        .filter(Boolean)
+        .slice(0, 20),
+    [listingForm.images],
+  );
+
+  const pendingPhotoCount = pendingPhotoFiles.length;
+  const meetsPhotoRequirement = editingListingId
+    ? true
+    : pendingPhotoCount >= MIN_LISTING_PHOTOS;
+
   const createListing = async (event) => {
     event.preventDefault();
     setError("");
     setSuccess("");
+
+    if (!editingListingId && pendingPhotoCount < MIN_LISTING_PHOTOS) {
+      setError(`Add at least ${MIN_LISTING_PHOTOS} photos before saving a new listing.`);
+      return;
+    }
+
     setIsSavingListing(true);
     try {
       const usesCompanyDropdown = isAdmin && locationMode === "hub";
-      const payload = {
-        ...listingForm,
+      const payload = omitUndefined({
+        title: listingForm.title || undefined,
         brand: listingForm.make || undefined,
         make: listingForm.make || undefined,
         model: listingForm.model || undefined,
@@ -368,7 +403,7 @@ export default function HostDashboard({ mode = "admin" }) {
         seats: listingForm.seats ? Number(listingForm.seats) : undefined,
         doors: listingForm.doors ? Number(listingForm.doors) : undefined,
         description: listingForm.description || undefined,
-        guidelines: listingForm.guidelines || undefined,
+        guidelines: listingForm.guidelines,
         features: listingForm.features,
         images: listingForm.images,
         address: listingForm.address || undefined,
@@ -377,7 +412,7 @@ export default function HostDashboard({ mode = "admin" }) {
         pricePerDay: Number(listingForm.pricePerDay),
         lat: usesCompanyDropdown ? undefined : Number(listingForm.lat),
         lng: usesCompanyDropdown ? undefined : Number(listingForm.lng),
-        isCompanyOwned: isAdmin,
+        isCompanyOwned: isAdmin ? isAdmin : undefined,
         areaId:
           usesCompanyDropdown && selectedHubBranch?.areaId
             ? Number(selectedHubBranch.areaId)
@@ -391,7 +426,7 @@ export default function HostDashboard({ mode = "admin" }) {
         cityZone: usesCompanyDropdown
           ? selectedHubBranch?.city?.toLowerCase()?.replace(/\s+/g, "-") || "toronto-core"
           : listingForm.cityZone,
-      };
+      });
 
       let targetListingId = null;
       if (editingListingId) {
@@ -480,7 +515,11 @@ export default function HostDashboard({ mode = "admin" }) {
       description: listing.description || "",
       guidelines: listing.guidelines || listing.rules || "",
       features: Array.isArray(listing.features) ? listing.features : [],
-      images: Array.isArray(listing.images) ? listing.images : [],
+      images: Array.isArray(listing.images)
+        ? listing.images
+        : Array.isArray(listing.photos)
+          ? listing.photos
+          : [],
       address: resolvedAddress,
       latitude: resolvedLat,
       longitude: resolvedLng,
@@ -529,8 +568,13 @@ export default function HostDashboard({ mode = "admin" }) {
   };
 
   const selectUploadFiles = (fileList) => {
-    const incoming = Array.from(fileList || []).filter(Boolean);
-    if (!incoming.length) return;
+    const incoming = Array.from(fileList || []).filter(
+      (file) => file && file.type.startsWith("image/"),
+    );
+    if (!incoming.length) {
+      setError("Choose image files only (JPEG, PNG, WebP, etc.).");
+      return;
+    }
     setPendingPhotoFiles((prev) => {
       const byKey = new Map(prev.map((f) => [`${f.name}:${f.size}:${f.lastModified}`, f]));
       incoming.forEach((file) => {
@@ -538,12 +582,11 @@ export default function HostDashboard({ mode = "admin" }) {
       });
       return Array.from(byKey.values());
     });
-    setSuccess(
-      incoming.length === 1
-        ? `Selected file: ${incoming[0].name}`
-        : `Selected ${incoming.length} files for upload.`,
-    );
     setError("");
+  };
+
+  const removePendingPhoto = (index) => {
+    setPendingPhotoFiles((prev) => prev.filter((_, fileIndex) => fileIndex !== index));
   };
 
   const uploadListingPhotos = async (listingId, options = {}) => {
@@ -1206,58 +1249,120 @@ export default function HostDashboard({ mode = "admin" }) {
                     />
                   </section>
 
-                  <div
-                    onDrop={onDropFile}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setIsDragOver(true);
-                    }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition ${
-                      isDragOver
-                        ? "border-gray-900 bg-gray-50"
-                        : "border-gray-300 hover:border-gray-900 hover:bg-gray-50"
-                    }`}
-                  >
-                    <UploadCloud className="h-10 w-10 text-gray-400 mb-2" />
-                    <p className="text-base font-semibold text-gray-800">Click to upload to S3</p>
-                    <p className="text-sm text-gray-500">
-                      {pendingPhotoFiles.length
-                        ? `Selected ${pendingPhotoFiles.length} file(s): ${pendingPhotoFiles
-                            .slice(0, 2)
-                            .map((f) => f.name)
-                            .join(", ")}${pendingPhotoFiles.length > 2 ? " ..." : ""}`
-                        : "Drag images here or click to choose"}
-                    </p>
-                    {pendingPhotoFiles.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setPendingPhotoFiles([]);
-                        }}
-                        className="mt-3 text-xs font-semibold text-gray-600 hover:text-gray-900"
-                      >
-                        Clear selection
-                      </button>
-                    )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={(event) => selectUploadFiles(event.target.files)}
-                    />
-                  </div>
+                  <section className="space-y-4">
+                    <div className="flex flex-wrap items-end justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+                          Photos
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-600">
+                          {editingListingId
+                            ? "Add more images below. New photos upload when you save."
+                            : `At least ${MIN_LISTING_PHOTOS} photos required for a new listing.`}
+                        </p>
+                      </div>
+                      {!editingListingId && (
+                        <p
+                          className={`text-sm font-semibold ${
+                            meetsPhotoRequirement ? "text-emerald-700" : "text-amber-700"
+                          }`}
+                        >
+                          {pendingPhotoCount} / {MIN_LISTING_PHOTOS} selected
+                        </p>
+                      )}
+                    </div>
 
-                  {pendingPhotoFiles.length > 0 && (
-                    <p className="text-sm text-gray-600">
-                      Photos upload automatically to this listing when you click{" "}
-                      <span className="font-semibold">Save listing</span>.
-                    </p>
-                  )}
+                    {(existingListingPhotoUrls.length > 0 || pendingPhotoPreviewUrls.length > 0) && (
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                        {existingListingPhotoUrls.map((url, index) => (
+                          <div
+                            key={`existing-${url}-${index}`}
+                            className="relative aspect-[4/3] overflow-hidden rounded-xl border border-gray-200 bg-gray-100"
+                          >
+                            <img
+                              src={url}
+                              alt={`Listing photo ${index + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                            <span className="absolute left-2 top-2 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                              Saved
+                            </span>
+                          </div>
+                        ))}
+                        {pendingPhotoPreviewUrls.map((url, index) => (
+                          <div
+                            key={`pending-${pendingPhotoFiles[index]?.name}-${index}`}
+                            className="relative aspect-[4/3] overflow-hidden rounded-xl border border-gray-200 bg-gray-100"
+                          >
+                            <img
+                              src={url}
+                              alt={pendingPhotoFiles[index]?.name || `New photo ${index + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removePendingPhoto(index)}
+                              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80"
+                              aria-label={`Remove ${pendingPhotoFiles[index]?.name || "photo"}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div
+                      onDrop={onDropFile}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        setIsDragOver(true);
+                      }}
+                      onDragLeave={() => setIsDragOver(false)}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition ${
+                        isDragOver
+                          ? "border-gray-900 bg-gray-50"
+                          : "border-gray-300 hover:border-gray-900 hover:bg-gray-50"
+                      }`}
+                    >
+                      <UploadCloud className="h-10 w-10 text-gray-400 mb-2" />
+                      <p className="text-base font-semibold text-gray-800">Add photos</p>
+                      <p className="text-sm text-gray-500">
+                        Drag images here or click to choose (images only)
+                      </p>
+                      {pendingPhotoCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setPendingPhotoFiles([]);
+                          }}
+                          className="mt-3 text-xs font-semibold text-gray-600 hover:text-gray-900"
+                        >
+                          Clear new selection
+                        </button>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(event) => {
+                          selectUploadFiles(event.target.files);
+                          event.target.value = "";
+                        }}
+                      />
+                    </div>
+
+                    {pendingPhotoCount > 0 && (
+                      <p className="text-sm text-gray-600">
+                        New photos upload to S3 when you click{" "}
+                        <span className="font-semibold">Save listing</span>.
+                      </p>
+                    )}
+                  </section>
 
                   <div className="border-t border-gray-200 pt-6 mt-6 flex justify-end gap-4">
                     <button
@@ -1281,8 +1386,8 @@ export default function HostDashboard({ mode = "admin" }) {
                     </button>
                     <button
                       type="submit"
-                      disabled={isSavingListing}
-                      className="rounded-lg bg-indigo-600 px-5 py-2 font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
+                      disabled={isSavingListing || (!editingListingId && !meetsPhotoRequirement)}
+                      className="rounded-lg bg-indigo-600 px-5 py-2 font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {isSavingListing ? "Saving..." : editingListingId ? "Update listing" : "Save listing"}
                     </button>

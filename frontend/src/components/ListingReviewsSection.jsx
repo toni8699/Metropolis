@@ -49,6 +49,32 @@ function ReviewComment({ comment }) {
   );
 }
 
+function formatSubScore(value) {
+  if (value == null) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return `${n}/5`;
+}
+
+function ReviewSubRatings({ review }) {
+  const parts = [];
+  const cleanliness = formatSubScore(review.cleanliness);
+  const accuracy = formatSubScore(review.accuracy);
+  const communication = formatSubScore(review.communication);
+
+  if (cleanliness) parts.push(`Cleanliness: ${cleanliness}`);
+  if (accuracy) parts.push(`Accuracy: ${accuracy}`);
+  if (communication) parts.push(`Communication: ${communication}`);
+
+  if (!parts.length) return null;
+
+  return (
+    <p className="mb-3 text-sm text-gray-600">
+      {parts.join(" | ")}
+    </p>
+  );
+}
+
 function ReviewCard({ review }) {
   const displayName = review.authorName || "DriveBnb guest";
 
@@ -70,6 +96,7 @@ function ReviewCard({ review }) {
           </p>
         </div>
       </div>
+      <ReviewSubRatings review={review} />
       <ReviewComment comment={review.comment} />
     </article>
   );
