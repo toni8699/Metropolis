@@ -46,7 +46,9 @@ def _api(method: str, path: str, *, token: str | None = None, json: dict | None 
     headers = {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    return requests.request(method, f"{API_URL}{path}", headers=headers, json=json, timeout=30)
+    return requests.request(
+        method, f"{API_URL}{path}", headers=headers, json=json, timeout=30
+    )
 
 
 def _error_message(resp: requests.Response) -> str:
@@ -59,7 +61,11 @@ def _error_message(resp: requests.Response) -> str:
 
 def _login_or_register() -> str:
     if INTEGRATION_EMAIL and INTEGRATION_PASSWORD:
-        resp = _api("POST", "/api/auth/login", json={"email": INTEGRATION_EMAIL, "password": INTEGRATION_PASSWORD})
+        resp = _api(
+            "POST",
+            "/api/auth/login",
+            json={"email": INTEGRATION_EMAIL, "password": INTEGRATION_PASSWORD},
+        )
         if resp.status_code == 200 and resp.json().get("token"):
             return resp.json()["token"]
 
@@ -98,7 +104,9 @@ def _expected_average(old_avg: float | None, old_count: int, new_rating: int) ->
         return float(new_rating)
     total = (old_avg or 0.0) * old_count + new_rating
     return float(
-        Decimal(str(total / (old_count + 1))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        Decimal(str(total / (old_count + 1))).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
     )
 
 
@@ -108,6 +116,25 @@ def _set_booking_completed(booking_id: int) -> None:
             cur.execute(
                 "UPDATE booking SET status = 'COMPLETED', updated_at = NOW() WHERE booking_id = %s",
                 (booking_id,),
+            )
+            assert cur.rowcount == 1, f"booking {booking_id} not updated"
+        conn.commit()
+
+
+def _set_booking_window(
+    booking_id: int, *, start_at: datetime, end_at: datetime
+) -> None:
+    """Update trip window; satisfies DB check end_at > start_at."""
+    assert end_at > start_at, "test setup: end_at must be after start_at"
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE booking
+                SET start_at = %s, end_at = %s, updated_at = NOW()
+                WHERE booking_id = %s
+                """,
+                (start_at, end_at, booking_id),
             )
             assert cur.rowcount == 1, f"booking {booking_id} not updated"
         conn.commit()
@@ -141,7 +168,9 @@ def test_reviews_integration_flow():
         "comment": "integration test review",
     }
 
-    early_resp = _api("POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload)
+    early_resp = _api(
+        "POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload
+    )
     assert early_resp.status_code == 400, early_resp.text
     assert "COMPLETED" in _error_message(early_resp)
 
@@ -149,33 +178,31 @@ def test_reviews_integration_flow():
 
     _set_booking_completed(booking_id)
 
-    with psycopg2.connect(DATABASE_URL) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                UPDATE booking
-                SET end_at = (NOW() AT TIME ZONE 'UTC') - INTERVAL '31 days'
-                WHERE booking_id = %s
-                """,
-                (booking_id,),
-            )
-        conn.commit()
+    now = datetime.now(timezone.utc)
+    _set_booking_window(
+        booking_id,
+        start_at=now - timedelta(days=34),
+        end_at=now - timedelta(days=31),
+    )
 
-    expired_resp = _api("POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload)
+    expired_resp = _api(
+        "POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload
+    )
     assert expired_resp.status_code == 400, expired_resp.text
     assert "30-day review window" in _error_message(expired_resp)
 
-    with psycopg2.connect(DATABASE_URL) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE booking SET end_at = NOW() AT TIME ZONE 'UTC' WHERE booking_id = %s",
-                (booking_id,),
-            )
-        conn.commit()
+    now = datetime.now(timezone.utc)
+    _set_booking_window(
+        booking_id,
+        start_at=now - timedelta(days=3),
+        end_at=now,
+    )
 
     new_rating = 4
     review_payload["rating"] = new_rating
-    ok_resp = _api("POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload)
+    ok_resp = _api(
+        "POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload
+    )
     assert ok_resp.status_code == 201, _error_message(ok_resp)
     body = ok_resp.json()
     assert body.get("status") == "success"
@@ -185,13 +212,17 @@ def test_reviews_integration_flow():
     assert body["review"]["accuracy"] == review_payload["accuracy"]
     assert body["review"]["communication"] == review_payload["communication"]
 
-    dup_resp = _api("POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload)
+    dup_resp = _api(
+        "POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload
+    )
     assert dup_resp.status_code == 400, dup_resp.text
     assert "already submitted" in _error_message(dup_resp).lower()
 
     after_avg, after_count = _get_listing_stats(listing_id)
     assert after_count == baseline_count + 1
-    assert after_avg == pytest.approx(_expected_average(baseline_avg, baseline_count, new_rating))
+    assert after_avg == pytest.approx(
+        _expected_average(baseline_avg, baseline_count, new_rating)
+    )
 
 
 if __name__ == "__main__":

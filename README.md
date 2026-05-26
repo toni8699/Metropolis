@@ -80,3 +80,21 @@ pytest tests/test_search_integration.py -v
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) on push/PR to `main` or `develop`: Ruff, Postgres + migrations + pytest, Vite build. No GitHub secrets required for the default pipeline.
+
+## Lint (before push)
+
+Optional local check (matches CI backend-lint). Not hooked into `git commit`.
+
+```bash
+chmod +x scripts/lint.sh   # once
+./scripts/lint.sh
+```
+
+Or manually:
+
+```bash
+cd backend && ruff check --fix metropolis tests scripts && ruff format metropolis tests scripts
+ruff check tests && ruff format tests
+```
+
+CI still runs Ruff on every push/PR.
