@@ -31,3 +31,6 @@ out/
 *.zip
 *.log
 *.xlsx
+
+# agent files
+.agents/
