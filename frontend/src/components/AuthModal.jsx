@@ -48,8 +48,7 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4"
-      onClick={() => onClose?.()}
-    >
+      onClick={() => onClose?.()}>
       <div
         className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}

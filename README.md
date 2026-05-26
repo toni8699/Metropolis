@@ -1,15 +1,8 @@
 # Metropolis Nexus (DriveBnb)
 
-P2P car-share: React frontend, Flask backend, Neon PostgreSQL, AWS S3 for uploads.
+React + Flask + Neon Postgres + S3. Copy `.env.example` → `.env` before first run.
 
-```mermaid
-flowchart LR
-  FE[Frontend] --> BE[Backend API]
-  BE --> DB[(Neon)]
-  BE --> S3[(S3)]
-```
-
-## Start (Docker)
+## Start
 
 ```bash
 docker compose up --build
@@ -18,40 +11,27 @@ docker compose up --build
 - Frontend: http://localhost:3000  
 - Backend: http://localhost:5000 · API docs: http://localhost:5000/docs  
 
-Uses `.env` in project root (Neon `DATABASE_URL`, AWS S3 vars). Backend runs migrations on start.
+Migrations run automatically on backend start.
 
-Rebuild after dependency or Dockerfile changes:
+## Rebuild
+
+After `Dockerfile`, `requirements.txt`, or dependency changes:
 
 ```bash
+docker compose build backend
 docker compose up --build
 ```
 
-## Start (local)
-
-**Backend** (terminal 1):
+Recompile backend lockfile (when `pyproject.toml` changes):
 
 ```bash
-cd backend
-uv sync
-export $(grep -v '^#' ../.env | xargs)
-alembic upgrade head
-PORT=5000 FLASK_DEBUG=1 python run.py
+cd backend && uv pip compile pyproject.toml -o requirements.txt
+docker compose build backend
 ```
-
-**Frontend** (terminal 2):
-
-```bash
-cd frontend
-npm install
-VITE_API_URL=http://localhost:5000 npm run dev
-```
-
-- Frontend: http://localhost:5173  
-- Backend: http://localhost:5000  
 
 ## Database migrations
 
-New revision:
+New migration:
 
 ```bash
 cd backend
@@ -62,26 +42,41 @@ alembic revision -m "describe change"
 Apply:
 
 ```bash
-# local
-cd backend && alembic upgrade head
-
-# docker
 docker compose exec backend alembic upgrade head
 ```
 
-Update `db/schema.sql` when schema changes.
+Update `db/schema.sql` when the schema changes.
 
-## Dependencies
+## Tests
 
-**Backend** — `backend/pyproject.toml` (uv). Docker uses `backend/requirements.txt`:
-
-```bash
-cd backend && uv pip compile pyproject.toml -o requirements.txt
-docker compose build backend
-```
-
-**Frontend** — `frontend/package.json`:
+Backend must be running and healthy.
 
 ```bash
-cd frontend && npm install
+# Compose test runner (waits for /api/health)
+docker compose --profile test up --build backend test
+
+# One-off (backend already up)
+docker compose --profile test run --rm test
+
+# Exec inside backend container
+docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 backend \
+  pytest tests/test_search_integration.py -v
 ```
+
+All integration tests:
+
+```bash
+docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 backend \
+  pytest tests -v
+```
+
+From host (API on localhost:5000):
+
+```bash
+cd backend && uv sync --extra dev
+pytest tests/test_search_integration.py -v
+```
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) on push/PR to `main` or `develop`: Ruff, Postgres + migrations + pytest, Vite build. No GitHub secrets required for the default pipeline.
