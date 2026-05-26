@@ -10,6 +10,7 @@ import {
   resolvePredictionCoordinates,
 } from "../lib/placesAutocomplete";
 import { MIN_LISTING_PHOTOS } from "../lib/listingPhotos";
+import InstantBookToggle from "./InstantBookToggle";
 
 const TOTAL_STEPS = 4;
 const FALLBACK_CENTER = { lat: 43.6532, lng: -79.3832 };
@@ -31,6 +32,7 @@ export default function HostOnboardingFlow() {
     lat: null,
     lng: null,
     price: 50,
+    instantBook: true,
     images: [],
   });
   const [placePredictions, setPlacePredictions] = useState([]);
@@ -277,6 +279,7 @@ export default function HostOnboardingFlow() {
           model: listingData.model,
           year: listingData.year ? Number(listingData.year) : undefined,
           pricePerDay: Number(listingData.price),
+          instantBook: Boolean(listingData.instantBook),
           isCompanyOwned: false,
           address: listingData.address,
           latitude: lat,
@@ -558,33 +561,44 @@ export default function HostOnboardingFlow() {
               )}
 
               {currentStep === 4 && (
-                <div className="flex items-center justify-center gap-8">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setListingData((prev) => ({ ...prev, price: Math.max(5, Number(prev.price) - 5) }))
+                <div className="mx-auto w-full max-w-md space-y-8">
+                  <div className="flex items-center justify-center gap-8">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setListingData((prev) => ({
+                          ...prev,
+                          price: Math.max(5, Number(prev.price) - 5),
+                        }))
+                      }
+                      className="h-12 w-12 rounded-full border border-gray-300 text-2xl hover:bg-gray-50"
+                    >
+                      -
+                    </button>
+                    <input
+                      value={listingData.price}
+                      onChange={(e) =>
+                        setListingData((prev) => ({ ...prev, price: Number(e.target.value) || 0 }))
+                      }
+                      type="number"
+                      className="w-44 bg-transparent text-center font-bold text-6xl text-gray-900 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setListingData((prev) => ({ ...prev, price: Number(prev.price) + 5 }))
+                      }
+                      className="h-12 w-12 rounded-full border border-gray-300 text-2xl hover:bg-gray-50"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <InstantBookToggle
+                    checked={Boolean(listingData.instantBook)}
+                    onChange={(instantBook) =>
+                      setListingData((prev) => ({ ...prev, instantBook }))
                     }
-                    className="h-12 w-12 rounded-full border border-gray-300 text-2xl hover:bg-gray-50"
-                  >
-                    -
-                  </button>
-                  <input
-                    value={listingData.price}
-                    onChange={(e) =>
-                      setListingData((prev) => ({ ...prev, price: Number(e.target.value) || 0 }))
-                    }
-                    type="number"
-                    className="w-44 bg-transparent text-center font-bold text-6xl text-gray-900 outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setListingData((prev) => ({ ...prev, price: Number(prev.price) + 5 }))
-                    }
-                    className="h-12 w-12 rounded-full border border-gray-300 text-2xl hover:bg-gray-50"
-                  >
-                    +
-                  </button>
                 </div>
               )}
 

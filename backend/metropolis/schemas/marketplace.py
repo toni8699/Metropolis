@@ -34,6 +34,7 @@ class ListingCreateSchema(ma.Schema):
     locationSourceType = ma.String(required=False, allow_none=True)
     branchId = ma.Integer(required=False, allow_none=True)
     parkingSpotId = ma.Integer(required=False, allow_none=True)
+    instantBook = ma.Boolean(required=False)
 
 
 class ListingUpdateSchema(ma.Schema):
@@ -77,6 +78,7 @@ class ListingUpdateSchema(ma.Schema):
     lat = ma.Float(required=False, allow_none=True)
     lng = ma.Float(required=False, allow_none=True)
     cityZone = ma.String(required=False, allow_none=True)
+    instantBook = ma.Boolean(required=False)
 
 
 class ListingLocationSchema(ma.Schema):
@@ -173,6 +175,7 @@ class ListingSchema(ma.Schema):
     updatedAt = ma.String(required=True)
     averageRating = ma.Float(allow_none=True)
     reviewCount = ma.Integer(required=True)
+    instantBook = ma.Boolean(required=True)
 
 
 class ListingCollectionSchema(ma.Schema):
@@ -183,6 +186,16 @@ class ListingCollectionSchema(ma.Schema):
 class ListingItemSchema(ma.Schema):
     status = ma.String(required=True)
     listing = ma.Nested(ListingSchema)
+
+
+class BookedRangeSchema(ma.Schema):
+    startAt = ma.String(required=True)
+    endAt = ma.String(required=True)
+
+
+class BookedRangeCollectionSchema(ma.Schema):
+    status = ma.String(required=True)
+    ranges = ma.List(ma.Nested(BookedRangeSchema), required=True)
 
 
 class VehicleClassCollectionSchema(ma.Schema):

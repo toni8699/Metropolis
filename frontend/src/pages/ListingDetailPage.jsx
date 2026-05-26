@@ -9,6 +9,16 @@ import { useNavigate, useParams } from "react-router-dom";
 import ListingReviewsSection from "../components/ListingReviewsSection";
 import ListingRatingLine from "../components/ListingRatingLine";
 import { apiGet } from "../utils/api";
+import { dateRangeOverlapsBooked } from "../lib/bookingDates";
+import {
+  airbnbDayPickerClassNames,
+  bookedDayModifierClassNames,
+  buildBookedModifiers,
+  buildListingDatePickerDisabled,
+  defaultDateRangeFromToday,
+  sanitizeDateRange,
+  startOfToday,
+} from "../lib/datePicker";
 
 export default function ListingDetailPage() {
   const navigate = useNavigate();
@@ -18,7 +28,8 @@ export default function ListingDetailPage() {
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
-  const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
+  const [bookedRanges, setBookedRanges] = useState([]);
+  const [dateRange, setDateRange] = useState(defaultDateRangeFromToday);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [reserveError, setReserveError] = useState("");
@@ -73,6 +84,43 @@ export default function ListingDetailPage() {
       cancelled = true;
     };
   }, [listingId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet(`/api/market/listings/${listingId}/booked-ranges`)
+      .then((data) => {
+        if (!cancelled) {
+          setBookedRanges(data?.ranges || []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBookedRanges([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [listingId]);
+
+  const calendarDisabledMatchers = useMemo(
+    () => buildListingDatePickerDisabled(bookedRanges),
+    [bookedRanges],
+  );
+  const calendarBookedModifiers = useMemo(
+    () => buildBookedModifiers(bookedRanges),
+    [bookedRanges],
+  );
+
+  useEffect(() => {
+    if (!bookedRanges.length) return;
+    setDateRange((prev) => {
+      if (!dateRangeOverlapsBooked(prev.from, prev.to, bookedRanges)) {
+        return prev;
+      }
+      return { from: undefined, to: undefined };
+    });
+  }, [bookedRanges]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -184,6 +232,10 @@ export default function ListingDetailPage() {
     }
     if (differenceInCalendarDays(dateRange.to, dateRange.from) <= 0) {
       setReserveError("Checkout date must be after check-in date.");
+      return;
+    }
+    if (dateRangeOverlapsBooked(dateRange.from, dateRange.to, bookedRanges)) {
+      setReserveError("Those dates are already booked. Please choose different dates.");
       return;
     }
 
@@ -347,21 +399,24 @@ export default function ListingDetailPage() {
                   <DayPicker
                     mode="range"
                     numberOfMonths={calendarMonths}
+                    startMonth={startOfToday()}
+                    disabled={calendarDisabledMatchers}
+                    modifiers={calendarBookedModifiers}
+                    modifiersClassNames={bookedDayModifierClassNames}
                     selected={dateRange}
-                    onSelect={(range) => setDateRange(range || { from: undefined, to: undefined })}
-                    className="rdp-airbnb"
-                    classNames={{
-                      month_caption: "pb-4 text-center text-lg font-semibold",
-                      weekdays: "mb-3",
-                      weekday: "text-xs font-medium text-gray-400 uppercase tracking-wide",
-                      day: "h-10 w-10 md:h-12 md:w-12 p-0",
-                      day_button:
-                        "h-10 w-10 md:h-12 md:w-12 rounded-full flex items-center justify-center font-medium text-sm border border-transparent hover:border-gray-900",
-                      selected: "bg-gray-900 text-white rounded-full border-gray-900",
-                      range_start: "bg-gray-900 text-white rounded-full border-gray-900",
-                      range_end: "bg-gray-900 text-white rounded-full border-gray-900",
-                      range_middle: "bg-gray-100 text-gray-900 rounded-none border-transparent",
+                    onSelect={(range) => {
+                      const next = sanitizeDateRange(range);
+                      if (dateRangeOverlapsBooked(next.from, next.to, bookedRanges)) {
+                        setReserveError(
+                          "Those dates are already booked. Please choose different dates.",
+                        );
+                        return;
+                      }
+                      setReserveError("");
+                      setDateRange(next);
                     }}
+                    className="rdp-airbnb"
+                    classNames={airbnbDayPickerClassNames(true)}
                     components={{
                       Chevron: ({ orientation, ...props }) =>
                         orientation === "left" ? (
@@ -374,7 +429,7 @@ export default function ListingDetailPage() {
                   <div className="flex justify-between items-center pt-4 border-t mt-4">
                     <button
                       type="button"
-                      onClick={() => setDateRange({ from: undefined, to: undefined })}
+                      onClick={() => setDateRange(defaultDateRangeFromToday())}
                       className="underline font-medium text-sm cursor-pointer hover:text-black text-gray-600"
                     >
                       Clear dates

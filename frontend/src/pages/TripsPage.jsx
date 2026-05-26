@@ -3,20 +3,13 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ReviewModal from "../components/ReviewModal";
 import { apiGet } from "../utils/api";
+import { bookingStatusBadgeClass, formatBookingStatusLabel } from "../lib/bookingStatus";
 
 function formatTripDates(startAt, endAt) {
   if (!startAt || !endAt) return "Dates unavailable";
   const start = String(startAt).slice(0, 10);
   const end = String(endAt).slice(0, 10);
   return `${start} → ${end}`;
-}
-
-function statusBadgeClass(status) {
-  const normalized = String(status || "").toUpperCase();
-  if (normalized === "COMPLETED") return "bg-emerald-100 text-emerald-800";
-  if (normalized === "IN_PROGRESS") return "bg-blue-100 text-blue-800";
-  if (normalized === "CONFIRMED") return "bg-indigo-100 text-indigo-800";
-  return "bg-gray-100 text-gray-700";
 }
 
 export default function TripsPage() {
@@ -110,9 +103,9 @@ export default function TripsPage() {
                   </p>
                 </div>
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${statusBadgeClass(trip.status)}`}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${bookingStatusBadgeClass(trip.status)}`}
                 >
-                  {trip.status}
+                  {formatBookingStatusLabel(trip.status)}
                 </span>
               </div>
 

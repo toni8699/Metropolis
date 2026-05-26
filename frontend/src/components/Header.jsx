@@ -6,7 +6,7 @@ import {
   SlidersHorizontal,
   UserCircle2,
 } from "lucide-react";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { useJsApiLoader } from "@react-google-maps/api";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -16,6 +16,7 @@ import UserMenuDropdown from "./header/UserMenuDropdown";
 import CollapsedSearchPill from "./header/CollapsedSearchPill";
 import WhereSuggestionsDropdown from "./header/WhereSuggestionsDropdown";
 import WhenDateDropdown from "./header/WhenDateDropdown";
+import { defaultDateRangeFromToday, startOfToday } from "../lib/datePicker";
 import {
   fetchPlacePredictions,
   resolvePredictionCoordinates,
@@ -37,7 +38,7 @@ export default function Header({ onSearch, onHome }) {
   const [isLoading, setIsLoading] = useState(false);
   const [placesError, setPlacesError] = useState("");
   const [selectedCoordinates, setSelectedCoordinates] = useState(null);
-  const [selectedRange, setSelectedRange] = useState();
+  const [selectedRange, setSelectedRange] = useState(defaultDateRangeFromToday);
   const searchContainerRef = useRef(null);
   const geocoderRef = useRef(null);
   const mobileUserMenuRef = useRef(null);
@@ -101,9 +102,8 @@ export default function Header({ onSearch, onHome }) {
       : "Add dates";
   const collapsedWhenLabel =
     selectedRange?.from && selectedRange?.to ? whenLabel : "Any week";
-  const todayDate = new Date();
-  const tomorrowDate = new Date(todayDate);
-  tomorrowDate.setDate(todayDate.getDate() + 1);
+  const todayDate = startOfToday();
+  const tomorrowDate = addDays(todayDate, 1);
   const previewNextSaturday = new Date(todayDate);
   previewNextSaturday.setDate(
     todayDate.getDate() + (((6 - todayDate.getDay() + 7) % 7) || 7),
@@ -217,24 +217,21 @@ export default function Header({ onSearch, onHome }) {
   }, [searchQuery, isSearchExpanded, activeSection, placesLoadError]);
 
   const setToday = () => {
-    const today = new Date();
+    const today = startOfToday();
     setSelectedRange({ from: today, to: today });
   };
 
   const setTomorrow = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrow = addDays(startOfToday(), 1);
     setSelectedRange({ from: tomorrow, to: tomorrow });
   };
 
   const setNextWeekend = () => {
-    const today = new Date();
+    const today = startOfToday();
     const day = today.getDay();
     const daysUntilSaturday = (6 - day + 7) % 7 || 7;
-    const saturday = new Date(today);
-    saturday.setDate(today.getDate() + daysUntilSaturday);
-    const sunday = new Date(saturday);
-    sunday.setDate(saturday.getDate() + 1);
+    const saturday = addDays(today, daysUntilSaturday);
+    const sunday = addDays(saturday, 1);
     setSelectedRange({ from: saturday, to: sunday });
   };
 

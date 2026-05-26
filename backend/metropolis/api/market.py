@@ -4,6 +4,7 @@ from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
 
 from metropolis.schemas.common import ErrorSchema
 from metropolis.schemas.marketplace import (
+    BookedRangeCollectionSchema,
     ListingCollectionSchema,
     ListingItemSchema,
     ListingSearchSchema,
@@ -38,6 +39,20 @@ def get_listing(listing_id: int):
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
+    if result["status"] == "not_found":
+        raise NotFound(description=result["message"])
+    return result
+
+
+@bp.get("/listings/<int:listing_id>/booked-ranges")
+@response(BookedRangeCollectionSchema)
+@other_responses({404: (ErrorSchema, "Listing not found."), 500: (ErrorSchema, "Server error.")})
+def list_listing_booked_ranges(listing_id: int):
+    """List booking windows that block new reservations for this listing."""
+    try:
+        result = marketplace_service.list_listing_booked_ranges(listing_id)
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
     if result["status"] == "not_found":
         raise NotFound(description=result["message"])
     return result

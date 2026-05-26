@@ -2,6 +2,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/style.css";
+import {
+  airbnbDayPickerClassNames,
+  disabledBeforeTodayMatcher,
+  sanitizeDateRange,
+  startOfToday,
+} from "../../lib/datePicker";
 
 export default function WhenDateDropdown({
   todayDate,
@@ -49,21 +55,12 @@ export default function WhenDateDropdown({
         <DayPicker
           mode="range"
           numberOfMonths={2}
+          startMonth={startOfToday()}
+          disabled={disabledBeforeTodayMatcher()}
           selected={selectedRange}
-          onSelect={setSelectedRange}
+          onSelect={(range) => setSelectedRange(sanitizeDateRange(range))}
           className="rdp-airbnb"
-          classNames={{
-            month_caption: "pb-4 text-center text-lg font-semibold",
-            weekdays: "mb-3",
-            weekday: "text-xs font-medium text-gray-400 uppercase tracking-wide",
-            day: "h-12 w-12 p-0",
-            day_button:
-              "h-12 w-12 rounded-full flex items-center justify-center font-medium border border-transparent hover:border-gray-900",
-            selected: "bg-gray-900 text-white rounded-full border-gray-900",
-            range_start: "bg-gray-900 text-white rounded-full border-gray-900",
-            range_end: "bg-gray-900 text-white rounded-full border-gray-900",
-            range_middle: "bg-gray-100 text-gray-900 rounded-none border-transparent",
-          }}
+          classNames={airbnbDayPickerClassNames()}
           components={{
             Chevron: ({ orientation, ...props }) =>
               orientation === "left" ? (

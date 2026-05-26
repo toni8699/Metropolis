@@ -79,6 +79,7 @@ CREATE TYPE user_role AS ENUM ('RENTER', 'OWNER', 'ADMIN');
 CREATE TYPE listing_source_type AS ENUM ('OWNER', 'FLEET');
 CREATE TYPE booking_status AS ENUM (
   'PENDING',
+  'PENDING_APPROVAL',
   'CONFIRMED',
   'IN_PROGRESS',
   'COMPLETED',
@@ -122,6 +123,7 @@ CREATE TABLE vehicle_listing
   price_per_day DECIMAL(10,2) NOT NULL CHECK (price_per_day >= 0),
   photos_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   active BOOLEAN NOT NULL DEFAULT TRUE,
+  instant_book BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (

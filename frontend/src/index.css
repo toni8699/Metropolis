@@ -6,3 +6,73 @@ body {
   margin: 0;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
+
+/* Airbnb-style range picker: black endpoints, darker in-between */
+.rdp-airbnb {
+  --rdp-accent-color: #111827;
+  --rdp-accent-background-color: #d1d5db;
+  --rdp-range_middle-background-color: #d1d5db;
+  --rdp-range_middle-color: #111827;
+  --rdp-range_start-color: #ffffff;
+  --rdp-range_start-date-background-color: #111827;
+  --rdp-range_end-color: #ffffff;
+  --rdp-range_end-date-background-color: #111827;
+  --rdp-selected-border: 2px solid transparent;
+  --rdp-day_button-border-radius: 9999px;
+  --rdp-today-color: #111827;
+}
+
+.rdp-airbnb .rdp-selected .rdp-day_button {
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.rdp-airbnb .rdp-range_middle .rdp-day_button {
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.rdp-airbnb .rdp-range_start .rdp-day_button,
+.rdp-airbnb .rdp-range_end .rdp-day_button,
+.rdp-airbnb .rdp-selected.rdp-range_start .rdp-day_button,
+.rdp-airbnb .rdp-selected.rdp-range_end .rdp-day_button {
+  border-radius: 9999px;
+  border: none;
+  background-color: #111827 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.rdp-airbnb .rdp-range_start.rdp-range_end {
+  background: transparent;
+}
+
+.rdp-airbnb .rdp-range_start.rdp-range_end .rdp-day_button {
+  background-color: #111827 !important;
+  color: #ffffff !important;
+}
+
+/* Unavailable: past = grey only; booked (today+) = grey + strikethrough */
+.rdp-airbnb .rdp-disabled .rdp-day_button {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.rdp-airbnb .rdp-disabled:not(.rdp-booked) .rdp-day_button {
+  color: #d1d5db;
+  opacity: 0.45;
+  text-decoration: none;
+  background: none;
+}
+
+.rdp-airbnb .rdp-booked .rdp-day_button {
+  color: #9ca3af;
+  opacity: 0.7;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  background: none;
+}
+
+.rdp-airbnb .rdp-disabled .rdp-day_button:hover {
+  border-color: transparent;
+}
