@@ -134,7 +134,10 @@ class UploadsService:
                 cur.execute(
                     """
                     INSERT INTO file_asset
-                    (owner_user_id, listing_id, bucket, object_key, file_url, content_type, size_bytes, scope)
+                    (
+                        owner_user_id, listing_id, bucket, object_key, file_url,
+                        content_type, size_bytes, scope
+                    )
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (object_key)
                     DO UPDATE

@@ -1,10 +1,10 @@
+from metropolis.schemas.admin import FleetSyncSchema, RelocationSimulationSchema
 from metropolis.schemas.auth import (
     AuthLoginSchema,
     AuthRegisterSchema,
     AuthTokenSchema,
     MeSchema,
 )
-from metropolis.schemas.admin import FleetSyncSchema, RelocationSimulationSchema
 from metropolis.schemas.bookings import (
     BookingCreateSchema,
     BookingInstructionCreateSchema,

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime
 import hashlib
+from datetime import datetime
 
 from flask import current_app
 from psycopg2.extras import Json, RealDictCursor
 from werkzeug.exceptions import BadRequest
 
 from metropolis.db import get_connection
-
 
 LISTING_SELECT_SQL = """
     SELECT l.*,
@@ -103,7 +102,9 @@ def _fetch_dashboard_analytics(cur, listing_where: str, params: tuple = ()) -> d
             COUNT(DISTINCT l.listing_id) AS listing_count,
             COUNT(DISTINCT l.listing_id) FILTER (WHERE l.active) AS active_listings,
             COUNT(DISTINCT b.booking_id) AS booking_count,
-            COALESCE(SUM((b.price_snapshot_json->>'pricePerDay')::numeric), 0) AS gross_daily_revenue
+            COALESCE(
+                SUM((b.price_snapshot_json->>'pricePerDay')::numeric), 0
+            ) AS gross_daily_revenue
         FROM vehicle_listing l
         LEFT JOIN booking b ON b.listing_id = l.listing_id
         WHERE {listing_where}
@@ -245,7 +246,9 @@ def _upsert_listing_location(
 ) -> None:
     cur.execute(
         """
-        INSERT INTO listing_location (listing_id, lat, lng, geohash, city_zone, raw_address, last_parked_at)
+        INSERT INTO listing_location (
+            listing_id, lat, lng, geohash, city_zone, raw_address, last_parked_at
+        )
         VALUES (%s, %s, %s, %s, %s, %s, NOW())
         ON CONFLICT (listing_id) DO UPDATE
         SET lat = EXCLUDED.lat,
@@ -571,7 +574,10 @@ class MarketplaceService:
                         if lat is None or lng is None or not city_zone:
                             return {
                                 "status": "validation_error",
-                                "message": "lat, lng, and cityZone required for custom company-owned listings.",
+                                "message": (
+                                    "lat, lng, and cityZone required for custom "
+                                    "company-owned listings."
+                                ),
                             }
                         lat = float(lat)
                         lng = float(lng)
@@ -639,10 +645,12 @@ class MarketplaceService:
                     """
                     INSERT INTO vehicle_listing
                     (
-                      owner_user_id, created_by_user_id, source_type, title, brand, make, model, year, mileage, vehicle_class_id,
-                      description, guidelines, transmission, fuel_type, seats, doors, features,
-                      pickup_notes_template, price_per_day, active, status,
-                      is_company_owned, location_source_type, branch_id, parking_spot_id, pickup_address
+                      owner_user_id, created_by_user_id, source_type, title, brand,
+                      make, model, year, mileage, vehicle_class_id,
+                      description, guidelines, transmission, fuel_type, seats, doors,
+                      features, pickup_notes_template, price_per_day, active, status,
+                      is_company_owned, location_source_type, branch_id,
+                      parking_spot_id, pickup_address
                     )
                     VALUES (
                       %s, %s, %s::listing_source_type, %s, %s, %s, %s, %s, %s, %s,
@@ -697,7 +705,10 @@ class MarketplaceService:
             if "column" in msg and "vehicle_listing" in msg and "does not exist" in msg:
                 return {
                     "status": "validation_error",
-                    "message": "Database schema is outdated (missing vehicle_listing columns). Run latest DB migrations, then retry.",
+                    "message": (
+                        "Database schema is outdated (missing vehicle_listing columns). "
+                        "Run latest DB migrations, then retry."
+                    ),
                 }
             raise
 
@@ -856,7 +867,7 @@ class MarketplaceService:
             clauses.append("loc.city_zone = %s")
             params.append(query["cityZone"])
         if query.get("bbox"):
-            min_lng, min_lat, max_lng, max_lat = [float(x) for x in query["bbox"].split(",")]
+            min_lng, min_lat, max_lng, max_lat = (float(x) for x in query["bbox"].split(","))
             clauses.extend(["loc.lng BETWEEN %s AND %s", "loc.lat BETWEEN %s AND %s"])
             params.extend([min_lng, max_lng, min_lat, max_lat])
 
@@ -977,7 +988,9 @@ class MarketplaceService:
                     if lat is None or lng is None or not city_zone:
                         return {
                             "status": "validation_error",
-                            "message": "lat, lng, and cityZone required when updating listing location.",
+                            "message": (
+                                "lat, lng, and cityZone required when updating listing location."
+                            ),
                         }
 
                     _upsert_listing_location(
@@ -1129,7 +1142,10 @@ class MarketplaceService:
                     }
                 cur.execute(
                     """
-                    INSERT INTO booking (listing_id, renter_user_id, start_at, end_at, status, price_snapshot_json)
+                    INSERT INTO booking (
+                        listing_id, renter_user_id, start_at, end_at, status,
+                        price_snapshot_json
+                    )
                     VALUES (%s, %s, %s, %s, 'CONFIRMED', %s::jsonb)
                     RETURNING booking_id
                     """,
@@ -1428,7 +1444,11 @@ class MarketplaceService:
                         cur.execute(
                             """
                             UPDATE listing_location
-                            SET lat = %s, lng = %s, geohash = %s, city_zone = %s, last_parked_at = NOW()
+                            SET lat = %s,
+                                lng = %s,
+                                geohash = %s,
+                                city_zone = %s,
+                                last_parked_at = NOW()
                             WHERE listing_id = %s
                             """,
                             (lat, lng, _simple_geohash(lat, lng), city_zone, hit["listing_id"]),

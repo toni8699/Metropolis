@@ -3,8 +3,8 @@ from flask import Blueprint, g
 from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotFound
 
 from metropolis.auth import require_auth, require_listing_access
-from metropolis.schemas.common import ErrorSchema, StatusSchema
 from metropolis.schemas.admin import AdminAnalyticsSchema
+from metropolis.schemas.common import ErrorSchema, StatusSchema
 from metropolis.schemas.marketplace import (
     ListingAvailabilitySchema,
     ListingCollectionSchema,

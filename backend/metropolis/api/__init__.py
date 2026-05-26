@@ -1,7 +1,7 @@
 from flask import Flask
 
-from metropolis.api.auth import bp as auth_bp
 from metropolis.api.admin import bp as admin_bp
+from metropolis.api.auth import bp as auth_bp
 from metropolis.api.bookings import bp as bookings_bp
 from metropolis.api.health import bp as health_bp
 from metropolis.api.market import bp as market_bp
