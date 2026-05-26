@@ -96,7 +96,10 @@ class ListingAvailabilitySchema(ma.Schema):
 class ListingSearchSchema(ma.Schema):
     bbox = ma.String(
         required=False,
-        metadata={"description": "minLng,minLat,maxLng,maxLat", "example": "-73.75,45.45,-73.50,45.62"},
+        metadata={
+            "description": "minLng,minLat,maxLng,maxLat",
+            "example": "-73.75,45.45,-73.50,45.62",
+        },
     )
     start_at = ma.DateTime(
         required=False,

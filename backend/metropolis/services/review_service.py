@@ -44,7 +44,9 @@ def _to_review_row(row: dict) -> dict:
         "rating": int(row["rating"]),
         "cleanliness": int(row["cleanliness"]) if row.get("cleanliness") is not None else None,
         "accuracy": int(row["accuracy"]) if row.get("accuracy") is not None else None,
-        "communication": int(row["communication"]) if row.get("communication") is not None else None,
+        "communication": int(row["communication"])
+        if row.get("communication") is not None
+        else None,
         "comment": row.get("comment"),
         "createdAt": row["created_at"].isoformat(),
     }
@@ -72,7 +74,10 @@ class ReviewService:
         try:
             rating_value = int(rating)
         except (TypeError, ValueError):
-            return {"status": "validation_error", "message": "rating must be an integer from 1 to 5."}
+            return {
+                "status": "validation_error",
+                "message": "rating must be an integer from 1 to 5.",
+            }
         if rating_value < 1 or rating_value > 5:
             return {"status": "validation_error", "message": "rating must be between 1 and 5."}
 

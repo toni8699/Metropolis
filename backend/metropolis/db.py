@@ -16,9 +16,7 @@ load_dotenv(_ROOT / ".env")
 def _require_database_url() -> str:
     url = os.environ.get("DATABASE_URL", "").strip()
     if not url:
-        raise RuntimeError(
-            "Missing DATABASE_URL. Set it in .env (Neon connection string)."
-        )
+        raise RuntimeError("Missing DATABASE_URL. Set it in .env (Neon connection string).")
     return url
 
 

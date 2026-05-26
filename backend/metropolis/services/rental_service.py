@@ -248,8 +248,7 @@ def _run_relocation_planner(cur) -> dict[str, Any]:
 
     cur.execute(RELOCATION_FEE_SQL)
     fee_map = {
-        f"{row['sourceareaid']}->{row['targetareaid']}": float(row["fee"])
-        for row in cur.fetchall()
+        f"{row['sourceareaid']}->{row['targetareaid']}": float(row["fee"]) for row in cur.fetchall()
     }
 
     if not branches:

@@ -93,7 +93,13 @@ def create_listing(payload):
 @require_listing_access("listing_id")
 @body(ListingUpdateSchema)
 @response(ListingItemSchema)
-@other_responses({400: (ErrorSchema, "Validation error."), 404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
+@other_responses(
+    {
+        400: (ErrorSchema, "Validation error."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
 def patch_listing(payload, listing_id: int):
     """Patch owner listing fields."""
     try:

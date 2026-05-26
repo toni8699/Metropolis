@@ -10,6 +10,7 @@ from werkzeug.exceptions import Forbidden, Unauthorized
 
 from metropolis.db import get_connection
 
+
 def _load_user_context(user_id: int) -> dict:
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:

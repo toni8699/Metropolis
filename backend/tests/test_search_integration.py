@@ -51,7 +51,14 @@ def _iso_z(dt: datetime) -> str:
     return dt.isoformat().replace("+00:00", "Z")
 
 
-def _api(method: str, path: str, *, token: str | None = None, params: dict | None = None, json: dict | None = None):
+def _api(
+    method: str,
+    path: str,
+    *,
+    token: str | None = None,
+    params: dict | None = None,
+    json: dict | None = None,
+):
     headers = {}
     if token:
         headers["Authorization"] = f"Bearer {token}"

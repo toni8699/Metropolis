@@ -32,7 +32,13 @@ def list_my_bookings():
 @require_auth()
 @body(BookingCreateSchema)
 @response(BookingItemSchema, 201)
-@other_responses({400: (ErrorSchema, "Validation error."), 404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
+@other_responses(
+    {
+        400: (ErrorSchema, "Validation error."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
 def create_booking(payload):
     """Create booking for a listing (auto-confirm for MVP)."""
     try:
@@ -49,7 +55,13 @@ def create_booking(payload):
 @bp.get("/<int:booking_id>")
 @require_auth()
 @response(BookingItemSchema)
-@other_responses({403: (ErrorSchema, "Forbidden."), 404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
+@other_responses(
+    {
+        403: (ErrorSchema, "Forbidden."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
 def get_booking(booking_id: int):
     """Get booking details for renter, owner, or admin."""
     try:
@@ -98,7 +110,13 @@ def send_instruction(payload, booking_id: int):
 @bp.post("/<int:booking_id>/confirm-pickup")
 @require_auth()
 @response(BookingItemSchema)
-@other_responses({400: (ErrorSchema, "Validation error."), 404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
+@other_responses(
+    {
+        400: (ErrorSchema, "Validation error."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
 def confirm_pickup(booking_id: int):
     """Transition booking to IN_PROGRESS."""
     try:
@@ -122,7 +140,13 @@ def confirm_pickup(booking_id: int):
 @bp.post("/<int:booking_id>/complete")
 @require_auth()
 @response(BookingItemSchema)
-@other_responses({400: (ErrorSchema, "Validation error."), 404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
+@other_responses(
+    {
+        400: (ErrorSchema, "Validation error."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
 def complete_booking(booking_id: int):
     """Transition booking to COMPLETED."""
     try:
@@ -147,12 +171,14 @@ def complete_booking(booking_id: int):
 @require_auth()
 @body(ReviewSubmitSchema)
 @response(ReviewItemSchema, 201)
-@other_responses({
-    400: (ErrorSchema, "Validation error."),
-    403: (ErrorSchema, "Forbidden."),
-    404: (ErrorSchema, "Not found."),
-    500: (ErrorSchema, "Server error."),
-})
+@other_responses(
+    {
+        400: (ErrorSchema, "Validation error."),
+        403: (ErrorSchema, "Forbidden."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
 def submit_review(payload, booking_id: int):
     """Submit listing or renter feedback for a completed booking."""
     try:

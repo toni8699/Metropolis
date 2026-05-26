@@ -161,7 +161,9 @@ def _fetch_listing_ratings_map(cur, listing_ids: list[int]) -> dict[int, dict]:
     )
     return {
         row["listing_id"]: {
-            "average_rating": float(row["average_rating"]) if row["average_rating"] is not None else None,
+            "average_rating": float(row["average_rating"])
+            if row["average_rating"] is not None
+            else None,
             "review_count": int(row["review_count"] or 0),
         }
         for row in cur.fetchall()
@@ -408,11 +410,17 @@ class MarketplaceService:
         parking_spot_id = payload.get("parkingSpotId")
         selected_area_id = payload.get("areaId")
         if source_type not in {"BRANCH", "PARKING_SPOT"}:
-            return {"status": "validation_error", "message": "locationSourceType must be BRANCH or PARKING_SPOT."}
+            return {
+                "status": "validation_error",
+                "message": "locationSourceType must be BRANCH or PARKING_SPOT.",
+            }
 
         if source_type == "BRANCH":
             if not branch_id:
-                return {"status": "validation_error", "message": "branchId required for BRANCH source."}
+                return {
+                    "status": "validation_error",
+                    "message": "branchId required for BRANCH source.",
+                }
             cur.execute(
                 """
                 SELECT b.branchid, b.areaid, b.address, b.lat, b.lng, a.areaname
@@ -426,9 +434,15 @@ class MarketplaceService:
             if not row:
                 return {"status": "not_found", "message": "Branch not found."}
             if selected_area_id and int(selected_area_id) != int(row["areaid"]):
-                return {"status": "validation_error", "message": "Selected branch is not in selected area."}
+                return {
+                    "status": "validation_error",
+                    "message": "Selected branch is not in selected area.",
+                }
             if row["lat"] is None or row["lng"] is None:
-                return {"status": "validation_error", "message": "Selected branch missing coordinates."}
+                return {
+                    "status": "validation_error",
+                    "message": "Selected branch missing coordinates.",
+                }
             return {
                 "status": "success",
                 "locationSourceType": "BRANCH",
@@ -441,7 +455,10 @@ class MarketplaceService:
             }
 
         if not parking_spot_id:
-            return {"status": "validation_error", "message": "parkingSpotId required for PARKING_SPOT source."}
+            return {
+                "status": "validation_error",
+                "message": "parkingSpotId required for PARKING_SPOT source.",
+            }
         cur.execute(
             """
             SELECT id, area_id, branch_id, address, lat, lng, city_zone
@@ -454,7 +471,10 @@ class MarketplaceService:
         if not row:
             return {"status": "not_found", "message": "Parking spot not found."}
         if selected_area_id and int(selected_area_id) != int(row["area_id"]):
-            return {"status": "validation_error", "message": "Selected parking spot is not in selected area."}
+            return {
+                "status": "validation_error",
+                "message": "Selected parking spot is not in selected area.",
+            }
         return {
             "status": "success",
             "locationSourceType": "PARKING_SPOT",
@@ -467,7 +487,9 @@ class MarketplaceService:
         }
 
     def create_listing(self, actor: dict, payload: dict) -> dict:
-        if not actor.get("isAdmin") and not bool(current_app.config.get("ALLOW_USER_LISTINGS", False)):
+        if not actor.get("isAdmin") and not bool(
+            current_app.config.get("ALLOW_USER_LISTINGS", False)
+        ):
             return {
                 "status": "forbidden",
                 "message": "User vehicle listings disabled for this demo. Admin fleet only.",
@@ -748,7 +770,9 @@ class MarketplaceService:
                     ORDER BY areaname ASC
                     """
                 )
-                areas = [{"areaId": row["areaid"], "areaName": row["areaname"]} for row in cur.fetchall()]
+                areas = [
+                    {"areaId": row["areaid"], "areaName": row["areaname"]} for row in cur.fetchall()
+                ]
 
                 cur.execute(
                     """
@@ -799,7 +823,8 @@ class MarketplaceService:
                     """
                 )
                 vehicle_classes = [
-                    {"vehicleClassId": row["classid"], "name": row["classname"]} for row in cur.fetchall()
+                    {"vehicleClassId": row["classid"], "name": row["classname"]}
+                    for row in cur.fetchall()
                 ]
 
         return {
@@ -820,7 +845,8 @@ class MarketplaceService:
                 """
             )
             return [
-                {"vehicleClassId": row["classid"], "name": row["classname"]} for row in cur.fetchall()
+                {"vehicleClassId": row["classid"], "name": row["classname"]}
+                for row in cur.fetchall()
             ]
 
     def search_listings(self, query: dict) -> dict:
@@ -1097,7 +1123,10 @@ class MarketplaceService:
                     start_at=payload["startAt"],
                     end_at=payload["endAt"],
                 ):
-                    return {"status": "validation_error", "message": "Listing unavailable for selected window."}
+                    return {
+                        "status": "validation_error",
+                        "message": "Listing unavailable for selected window.",
+                    }
                 cur.execute(
                     """
                     INSERT INTO booking (listing_id, renter_user_id, start_at, end_at, status, price_snapshot_json)
@@ -1123,7 +1152,9 @@ class MarketplaceService:
                 conn.commit()
         return self.get_booking(booking_id, renter_user_id, False)
 
-    def get_booking(self, booking_id: int, requester_user_id: int, requester_is_admin: bool) -> dict:
+    def get_booking(
+        self, booking_id: int, requester_user_id: int, requester_is_admin: bool
+    ) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
@@ -1233,7 +1264,11 @@ class MarketplaceService:
                     INSERT INTO trip_event (booking_id, event_type, actor_user_id, metadata_json)
                     VALUES (%s, 'INSTRUCTION_SENT', %s, %s::jsonb)
                     """,
-                    (booking_id, owner_user_id, Json({"instructionId": instruction["instruction_id"]})),
+                    (
+                        booking_id,
+                        owner_user_id,
+                        Json({"instructionId": instruction["instruction_id"]}),
+                    ),
                 )
                 conn.commit()
         return {
@@ -1256,7 +1291,10 @@ class MarketplaceService:
     ) -> dict:
         status = target_status.upper()
         if status not in {"IN_PROGRESS", "COMPLETED", "CANCELLED"}:
-            return {"status": "validation_error", "message": "Unsupported booking status transition."}
+            return {
+                "status": "validation_error",
+                "message": "Unsupported booking status transition.",
+            }
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
@@ -1289,7 +1327,12 @@ class MarketplaceService:
                     INSERT INTO trip_event (booking_id, event_type, actor_user_id, metadata_json)
                     VALUES (%s, %s, %s, %s::jsonb)
                     """,
-                    (booking_id, f"STATUS_{status}", actor_user_id, Json({"from": row["status"], "to": status})),
+                    (
+                        booking_id,
+                        f"STATUS_{status}",
+                        actor_user_id,
+                        Json({"from": row["status"], "to": status}),
+                    ),
                 )
                 conn.commit()
         return self.get_booking(booking_id, actor_user_id, actor_is_admin)
