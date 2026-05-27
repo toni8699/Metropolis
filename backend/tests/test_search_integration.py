@@ -81,26 +81,60 @@ def _listing_ids(resp: requests.Response) -> set[int]:
     return {int(item["listingId"]) for item in listings}
 
 
-def _login_or_register() -> str:
-    email = f"search-int-{uuid.uuid4().hex[:10]}@example.com"
+def _register_user(prefix: str) -> str:
+    email = f"{prefix}-{uuid.uuid4().hex[:10]}@example.com"
     password = "SearchTest123!"
     resp = _api(
         "POST",
         "/api/auth/register",
-        json={"email": email, "password": password, "fullName": "Search Integration"},
+        json={"email": email, "password": password, "fullName": prefix},
     )
     assert resp.status_code == 201, _error_message(resp)
     return resp.json()["token"]
 
 
-def _pick_listing_id() -> int:
+def _create_instant_book_listing(host_token: str) -> int:
+    resp = _api(
+        "POST",
+        "/api/owner/listings",
+        token=host_token,
+        json={
+            "title": f"Search Test {uuid.uuid4().hex[:8]}",
+            "make": "Toyota",
+            "model": "Corolla",
+            "year": 2021,
+            "pricePerDay": 49.0,
+            "lat": 45.5017,
+            "lng": -73.5673,
+            "cityZone": "montreal",
+            "instantBook": True,
+        },
+    )
+    assert resp.status_code == 201, _error_message(resp)
+    listing_id = int(resp.json()["listing"]["listingId"])
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE vehicle_listing SET instant_book = TRUE WHERE listing_id = %s",
+                (listing_id,),
+            )
+        conn.commit()
+    return listing_id
+
+
+def _prepare_listing_for_booking(host_token: str) -> tuple[int, bool]:
+    """Return (listing_id, should_delete_listing_on_teardown)."""
     if INTEGRATION_LISTING_ID:
-        return int(INTEGRATION_LISTING_ID)
-    resp = _api("GET", "/api/market/listings")
-    assert resp.status_code == 200, _error_message(resp)
-    listings = resp.json().get("listings") or []
-    assert listings, "No listings in database — need at least one active listing"
-    return int(listings[0]["listingId"])
+        listing_id = int(INTEGRATION_LISTING_ID)
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE vehicle_listing SET instant_book = TRUE WHERE listing_id = %s",
+                    (listing_id,),
+                )
+            conn.commit()
+        return listing_id, False
+    return _create_instant_book_listing(host_token), True
 
 
 def _delete_booking(booking_id: int) -> None:
@@ -113,14 +147,27 @@ def _delete_booking(booking_id: int) -> None:
         conn.commit()
 
 
+def _delete_listing(listing_id: int) -> None:
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM booking WHERE listing_id = %s",
+                (listing_id,),
+            )
+            cur.execute("DELETE FROM listing_image WHERE listing_id = %s", (listing_id,))
+            cur.execute("DELETE FROM vehicle_listing WHERE listing_id = %s", (listing_id,))
+        conn.commit()
+
+
 @pytest.fixture
 def listing_with_confirmed_booking():
-    token = _login_or_register()
-    listing_id = _pick_listing_id()
+    host_token = _register_user("search-host")
+    renter_token = _register_user("search-renter")
+    listing_id, delete_listing = _prepare_listing_for_booking(host_token)
     resp = _api(
         "POST",
         "/api/bookings",
-        token=token,
+        token=renter_token,
         json={
             "listingId": listing_id,
             "startAt": _iso_z(BOOKING_START),
@@ -132,6 +179,8 @@ def listing_with_confirmed_booking():
     assert resp.json()["booking"]["status"] == "CONFIRMED"
     yield listing_id, booking_id
     _delete_booking(booking_id)
+    if delete_listing:
+        _delete_listing(listing_id)
 
 
 def test_search_no_dates_returns_listings():

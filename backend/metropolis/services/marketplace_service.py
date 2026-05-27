@@ -437,7 +437,9 @@ def _trip_has_started(start_at: datetime, now: datetime | None = None) -> bool:
     return now >= start
 
 
-def _trip_is_active_window(start_at: datetime, end_at: datetime, now: datetime | None = None) -> bool:
+def _trip_is_active_window(
+    start_at: datetime, end_at: datetime, now: datetime | None = None
+) -> bool:
     now = now or _utcnow()
     start = start_at if start_at.tzinfo else start_at.replace(tzinfo=timezone.utc)
     end = end_at if end_at.tzinfo else end_at.replace(tzinfo=timezone.utc)
@@ -458,8 +460,13 @@ def _renter_can_complete_trip(status: str) -> bool:
     return status == "IN_PROGRESS"
 
 
-def _auto_complete_expired_bookings(cur, *, renter_user_id: int | None = None, booking_id: int | None = None) -> None:
-    filters = ["status IN ('CONFIRMED'::booking_status, 'IN_PROGRESS'::booking_status)", "end_at < NOW()"]
+def _auto_complete_expired_bookings(
+    cur, *, renter_user_id: int | None = None, booking_id: int | None = None
+) -> None:
+    filters = [
+        "status IN ('CONFIRMED'::booking_status, 'IN_PROGRESS'::booking_status)",
+        "end_at < NOW()",
+    ]
     params: list = []
     if renter_user_id is not None:
         filters.append("renter_user_id = %s")
@@ -1488,8 +1495,7 @@ class MarketplaceService:
                     return {
                         "status": "validation_error",
                         "message": (
-                            "Cannot approve: another confirmed booking overlaps "
-                            "these dates."
+                            "Cannot approve: another confirmed booking overlaps these dates."
                         ),
                     }
                 cur.execute(
@@ -1824,9 +1830,7 @@ class MarketplaceService:
                             "status": "validation_error",
                             "message": "Only confirmed bookings can be picked up.",
                         }
-                    if is_renter and not _trip_is_active_window(
-                        row["start_at"], row["end_at"]
-                    ):
+                    if is_renter and not _trip_is_active_window(row["start_at"], row["end_at"]):
                         return {
                             "status": "validation_error",
                             "message": "Pickup is only available during the trip window.",

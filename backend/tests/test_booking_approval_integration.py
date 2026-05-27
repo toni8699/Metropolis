@@ -19,6 +19,7 @@ import psycopg2
 import pytest
 import requests
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 API_URL = os.environ.get("INTEGRATION_API_URL", "http://localhost:5000").rstrip("/")
@@ -283,7 +284,12 @@ def test_renter_cancel_before_start():
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT event_type FROM trip_event WHERE booking_id = %s ORDER BY event_id DESC LIMIT 1",
+                """
+                SELECT event_type FROM trip_event
+                WHERE booking_id = %s
+                ORDER BY event_id DESC
+                LIMIT 1
+                """,
                 (booking_id,),
             )
             assert cur.fetchone()[0] == "BOOKING_CANCELLED"
