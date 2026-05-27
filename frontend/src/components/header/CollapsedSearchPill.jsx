@@ -17,8 +17,8 @@ export default function CollapsedSearchPill({
       <div className="min-w-[120px] flex-1 px-2 text-center text-sm text-gray-700 sm:min-w-[210px]">
         {collapsedWhenLabel}
       </div>
-      <div className="ml-1.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
-        <Search className="h-4.5 w-4.5" strokeWidth={3} />
+      <div className="ml-1.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
+        <Search className="h-3.5 w-3.5" strokeWidth={3} />
       </div>
     </button>
   );
