@@ -132,7 +132,7 @@ export default function BookingDetailsPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl animate-pulse space-y-6 py-6">
+      <div className="mx-auto max-w-4xl animate-pulse space-y-3 py-4">
         <div className="h-8 w-48 rounded bg-gray-200" />
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
           <div className="h-80 rounded-2xl bg-gray-100" />
@@ -160,7 +160,7 @@ export default function BookingDetailsPage() {
   : booking.cityZone?.replace(/-/g, " ");
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-12 pt-2">
+    <div className="mx-auto max-w-4xl space-y-3 pb-6 pt-1">
       <Link
         to="/app/trips"
         className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
@@ -169,11 +169,11 @@ export default function BookingDetailsPage() {
         Your trips
       </Link>
 
-      <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-6">
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div className="space-y-3">
           <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-            <div className="grid md:grid-cols-[220px_1fr]">
-              <div className="relative min-h-[180px] bg-gray-100 md:min-h-full">
+            <div className="grid md:grid-cols-[190px_1fr]">
+              <div className="relative min-h-[150px] bg-gray-100 md:min-h-full">
                 {booking.listingPhoto ? (
                   <img
                     src={booking.listingPhoto}
@@ -181,21 +181,21 @@ export default function BookingDetailsPage() {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full min-h-[180px] items-center justify-center text-gray-400">
-                    <CarFront className="h-12 w-12" />
+                  <div className="flex h-full min-h-[150px] items-center justify-center text-gray-400">
+                    <CarFront className="h-9 w-9" />
                   </div>
                 )}
               </div>
-              <div className="space-y-4 p-6">
+              <div className="space-y-2.5 p-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Trip #{booking.bookingId}
                     </p>
-                    <h1 className="mt-1 text-2xl font-semibold text-gray-900">
+                    <h1 className="mt-1 text-lg font-semibold text-gray-900">
                       {booking.listingTitle || "Your trip"}
                     </h1>
-                    <p className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+                    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600">
                       <Calendar className="h-4 w-4" />
                       {formatTripWindow(booking.startAt, booking.endAt)}
                     </p>
@@ -232,16 +232,16 @@ export default function BookingDetailsPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">Pickup & location</h2>
+          <section className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+            <h2 className="text-sm font-semibold text-gray-900">Pickup & location</h2>
             <p className="mt-1 text-sm text-gray-600">
               {location?.address || cityLabel || "Pickup location shared below"}
             </p>
-            <div className="mt-4">
+            <div className="mt-3">
               <PickupMap lat={location?.lat} lng={location?.lng} apiKey={apiKey} />
             </div>
             {(cityLabel || location?.address) && (
-              <p className="mt-3 flex items-start gap-2 text-sm text-gray-700">
+              <p className="mt-2.5 flex items-start gap-1.5 text-xs text-gray-700">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
                 <span>
                   {[location?.address, cityLabel].filter(Boolean).join(" · ")}
@@ -249,41 +249,41 @@ export default function BookingDetailsPage() {
               </p>
             )}
             {booking.pickupNotes && (
-              <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs text-amber-950">
                 <p className="font-semibold">Host pickup notes</p>
                 <p className="mt-1 whitespace-pre-wrap">{booking.pickupNotes}</p>
               </div>
             )}
           </section>
 
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">Trip timeline</h2>
+          <section className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+            <h2 className="text-sm font-semibold text-gray-900">Trip timeline</h2>
             {timeline.length === 0 ? (
               <p className="mt-4 text-sm text-gray-500">No activity yet.</p>
             ) : (
-              <ol className="mt-6 space-y-0">
+              <ol className="mt-4 space-y-0">
                 {timeline.map((item, index) => (
-                  <li key={item.id} className="relative flex gap-4 pb-8 last:pb-0">
+                  <li key={item.id} className="relative flex gap-3 pb-4 last:pb-0">
                     {index < timeline.length - 1 && (
                       <span
-                        className="absolute left-[7px] top-3 h-[calc(100%-4px)] w-px bg-gray-200"
+                        className="absolute left-[5px] top-2.5 h-[calc(100%-2px)] w-px bg-gray-200"
                         aria-hidden
                       />
                     )}
                     <span
-                      className={`relative z-10 mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full border-2 ${
+                      className={`relative z-10 mt-1 h-2.5 w-2.5 shrink-0 rounded-full border ${
                         item.kind === "instruction"
                           ? "border-indigo-600 bg-indigo-600"
                           : "border-gray-400 bg-white"
                       }`}
                     />
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{item.title}</p>
+                      <p className="text-xs font-semibold text-gray-900">{item.title}</p>
                       <p className="text-xs text-gray-500">
                         {formatTripEventAt(item.at)}
                       </p>
                       {item.body && (
-                        <p className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                        <p className="mt-1.5 rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs text-gray-700">
                           {item.body}
                         </p>
                       )}
@@ -295,19 +295,19 @@ export default function BookingDetailsPage() {
           </section>
         </div>
 
-        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">Actions</h2>
+        <aside className="space-y-3 lg:sticky lg:top-16 lg:self-start">
+          <section className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+            <h2 className="text-sm font-semibold text-gray-900">Actions</h2>
             {actionError && (
               <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</p>
             )}
-            <div className="mt-4 flex flex-col gap-2">
+            <div className="mt-3 flex flex-col gap-1.5">
               {isRenter && booking.canCancel && (
                 <button
                   type="button"
                   disabled={isActing}
                   onClick={() => runAction(`/api/bookings/${bookingId}/cancel`)}
-                  className="rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
                 >
                   Cancel booking
                 </button>
@@ -317,7 +317,7 @@ export default function BookingDetailsPage() {
                   type="button"
                   disabled={isActing}
                   onClick={() => runAction(`/api/bookings/${bookingId}/confirm-pickup`)}
-                  className="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-black disabled:opacity-50"
+                  className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black disabled:opacity-50"
                 >
                   Confirm pickup
                 </button>
@@ -327,7 +327,7 @@ export default function BookingDetailsPage() {
                   type="button"
                   disabled={isActing}
                   onClick={() => runAction(`/api/bookings/${bookingId}/complete`)}
-                  className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
                 >
                   Complete trip
                 </button>
@@ -339,23 +339,23 @@ export default function BookingDetailsPage() {
               )}
               <Link
                 to={`/app/listings/${booking.listingId}`}
-                className="rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-center text-xs font-semibold text-gray-700 hover:bg-gray-50"
               >
                 View listing
               </Link>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold text-gray-900">Payment</h2>
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
+              <h2 className="text-sm font-semibold text-gray-900">Payment</h2>
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
                 <CreditCard className="h-3.5 w-3.5" />
                 Paid with Mock Card
               </span>
             </div>
             {pricing ? (
-              <dl className="mt-4 space-y-3 text-sm">
+              <dl className="mt-3 space-y-2.5 text-xs">
                 <div className="flex justify-between gap-4">
                   <dt className="text-gray-600">
                     {formatMoney(pricing.pricePerDay, pricing.currency)} × {pricing.dayCount}{" "}
@@ -385,7 +385,7 @@ export default function BookingDetailsPage() {
                     </dd>
                   </div>
                 )}
-                <div className="flex justify-between gap-4 border-t border-gray-200 pt-3 text-base">
+                <div className="flex justify-between gap-4 border-t border-gray-200 pt-2.5 text-xs">
                   <dt className="font-semibold text-gray-900">Total</dt>
                   <dd className="font-semibold text-gray-900">
                     {formatMoney(pricing.total, pricing.currency)}

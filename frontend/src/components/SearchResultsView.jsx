@@ -278,24 +278,24 @@ export default function SearchResultsView({
     <div className="w-full">
       <div className="flex w-full flex-col md:flex-row">
         <section
-          className={`w-full px-4 py-6 sm:px-6 lg:px-8 transition-all duration-300 ${
+          className={`w-full px-2 py-3 sm:px-3 lg:px-4 transition-all duration-300 ${
             isMapFullscreen ? "hidden" : "md:w-[55%] xl:w-[60%]"
           }`}
         >
-          <h2 className="mb-6 text-xl font-semibold">
+          <h2 className="mb-3 text-base font-semibold">
             {isLoading ? "Loading cars..." : `${cars.length} cars in ${cityLabel}`}
           </h2>
           <div className="mb-4 md:hidden">
             <button
               onClick={() => setIsMapFullscreen(true)}
-              className="mx-auto flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm"
+              className="mx-auto flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium shadow-sm"
             >
-              <MapIcon className="h-4 w-4" />
+              <MapIcon className="h-3.5 w-3.5" />
               Show map
             </button>
           </div>
           {isLoading ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {Array.from({ length: 6 }).map((_, idx) => (
                 <div key={idx} className="space-y-3">
                   <div className="aspect-[20/19] animate-pulse rounded-2xl bg-gray-200" />
@@ -305,8 +305,8 @@ export default function SearchResultsView({
               ))}
             </div>
           ) : cars.length === 0 ? (
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-8 text-center">
-              <p className="text-lg font-medium text-gray-900">No cars near {cityLabel}</p>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-center">
+              <p className="text-sm font-medium text-gray-900">No cars near {cityLabel}</p>
               <p className="mt-2 text-sm text-gray-600">
                 Try another city or widen your search. Listings only show within 50 km of your
                 picked location.
@@ -328,7 +328,7 @@ export default function SearchResultsView({
               : "hidden md:block md:w-[45%] xl:w-[40%]"
           } transition-all duration-300`}
         >
-          <div className="sticky top-[80px] h-[calc(100vh-80px)] overflow-hidden">
+          <div className="sticky top-[64px] h-[calc(100vh-64px)] overflow-hidden">
             {!apiKey ? (
               <div className="m-4 rounded-xl border border-slate-300 bg-white p-4 text-sm text-slate-700">
                 Add `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env.local` to show map.
@@ -341,11 +341,11 @@ export default function SearchResultsView({
               <div className="relative h-full w-full">
                 <button
                   onClick={() => setIsMapFullscreen((v) => !v)}
-                  className="absolute left-1/2 top-4 z-10 -translate-x-1/2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-md"
+                  className="absolute left-1/2 top-2.5 z-10 -translate-x-1/2 rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium shadow-md"
                 >
                   {isMapFullscreen ? (
                     <span className="flex items-center gap-2">
-                      <List className="h-4 w-4" />
+                      <List className="h-3.5 w-3.5" />
                       Show list
                     </span>
                   ) : (

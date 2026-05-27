@@ -236,7 +236,7 @@ export default function Header({ onSearch, onHome }) {
   };
 
   const sectionBaseClass =
-    "h-full flex flex-col justify-center rounded-full px-6 transition";
+    "h-full flex flex-col justify-center rounded-full px-4 transition";
   const getSectionClass = (section) =>
     activeSection === section
       ? `${sectionBaseClass} bg-white shadow-md`
@@ -289,7 +289,7 @@ export default function Header({ onSearch, onHome }) {
       )}
 
       <header className="fixed inset-x-0 top-0 z-50 w-full border-b bg-white transition-all">
-        <div className="flex flex-col gap-5 px-4 py-5 sm:px-6 md:flex-row md:items-center md:justify-between md:px-10 md:py-6 lg:px-12 xl:px-20">
+        <div className="flex flex-col gap-2 px-3 py-2.5 sm:px-4 md:flex-row md:items-center md:justify-between md:px-5 md:py-3 lg:px-6 xl:px-8">
           <div className="flex items-center justify-between md:w-auto">
             <Link
               to="/"
@@ -297,19 +297,19 @@ export default function Header({ onSearch, onHome }) {
                 setIsSearchExpanded(false);
                 onHome?.();
               }}
-              className="flex items-center gap-3 text-indigo-600"
+              className="flex items-center gap-2 text-indigo-600"
             >
-              <CarFront className="h-12 w-12" />
-              <span className="text-4xl font-extrabold">DriveBnb</span>
+              <CarFront className="h-7 w-7" />
+              <span className="text-xl font-extrabold">DriveBnb</span>
             </Link>
             <div ref={mobileUserMenuRef} className="relative md:hidden">
               <button
                 onClick={() => setIsUserMenuOpen((open) => !open)}
-                className="flex items-center gap-2 rounded-full border p-1 pl-3 transition hover:shadow-md"
+                className="flex items-center gap-1.5 rounded-full border p-1 pl-2.5 transition hover:shadow-md"
                 aria-label="User menu"
               >
                 <Menu className="h-5 w-5 text-gray-700" />
-                <UserCircle2 className="h-9 w-9 fill-gray-500 text-gray-500" />
+                <UserCircle2 className="h-7 w-7 fill-gray-500 text-gray-500" />
               </button>
               {isUserMenuOpen && (
                 <UserMenuDropdown
@@ -336,7 +336,7 @@ export default function Header({ onSearch, onHome }) {
             </div>
           </div>
 
-          <div ref={searchContainerRef} className="relative w-full md:w-auto md:px-3">
+          <div ref={searchContainerRef} className="relative w-full md:w-auto md:px-2">
             {!isSearchExpanded ? (
               <CollapsedSearchPill
                 location={location}
@@ -348,7 +348,7 @@ export default function Header({ onSearch, onHome }) {
                 }}
               />
             ) : (
-              <div className="relative mx-auto flex h-24 w-full max-w-3xl items-center rounded-full border border-gray-200 bg-gray-100 shadow-sm">
+              <div className="relative mx-auto flex h-16 w-full max-w-xl items-center rounded-full border border-gray-200 bg-gray-100 shadow-sm">
                 <button
                   onClick={() => setActiveSection("where")}
                   className={getSectionClass("where")}
@@ -361,7 +361,7 @@ export default function Header({ onSearch, onHome }) {
                       setSelectedCoordinates(null);
                     }}
                     placeholder="Search destinations"
-                    className="w-64 bg-transparent text-lg text-gray-700 outline-none"
+                    className="w-40 bg-transparent text-sm text-gray-700 outline-none"
                   />
                 </button>
 
@@ -370,14 +370,14 @@ export default function Header({ onSearch, onHome }) {
                   className={getSectionClass("when")}
                 >
                   <span className="text-sm font-bold">When</span>
-                  <span className="text-lg text-gray-700">{whenLabel}</span>
+                  <span className="text-xs text-gray-700">{whenLabel}</span>
                 </button>
 
                 <button
                   onClick={handleSearch}
-                  className="mr-2 flex items-center gap-2 rounded-full bg-indigo-600 px-7 py-4 text-lg font-semibold text-white transition hover:bg-indigo-700"
+                  className="mr-1.5 flex items-center gap-1.5 rounded-full bg-indigo-600 px-3.5 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
                 >
-                  <Search className="h-5 w-5" />
+                  <Search className="h-4 w-4" />
                   <span>Search</span>
                 </button>
 
@@ -409,30 +409,30 @@ export default function Header({ onSearch, onHome }) {
           </div>
 
           <div className="hidden items-center gap-1 md:flex">
-            <button className="hidden cursor-pointer items-center gap-2 rounded-full border border-gray-300 px-5 py-3 text-base font-semibold transition hover:border-gray-900 md:flex">
-              <SlidersHorizontal className="h-5 w-5" />
+            <button className="hidden cursor-pointer items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold transition hover:border-gray-900 md:flex">
+              <SlidersHorizontal className="h-4 w-4" />
               Filters
             </button>
             <button
               onClick={handleHostClick}
-              className="rounded-full px-5 py-3 text-base font-semibold hover:bg-gray-100"
+              className="rounded-full px-3 py-1.5 text-xs font-semibold hover:bg-gray-100"
             >
               {isAdmin ? "Admin dashboard" : "Host your car"}
             </button>
             <button
-              className="rounded-full p-3 hover:bg-gray-100"
+              className="rounded-full p-2 hover:bg-gray-100"
               aria-label="Language selector"
             >
-              <Globe className="h-6 w-6 text-gray-700" />
+              <Globe className="h-4 w-4 text-gray-700" />
             </button>
             <div ref={desktopUserMenuRef} className="relative">
               <button
                 onClick={() => setIsUserMenuOpen((open) => !open)}
-                className="flex items-center gap-2 rounded-full border p-2 pl-4 transition hover:shadow-md"
+                className="flex items-center gap-1.5 rounded-full border p-1 pl-2.5 transition hover:shadow-md"
                 aria-label="User menu"
               >
                 <Menu className="h-5 w-5 text-gray-700" />
-                <UserCircle2 className="h-10 w-10 fill-gray-500 text-gray-500" />
+                <UserCircle2 className="h-7 w-7 fill-gray-500 text-gray-500" />
               </button>
               {isUserMenuOpen && (
                 <UserMenuDropdown

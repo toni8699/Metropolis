@@ -40,7 +40,7 @@ export default function App() {
 
   const mainAppShell = (
     <Layout onSearch={handleSearch} onHome={handleGoHome}>
-      <div className="w-full px-4 py-5 sm:px-6 md:px-10 lg:px-12 xl:px-20">
+      <div className="w-full px-3 py-3 sm:px-4 md:px-5 lg:px-6 xl:px-7">
         <Routes>
           <Route
             path="/"

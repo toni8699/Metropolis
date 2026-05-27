@@ -21,18 +21,18 @@ export default function WhenDateDropdown({
   setSelectedRange,
 }) {
   return (
-    <div className="absolute top-[80px] left-1/2 z-50 flex w-[700px] -translate-x-1/2 gap-8 rounded-[2rem] border border-gray-200 bg-white p-8 shadow-2xl">
-      <div className="flex w-1/3 flex-col gap-4">
+    <div className="absolute top-[56px] left-1/2 z-50 flex w-[500px] -translate-x-1/2 gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl">
+      <div className="flex w-1/3 flex-col gap-2">
         <button
           onClick={setToday}
-          className="cursor-pointer rounded-2xl border border-gray-200 p-4 text-left transition hover:border-gray-900"
+          className="cursor-pointer rounded-lg border border-gray-200 p-2.5 text-left transition hover:border-gray-900"
         >
           <p className="text-sm font-semibold text-gray-900">Today</p>
           <p className="text-sm text-gray-500">{format(todayDate, "EEE, MMM d")}</p>
         </button>
         <button
           onClick={setTomorrow}
-          className="cursor-pointer rounded-2xl border border-gray-200 p-4 text-left transition hover:border-gray-900"
+          className="cursor-pointer rounded-lg border border-gray-200 p-2.5 text-left transition hover:border-gray-900"
         >
           <p className="text-sm font-semibold text-gray-900">Tomorrow</p>
           <p className="text-sm text-gray-500">
@@ -41,7 +41,7 @@ export default function WhenDateDropdown({
         </button>
         <button
           onClick={setNextWeekend}
-          className="cursor-pointer rounded-2xl border border-gray-200 p-4 text-left transition hover:border-gray-900"
+          className="cursor-pointer rounded-lg border border-gray-200 p-2.5 text-left transition hover:border-gray-900"
         >
           <p className="text-sm font-semibold text-gray-900">Next weekend</p>
           <p className="text-sm text-gray-500">
@@ -64,9 +64,9 @@ export default function WhenDateDropdown({
           components={{
             Chevron: ({ orientation, ...props }) =>
               orientation === "left" ? (
-                <ChevronLeft {...props} className="h-5 w-5" />
+                <ChevronLeft {...props} className="h-4 w-4" />
               ) : (
-                <ChevronRight {...props} className="h-5 w-5" />
+                <ChevronRight {...props} className="h-4 w-4" />
               ),
           }}
         />

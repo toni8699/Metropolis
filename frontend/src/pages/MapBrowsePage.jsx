@@ -143,8 +143,8 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
         isLoading={isLoading}
       />
     ) : (
-      <div className="space-y-6">
-        <h2 className="text-xl font-semibold">Popular Locations and Vehicles</h2>
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Popular Locations and Vehicles</h2>
         {isLoading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, idx) => (

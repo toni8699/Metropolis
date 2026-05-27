@@ -179,12 +179,14 @@ export default function ListingDetailPage() {
         <div className="space-y-4">
           <div className="h-10 w-2/3 animate-pulse rounded bg-gray-200" />
           <div className="h-5 w-1/3 animate-pulse rounded bg-gray-100" />
-          <div className="grid h-[50vh] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-2xl md:h-[60vh]">
+          <div className="grid grid-cols-1 gap-2 overflow-hidden rounded-2xl aspect-[2/1] md:aspect-[2.1] md:grid-cols-4">
             {Array.from({ length: 5 }).map((_, idx) => (
               <div
                 key={idx}
                 className={`animate-pulse bg-gray-200 ${
-                  idx === 0 ? "col-span-2 row-span-2" : "col-span-1 row-span-1"
+                  idx === 0
+                    ? "w-full h-full md:col-span-2 md:row-span-2"
+                    : "hidden w-full h-full md:block"
                 }`}
               />
             ))}
@@ -270,17 +272,21 @@ export default function ListingDetailPage() {
         <span className="font-medium capitalize">{locationText}</span>
       </div>
 
-      <div className="group relative mt-6 grid h-[50vh] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-2xl md:h-[60vh]">
+      <div className="group relative mt-6 grid grid-cols-1 gap-2 overflow-hidden rounded-2xl aspect-[2/1] md:aspect-[2.1] md:grid-cols-4">
         {[0, 1, 2, 3, 4].map((index) => (
           <div
             key={index}
-            className={`${index === 0 ? "col-span-2 row-span-2" : "col-span-1 row-span-1"} overflow-hidden`}
+            className={`overflow-hidden ${
+              index === 0
+                ? "md:col-span-2 md:row-span-2 w-full h-full"
+                : "hidden md:block w-full h-full"
+            }`}
           >
             {images[index] ? (
               <img
                 src={images[index]}
                 alt={`${title} photo ${index + 1}`}
-                className="h-full w-full cursor-pointer object-cover transition hover:opacity-90"
+                className="w-full h-full object-cover cursor-pointer transition hover:opacity-90"
                 onClick={() => setIsGalleryOpen(true)}
               />
             ) : (

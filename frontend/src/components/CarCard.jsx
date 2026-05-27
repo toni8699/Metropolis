@@ -43,11 +43,11 @@ export default function CarCard({ car, distanceKm }) {
   return (
     <article className="group">
       <Link to={href} className="block">
-        <div className="relative aspect-[20/19] overflow-hidden rounded-2xl">
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-gray-100">
           <img
             src={carouselImages[currentImageIndex] || fallbackPhoto}
             alt={row1Title}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02] group-hover:brightness-95"
+            className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.02]"
           />
 
           {hasCarousel && (
@@ -60,7 +60,7 @@ export default function CarCard({ car, distanceKm }) {
                   e.stopPropagation();
                   handlePrevImage();
                 }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 text-gray-900 h-7 w-7 rounded-full flex items-center justify-center shadow-sm hover:scale-105 hover:bg-white transition opacity-0 group-hover:opacity-100"
+                className="absolute left-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm transition hover:scale-105 hover:bg-white opacity-0 group-hover:opacity-100"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -72,7 +72,7 @@ export default function CarCard({ car, distanceKm }) {
                   e.stopPropagation();
                   handleNextImage();
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 text-gray-900 h-7 w-7 rounded-full flex items-center justify-center shadow-sm hover:scale-105 hover:bg-white transition opacity-0 group-hover:opacity-100"
+                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm transition hover:scale-105 hover:bg-white opacity-0 group-hover:opacity-100"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -86,7 +86,7 @@ export default function CarCard({ car, distanceKm }) {
               e.preventDefault();
               setIsFavorite((v) => !v);
             }}
-            className="absolute right-3 top-3 rounded-full p-1 backdrop-blur-sm"
+            className="absolute top-3 right-3 z-10 rounded-full p-1 hover:scale-110 transition"
           >
             <Heart
               className={`h-6 w-6 transition ${
@@ -112,16 +112,21 @@ export default function CarCard({ car, distanceKm }) {
           )}
         </div>
 
-        <div className="mt-3 space-y-0.5 leading-tight">
+        <div className="mt-3 flex flex-col gap-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="truncate font-semibold text-gray-900">{row1Title}</p>
-            <ListingRatingLine listing={car} />
+            <p className="truncate text-[15px] font-semibold text-gray-900">{row1Title}</p>
+            <div className="shrink-0">
+              <ListingRatingLine
+                listing={car}
+                className="text-[14px] font-normal text-gray-900"
+              />
+            </div>
           </div>
 
-          <p className="text-sm text-zinc-500">{details}</p>
-          <p className="text-sm text-zinc-500">{distanceText}</p>
+          <p className="truncate text-[14px] font-light text-gray-500">{details}</p>
+          <p className="truncate text-[14px] font-light text-gray-500">{distanceText}</p>
 
-          <p className="mt-1 text-gray-900">
+          <p className="mt-1 text-[15px] text-gray-900">
             <span className="font-semibold">${car.pricePerDay}</span>
             <span className="font-normal"> / day</span>
           </p>
