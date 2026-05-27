@@ -98,3 +98,9 @@ ruff check tests && ruff format tests
 ```
 
 CI still runs Ruff on every push/PR.
+
+## Production deployment
+
+Production logging, Gunicorn, production Docker image, and the full environment-variable checklist:
+
+[docs/production-deployment.md](docs/production-deployment.md)
