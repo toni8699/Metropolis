@@ -29,9 +29,7 @@ accesslog = os.environ.get("GUNICORN_ACCESS_LOG", "-")
 errorlog = os.environ.get("GUNICORN_ERROR_LOG", "-")
 loglevel = os.environ.get("LOG_LEVEL", "info").lower()
 capture_output = True
-access_log_format = (
-    '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
-)
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
 # App module (run:app from backend/run.py)
 wsgi_app = os.environ.get("GUNICORN_APP", "run:app")

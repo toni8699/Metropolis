@@ -20,6 +20,7 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
+
 def _project_root() -> Path:
     here = Path(__file__).resolve()
     for candidate in (here.parents[3], here.parents[2].parent):

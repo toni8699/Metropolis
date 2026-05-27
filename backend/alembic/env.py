@@ -6,9 +6,10 @@ import os
 from logging.config import fileConfig
 from pathlib import Path
 
-from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 # Project root .env (backend/../.env)
 _ROOT = Path(__file__).resolve().parents[2]
