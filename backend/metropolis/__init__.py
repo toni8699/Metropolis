@@ -6,6 +6,7 @@ from metropolis.config import Config
 from metropolis.errors import register_error_handlers
 from metropolis.extensions import apifairy, limiter, ma, sqldb
 from metropolis.models import sqlalchemy_models  # noqa: F401
+from metropolis.observability import register_observability
 
 
 def create_app(config: type[Config] | None = None) -> Flask:
@@ -27,6 +28,7 @@ def create_app(config: type[Config] | None = None) -> Flask:
     limiter.init_app(app)
     apifairy.init_app(app)
     register_error_handlers(app)
+    register_observability(app)
     register_blueprints(app)
     return app
 
