@@ -4,9 +4,88 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Metropolis Marketplace</title>
+
+    <meta
+      name="description"
+      content="Metropolis Marketplace — Rent local vehicles or host your fleet. Browse cars near you, book trips, and manage listings in one place."
+    />
+
+    <meta property="og:title" content="Metropolis Marketplace" />
+    <meta
+      property="og:description"
+      content="Metropolis Marketplace — Rent local vehicles or host your fleet. Browse cars near you, book trips, and manage listings in one place."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://metropolis-pi.vercel.app/" />
+    <meta property="og:image" content="https://metropolis-pi.vercel.app/og-image.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Metropolis Marketplace" />
+    <meta
+      name="twitter:description"
+      content="Metropolis Marketplace — Rent local vehicles or host your fleet. Browse cars near you, book trips, and manage listings in one place."
+    />
+    <meta name="twitter:image" content="https://metropolis-pi.vercel.app/og-image.png" />
   </head>
   <body class="bg-slate-950 text-slate-100">
-    <div id="root"></div>
+    <div id="root">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label="Loading Metropolis"
+        style="
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 1.25rem;
+          background-color: #020617;
+          color: #e2e8f0;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            sans-serif;
+        "
+      >
+        <svg
+          width="44"
+          height="44"
+          viewBox="0 0 44 44"
+          aria-hidden="true"
+          style="display: block"
+        >
+          <circle
+            cx="22"
+            cy="22"
+            r="18"
+            fill="none"
+            stroke="rgba(124, 58, 237, 0.2)"
+            stroke-width="3"
+          />
+          <circle
+            cx="22"
+            cy="22"
+            r="18"
+            fill="none"
+            stroke="#7c3aed"
+            stroke-width="3"
+            stroke-linecap="round"
+            stroke-dasharray="28 85"
+          >
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="0 22 22"
+              to="360 22 22"
+              dur="0.75s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        </svg>
+        <p style="margin: 0; font-size: 0.95rem; font-weight: 500; letter-spacing: 0.01em">
+          Loading Metropolis...
+        </p>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
