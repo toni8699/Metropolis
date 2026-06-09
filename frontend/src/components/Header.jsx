@@ -1,6 +1,7 @@
 import {
   CarFront,
   Globe,
+  Mail,
   Menu,
   Search,
   SlidersHorizontal,
@@ -302,7 +303,16 @@ export default function Header({ onSearch, onHome }) {
               <CarFront className="h-7 w-7" />
               <span className="text-xl font-extrabold">DriveBnb</span>
             </Link>
-            <div ref={mobileUserMenuRef} className="relative md:hidden">
+            <div ref={mobileUserMenuRef} className="relative flex items-center gap-1 md:hidden">
+              {isAuthenticated && (
+                <Link
+                  to="/app/messages"
+                  className="rounded-full p-2 text-gray-700 transition hover:bg-gray-100"
+                  aria-label="Messages"
+                >
+                  <Mail className="h-5 w-5" />
+                </Link>
+              )}
               <button
                 onClick={() => setIsUserMenuOpen((open) => !open)}
                 className="flex items-center gap-1.5 rounded-full border p-1 pl-2.5 transition hover:shadow-md"
@@ -318,6 +328,10 @@ export default function Header({ onSearch, onHome }) {
                   onSignup={() => openAuthModal("signup")}
                   onOpenTrips={() => {
                     navigate("/app/trips");
+                    setIsUserMenuOpen(false);
+                  }}
+                  onOpenMessages={() => {
+                    navigate("/app/messages");
                     setIsUserMenuOpen(false);
                   }}
                   onOpenHostDashboard={() => {
@@ -425,6 +439,15 @@ export default function Header({ onSearch, onHome }) {
             >
               <Globe className="h-4 w-4 text-gray-700" />
             </button>
+            {isAuthenticated && (
+              <Link
+                to="/app/messages"
+                className="rounded-full p-2 text-gray-700 transition hover:bg-gray-100"
+                aria-label="Messages"
+              >
+                <Mail className="h-4 w-4" />
+              </Link>
+            )}
             <div ref={desktopUserMenuRef} className="relative">
               <button
                 onClick={() => setIsUserMenuOpen((open) => !open)}
@@ -441,6 +464,10 @@ export default function Header({ onSearch, onHome }) {
                   onSignup={() => openAuthModal("signup")}
                   onOpenTrips={() => {
                     navigate("/app/trips");
+                    setIsUserMenuOpen(false);
+                  }}
+                  onOpenMessages={() => {
+                    navigate("/app/messages");
                     setIsUserMenuOpen(false);
                   }}
                   onOpenHostDashboard={() => {

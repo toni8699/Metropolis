@@ -38,6 +38,21 @@ class HostProfileSchema(ma.Schema):
     verified = ma.Boolean(required=True)
 
 
+class RenterProfileSchema(ma.Schema):
+    userId = ma.Integer(allow_none=True)
+    name = ma.String(allow_none=True)
+    email = ma.String(allow_none=True)
+
+
+class HostEarningsSchema(ma.Schema):
+    pricePerDay = ma.Float(required=True)
+    dayCount = ma.Integer(required=True)
+    subtotal = ma.Float(required=True)
+    cleaningFee = ma.Float(required=True)
+    grossPayout = ma.Float(required=True)
+    currency = ma.String(required=True)
+
+
 class PriceBreakdownSchema(ma.Schema):
     pricePerDay = ma.Float(required=True)
     dayCount = ma.Integer(required=True)
@@ -78,11 +93,17 @@ class BookingSchema(ma.Schema):
     pickupNotes = ma.String(allow_none=True)
     listingLocation = ma.Nested(ListingLocationSchema, allow_none=True)
     host = ma.Nested(HostProfileSchema, allow_none=True)
+    renter = ma.Nested(RenterProfileSchema, allow_none=True)
+    userRole = ma.String(allow_none=True)
     pricing = ma.Nested(PriceBreakdownSchema, allow_none=True)
+    earnings = ma.Nested(HostEarningsSchema, allow_none=True)
     tripEvents = ma.List(ma.Nested(TripEventSchema), allow_none=True)
     canCancel = ma.Boolean(allow_none=True)
     canConfirmPickup = ma.Boolean(allow_none=True)
     canCompleteTrip = ma.Boolean(allow_none=True)
+    canApprove = ma.Boolean(allow_none=True)
+    canReject = ma.Boolean(allow_none=True)
+    canSendInstructions = ma.Boolean(allow_none=True)
 
 
 class BookingCollectionSchema(ma.Schema):

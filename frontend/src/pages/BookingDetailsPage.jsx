@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import BookingChat from "../components/BookingChat";
 import { useAuth } from "../context/AuthContext";
 import { apiGet, apiPost } from "../utils/api";
 import {
@@ -87,6 +88,7 @@ export default function BookingDetailsPage() {
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [isActing, setIsActing] = useState(false);
+  const [instructionDraft, setInstructionDraft] = useState("");
 
   const load = useCallback(async () => {
     setError("");
@@ -108,16 +110,20 @@ export default function BookingDetailsPage() {
   }, [isAuthenticated, load]);
 
   const timeline = useMemo(() => buildTripTimeline(booking), [booking]);
-  const isRenter = Boolean(booking && user?.userId === booking.renterUserId);
+  const userRole = booking?.userRole;
+  const isRenter = userRole === "renter";
+  const isHost = userRole === "host";
   const location = booking?.listingLocation;
   const pricing = booking?.pricing;
+  const earnings = booking?.earnings;
   const host = booking?.host;
+  const renter = booking?.renter;
 
-  const runAction = async (path) => {
+  const runAction = async (path, body = {}) => {
     setActionError("");
     setIsActing(true);
     try {
-      await apiPost(path, {}, true);
+      await apiPost(path, body, true);
       await load();
     } catch (err) {
       setActionError(err?.message || "Action failed.");
@@ -125,6 +131,21 @@ export default function BookingDetailsPage() {
       setIsActing(false);
     }
   };
+
+  const sendInstruction = async () => {
+    const message = instructionDraft.trim();
+    if (!message) return;
+    await runAction(`/api/bookings/${bookingId}/instructions`, { message });
+    setInstructionDraft("");
+  };
+
+  const hasHostActions =
+    isHost &&
+    (booking?.canApprove || booking?.canReject || booking?.canSendInstructions);
+  const hasRenterActions =
+    isRenter &&
+    (booking?.canCancel || booking?.canConfirmPickup || booking?.canCompleteTrip);
+  const hasAnyActions = hasHostActions || hasRenterActions;
 
   if (!isAuthenticated) {
     return <Navigate to="/app" replace />;
@@ -157,16 +178,19 @@ export default function BookingDetailsPage() {
 
   const cityLabel = location?.cityZone
     ? location.cityZone.replace(/-/g, " ")
-  : booking.cityZone?.replace(/-/g, " ");
+    : booking.cityZone?.replace(/-/g, " ");
+
+  const backPath = isHost ? "/host/dashboard" : "/app/trips";
+  const backLabel = isHost ? "Host bookings" : "Your trips";
 
   return (
     <div className="mx-auto max-w-4xl space-y-3 pb-6 pt-1">
       <Link
-        to="/app/trips"
+        to={backPath}
         className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
       >
         <ChevronLeft className="h-4 w-4" />
-        Your trips
+        {backLabel}
       </Link>
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
@@ -206,10 +230,10 @@ export default function BookingDetailsPage() {
                     {formatBookingStatusLabel(booking.status)}
                   </span>
                 </div>
-                {host && (
+                {isRenter && host && (
                   <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                     <p className="font-semibold text-gray-900">
-                      Hosted by {host.name || "DriveBnb Host"}
+                      Host: {host.name || "DriveBnb Host"}
                       {host.verified && (
                         <span className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
                           <ShieldCheck className="h-3.5 w-3.5" />
@@ -224,6 +248,22 @@ export default function BookingDetailsPage() {
                       >
                         <Mail className="h-3.5 w-3.5" />
                         {host.email}
+                      </a>
+                    )}
+                  </div>
+                )}
+                {isHost && renter && (
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                    <p className="font-semibold text-gray-900">
+                      Renter: {renter.name || "Guest renter"}
+                    </p>
+                    {renter.email && (
+                      <a
+                        href={`mailto:${renter.email}`}
+                        className="mt-1 inline-flex items-center gap-1 text-gray-600 hover:text-gray-900"
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                        {renter.email}
                       </a>
                     )}
                   </div>
@@ -293,6 +333,13 @@ export default function BookingDetailsPage() {
               </ol>
             )}
           </section>
+
+          <BookingChat
+            bookingId={booking.bookingId}
+            renterUserId={booking.renterUserId}
+            hostUserId={booking.ownerUserId ?? booking.host?.userId}
+            currentUserId={user?.userId}
+          />
         </div>
 
         <aside className="space-y-3 lg:sticky lg:top-16 lg:self-start">
@@ -302,6 +349,52 @@ export default function BookingDetailsPage() {
               <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</p>
             )}
             <div className="mt-3 flex flex-col gap-1.5">
+              {isHost && booking.canApprove && (
+                <button
+                  type="button"
+                  disabled={isActing}
+                  onClick={() => runAction(`/api/bookings/${bookingId}/approve`)}
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  Approve booking
+                </button>
+              )}
+              {isHost && booking.canReject && (
+                <button
+                  type="button"
+                  disabled={isActing}
+                  onClick={() => runAction(`/api/bookings/${bookingId}/reject`)}
+                  className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                >
+                  Reject booking
+                </button>
+              )}
+              {isHost && booking.canSendInstructions && (
+                <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                  <label
+                    htmlFor={`pickup-instruction-${bookingId}`}
+                    className="text-xs font-semibold text-gray-900"
+                  >
+                    Owner pickup instructions
+                  </label>
+                  <textarea
+                    id={`pickup-instruction-${bookingId}`}
+                    rows={3}
+                    value={instructionDraft}
+                    onChange={(e) => setInstructionDraft(e.target.value)}
+                    placeholder="Share pickup location details, lockbox code, etc."
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    disabled={isActing || !instructionDraft.trim()}
+                    onClick={sendInstruction}
+                    className="w-full rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    Send instruction
+                  </button>
+                </div>
+              )}
               {isRenter && booking.canCancel && (
                 <button
                   type="button"
@@ -332,7 +425,7 @@ export default function BookingDetailsPage() {
                   Complete trip
                 </button>
               )}
-              {!booking.canCancel && !booking.canConfirmPickup && !booking.canCompleteTrip && (
+              {!hasAnyActions && (
                 <p className="text-sm text-gray-500">
                   No actions available for this trip right now.
                 </p>
@@ -348,13 +441,41 @@ export default function BookingDetailsPage() {
 
           <section className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-gray-900">Payment</h2>
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
-                <CreditCard className="h-3.5 w-3.5" />
-                Paid with Mock Card
-              </span>
+              <h2 className="text-sm font-semibold text-gray-900">
+                {isHost ? "Earnings Summary" : "Payment Summary"}
+              </h2>
+              {!isHost && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  Paid with Mock Card
+                </span>
+              )}
             </div>
-            {pricing ? (
+            {isHost && earnings ? (
+              <dl className="mt-3 space-y-2.5 text-xs">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-gray-600">
+                    {formatMoney(earnings.pricePerDay, earnings.currency)} × {earnings.dayCount}{" "}
+                    {earnings.dayCount === 1 ? "day" : "days"}
+                  </dt>
+                  <dd className="font-medium text-gray-900">
+                    {formatMoney(earnings.subtotal, earnings.currency)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-gray-600">Cleaning fee</dt>
+                  <dd className="font-medium text-gray-900">
+                    {formatMoney(earnings.cleaningFee, earnings.currency)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4 border-t border-gray-200 pt-2.5 text-xs">
+                  <dt className="font-semibold text-gray-900">Gross host payout</dt>
+                  <dd className="font-semibold text-gray-900">
+                    {formatMoney(earnings.grossPayout, earnings.currency)}
+                  </dd>
+                </div>
+              </dl>
+            ) : !isHost && pricing ? (
               <dl className="mt-3 space-y-2.5 text-xs">
                 <div className="flex justify-between gap-4">
                   <dt className="text-gray-600">
@@ -393,7 +514,9 @@ export default function BookingDetailsPage() {
                 </div>
               </dl>
             ) : (
-              <p className="mt-4 text-sm text-gray-500">Pricing details unavailable.</p>
+              <p className="mt-4 text-sm text-gray-500">
+                {isHost ? "Earnings details unavailable." : "Pricing details unavailable."}
+              </p>
             )}
           </section>
         </aside>

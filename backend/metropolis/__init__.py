@@ -1,10 +1,12 @@
+import os
+
 from flask import Flask
 from flask_cors import CORS
 
 from metropolis.api import register_blueprints
 from metropolis.config import Config
 from metropolis.errors import register_error_handlers
-from metropolis.extensions import apifairy, limiter, ma, sqldb
+from metropolis.extensions import apifairy, limiter, ma, socketio, sqldb
 from metropolis.models import sqlalchemy_models  # noqa: F401
 from metropolis.observability import register_observability
 
@@ -20,6 +22,14 @@ def create_app(config: type[Config] | None = None) -> Flask:
         resources={r"/api/*": {"origins": settings.CORS_ORIGINS}},
     )
 
+    socketio.init_app(
+        app,
+        cors_allowed_origins=settings.CORS_ORIGINS,
+        async_mode=os.environ.get("SOCKETIO_ASYNC_MODE", "eventlet"),
+        logger=settings.DEBUG,
+        engineio_logger=settings.DEBUG,
+    )
+
     app.config["SQLALCHEMY_DATABASE_URI"] = settings.DATABASE_URL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -30,6 +40,8 @@ def create_app(config: type[Config] | None = None) -> Flask:
     register_error_handlers(app)
     register_observability(app)
     register_blueprints(app)
+    import metropolis.sockets  # noqa: F401
+
     return app
 
 

@@ -419,6 +419,19 @@ def _build_price_breakdown(row: dict) -> dict:
     }
 
 
+def _build_host_earnings(pricing: dict) -> dict:
+    subtotal = float(pricing.get("subtotal") or 0)
+    cleaning_fee = float(pricing.get("cleaningFee") or 0)
+    return {
+        "pricePerDay": pricing.get("pricePerDay"),
+        "dayCount": pricing.get("dayCount"),
+        "subtotal": subtotal,
+        "cleaningFee": cleaning_fee,
+        "grossPayout": round(subtotal + cleaning_fee, 2),
+        "currency": pricing.get("currency") or "CAD",
+    }
+
+
 def _host_is_verified(verification_status: str | None) -> bool:
     return str(verification_status or "").upper() == "VERIFIED"
 
@@ -1595,9 +1608,28 @@ class MarketplaceService:
                 )
                 row["can_complete_trip"] = is_renter and _renter_can_complete_trip(row["status"])
                 conn.commit()
+        booking = _to_booking_row(row, instructions, include_detail=True)
+        if is_renter:
+            booking["userRole"] = "renter"
+        elif is_owner:
+            booking["userRole"] = "host"
+        elif requester_is_admin:
+            booking["userRole"] = "admin"
+        booking["renter"] = {
+            "userId": row["renter_user_id"],
+            "name": row.get("renter_name"),
+            "email": row.get("renter_email"),
+        }
+        if is_owner:
+            status = row["status"]
+            booking["canApprove"] = status == "PENDING_APPROVAL"
+            booking["canReject"] = status == "PENDING_APPROVAL"
+            booking["canSendInstructions"] = status in {"CONFIRMED", "IN_PROGRESS"}
+            if booking.get("pricing"):
+                booking["earnings"] = _build_host_earnings(booking["pricing"])
         return {
             "status": "success",
-            "booking": _to_booking_row(row, instructions, include_detail=True),
+            "booking": booking,
         }
 
     def cancel_booking(self, booking_id: int, renter_user_id: int) -> dict:
@@ -1672,6 +1704,7 @@ class MarketplaceService:
               host.email AS host_email,
               op.verification_status AS host_verification_status,
               u.email AS renter_email,
+              u.full_name AS renter_name,
               {_BOOKING_NEEDS_REVIEW_SQL} AS needs_review
             FROM booking b
             JOIN vehicle_listing l ON l.listing_id = b.listing_id

@@ -9,13 +9,19 @@ import os
 _port = os.environ.get("PORT", "8080")
 bind = f"0.0.0.0:{_port}"
 
-# Workers: sync + threads handles Flask I/O-bound DB calls well on small VMs.
-# Override with WEB_CONCURRENCY on Render/Heroku/Fly.
+# Flask-SocketIO needs eventlet. Use WEB_CONCURRENCY=1 unless you add Redis
+# as a Socket.IO message queue for multi-worker deployments.
 _cpu = multiprocessing.cpu_count()
 _default_workers = max(2, (_cpu * 2) + 1)
-workers = int(os.environ.get("WEB_CONCURRENCY", str(_default_workers)))
-worker_class = os.environ.get("GUNICORN_WORKER_CLASS", "gthread")
-threads = int(os.environ.get("GUNICORN_THREADS", "4"))
+worker_class = os.environ.get("GUNICORN_WORKER_CLASS", "eventlet")
+_use_eventlet = worker_class == "eventlet"
+workers = int(
+    os.environ.get(
+        "WEB_CONCURRENCY",
+        "1" if _use_eventlet else str(_default_workers),
+    )
+)
+threads = int(os.environ.get("GUNICORN_THREADS", "1" if _use_eventlet else "4"))
 
 # Lifecycle
 timeout = int(os.environ.get("GUNICORN_TIMEOUT", "120"))

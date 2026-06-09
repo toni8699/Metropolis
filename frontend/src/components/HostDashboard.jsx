@@ -1580,7 +1580,12 @@ export default function HostDashboard({ mode = "admin" }) {
                             }`}
                           >
                             <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                              #{booking.bookingId}
+                              <Link
+                                to={`/app/bookings/${booking.bookingId}`}
+                                className="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
+                              >
+                                #{booking.bookingId}
+                              </Link>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">
                               {booking.listingTitle}

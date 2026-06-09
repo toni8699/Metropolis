@@ -10,8 +10,14 @@ from metropolis.schemas.bookings import (
     BookingItemSchema,
 )
 from metropolis.schemas.common import ErrorSchema
+from metropolis.schemas.messages import (
+    BookingMessageCollectionSchema,
+    BookingMessageCreateSchema,
+    BookingMessageItemSchema,
+)
 from metropolis.schemas.reviews import ReviewItemSchema, ReviewSubmitSchema
-from metropolis.services import marketplace_service, review_service
+from metropolis.services import marketplace_service, message_service, review_service
+from metropolis.sockets import emit_booking_message
 
 bp = Blueprint("bookings", __name__, url_prefix="/api/bookings")
 
@@ -78,6 +84,70 @@ def get_booking(booking_id: int):
     if result["status"] == "forbidden":
         raise Forbidden(description=result["message"])
     return result
+
+
+@bp.get("/<int:booking_id>/messages")
+@require_auth()
+@response(BookingMessageCollectionSchema)
+@other_responses(
+    {
+        403: (ErrorSchema, "Forbidden."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
+def list_booking_messages(booking_id: int):
+    """List chat messages for a booking (renter or host only)."""
+    try:
+        result = message_service.list_booking_messages(
+            booking_id,
+            int(g.current_user["sub"]),
+            g.current_user["isAdmin"],
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+
+    if result["status"] == "not_found":
+        raise NotFound(description=result["message"])
+    if result["status"] == "forbidden":
+        raise Forbidden(description=result["message"])
+    return {"messages": result["messages"]}
+
+
+@bp.post("/<int:booking_id>/messages")
+@require_auth()
+@body(BookingMessageCreateSchema)
+@response(BookingMessageItemSchema, 201)
+@other_responses(
+    {
+        400: (ErrorSchema, "Validation error."),
+        403: (ErrorSchema, "Forbidden."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
+def create_booking_message(payload, booking_id: int):
+    """Send a chat message for a booking (renter or host only)."""
+    try:
+        result = message_service.create_booking_message(
+            booking_id,
+            int(g.current_user["userId"]),
+            payload["messageText"],
+            g.current_user["isAdmin"],
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+
+    if result["status"] == "validation_error":
+        raise BadRequest(description=result["message"])
+    if result["status"] == "not_found":
+        raise NotFound(description=result["message"])
+    if result["status"] == "forbidden":
+        raise Forbidden(description=result["message"])
+
+    message = result["message"]
+    emit_booking_message(booking_id, message)
+    return {"message": message}
 
 
 @bp.post("/<int:booking_id>/instructions")

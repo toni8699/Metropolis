@@ -1,9 +1,13 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
+export function getAccessToken() {
+  return localStorage.getItem("accessToken") || "";
+}
+
 function buildHeaders(includeAuth, extraHeaders = {}) {
   const headers = { "Content-Type": "application/json", ...extraHeaders };
   if (includeAuth) {
-    const token = localStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
