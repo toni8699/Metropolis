@@ -5,8 +5,8 @@ from metropolis.api.auth import bp as auth_bp
 from metropolis.api.bookings import bp as bookings_bp
 from metropolis.api.health import bp as health_bp
 from metropolis.api.market import bp as market_bp
-from metropolis.api.messages import bp as messages_bp
 from metropolis.api.me import bp as me_bp
+from metropolis.api.messages import bp as messages_bp
 from metropolis.api.owner import bp as owner_bp
 from metropolis.api.reservations import bp as reservations_bp
 from metropolis.api.uploads import bp as uploads_bp
