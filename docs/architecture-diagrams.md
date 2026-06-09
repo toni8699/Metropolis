@@ -8,7 +8,7 @@ Mermaid diagrams reflecting the current codebase. Render in GitHub, GitLab, VS C
 | Booking flow (sequence) | [§2](#2-booking-flow-sequence) |
 | Database ER | [§3](#3-database-entity-relationship) |
 
-**Notes:** Single React SPA (no mobile app). Flask monolith (no API gateway). Payment is mock UI only; no Stripe. KYC is `owner_profile` + S3 docs. No `maintenance_log` table — fleet health uses `vehicle.status`.
+**Notes:** Single React SPA (no mobile app). Flask monolith (no API gateway). Payments not integrated — checkout UI only; no Stripe. KYC is `owner_profile` + S3 docs. No `maintenance_log` table — fleet health uses `vehicle.status`.
 
 ---
 
@@ -38,7 +38,7 @@ graph TD
 
     subgraph External["Third-party & external (as implemented)"]
         GM["Google Maps / Places JS API<br/>Client-side geocoding & map UI"]
-        PAY["Payment processing<br/>MVP: mock card UI only<br/>price_snapshot_json in DB"]
+        PAY["Payment processing<br/>Not integrated — checkout UI only<br/>price_snapshot_json in DB"]
         KYC["Host verification<br/>owner_profile.verification_status<br/>S3 USER_DOC uploads — no vendor API"]
         GPS["Vehicle location<br/>listing_location lat/lng<br/>Fleet coords simulated in marketplace_service"]
     end
@@ -76,7 +76,7 @@ sequenceDiagram
     participant Book as Flask /api/bookings
     participant MS as marketplace_service
     participant DB as PostgreSQL
-    participant Pay as Payment (MVP mock)
+    participant Pay as Payment (UI placeholder)
     participant Host as Host (P2P OWNER listing)
     participant Fleet as Fleet ops (FLEET listing)
 
@@ -105,7 +105,7 @@ sequenceDiagram
     Note over Renter,Fleet: Checkout
     SPA->>Market: GET /api/market/listings/:id (reload)
     Renter->>SPA: Request to book
-    SPA->>Pay: Display mock card UI (no API call)
+    SPA->>Pay: Display card UI (no API call)
     Pay-->>SPA: UI acknowledgment only
     SPA->>SPA: bookingWindowFromDateStrings() → ISO startAt/endAt
     SPA->>Book: POST /api/bookings {listingId, startAt, endAt}

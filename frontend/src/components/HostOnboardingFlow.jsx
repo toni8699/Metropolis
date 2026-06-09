@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { APIProvider, AdvancedMarker, Map as VisMap, Pin } from "@vis.gl/react-google-maps";
 import { useJsApiLoader } from "@react-google-maps/api";
-import { CarFront, Crosshair, UploadCloud, X } from "lucide-react";
+import { CarFront, UploadCloud, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiPost } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
@@ -13,15 +12,12 @@ import { MIN_LISTING_PHOTOS } from "../lib/listingPhotos";
 import InstantBookToggle from "./InstantBookToggle";
 
 const TOTAL_STEPS = 4;
-const FALLBACK_CENTER = { lat: 43.6532, lng: -79.3832 };
 const vehicleTypes = ["Sedan", "SUV", "Truck", "Electric"];
 
 export default function HostOnboardingFlow() {
   const navigate = useNavigate();
   const { refreshMe } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
-  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [headlineVisible, setHeadlineVisible] = useState(true);
   const [listingData, setListingData] = useState({
     make: "",
@@ -43,14 +39,8 @@ export default function HostOnboardingFlow() {
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState([]);
   const [imageError, setImageError] = useState("");
-  const [tempLocation, setTempLocation] = useState({
-    lat: FALLBACK_CENTER.lat,
-    lng: FALLBACK_CENTER.lng,
-    address: "",
-  });
 
   const fileInputRef = useRef(null);
-  const geocoderRef = useRef(null);
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const { isLoaded: isPlacesLoaded, loadError: placesLoadError } = useJsApiLoader({
     id: "google-maps-script",
@@ -63,13 +53,6 @@ export default function HostOnboardingFlow() {
     const timer = window.setTimeout(() => setHeadlineVisible(true), 60);
     return () => window.clearTimeout(timer);
   }, [currentStep]);
-
-  useEffect(() => {
-    if (!isPlacesLoaded || !window.google?.maps) return;
-    if (!geocoderRef.current) {
-      geocoderRef.current = new window.google.maps.Geocoder();
-    }
-  }, [isPlacesLoaded]);
 
   useEffect(() => {
     if (currentStep !== 2) return;
@@ -91,6 +74,7 @@ export default function HostOnboardingFlow() {
       try {
         const predictions = await fetchPlacePredictions(listingData.address, {
           types: ["geocode"],
+          country: "ca",
         });
         if (!cancelled) {
           setPlacePredictions(predictions);
@@ -113,21 +97,6 @@ export default function HostOnboardingFlow() {
       window.clearTimeout(timeoutId);
     };
   }, [currentStep, listingData.address, placesLoadError]);
-
-  useEffect(() => {
-    if (!isMapModalOpen) return;
-    const safeLat = Number.isFinite(Number(listingData.lat))
-      ? Number(listingData.lat)
-      : FALLBACK_CENTER.lat;
-    const safeLng = Number.isFinite(Number(listingData.lng))
-      ? Number(listingData.lng)
-      : FALLBACK_CENTER.lng;
-    setTempLocation({
-      lat: safeLat,
-      lng: safeLng,
-      address: listingData.address || "",
-    });
-  }, [isMapModalOpen, listingData.address, listingData.lat, listingData.lng]);
 
   useEffect(() => {
     const urls = imageFiles.map((file) => URL.createObjectURL(file));
@@ -194,31 +163,6 @@ export default function HostOnboardingFlow() {
       setPlacePredictions([]);
     } catch {
       setPlacesError("Could not resolve that address.");
-    }
-  };
-
-  const reverseGeocodeLocation = (lat, lng) =>
-    new Promise((resolve) => {
-      if (!geocoderRef.current) {
-        resolve("");
-        return;
-      }
-      setIsReverseGeocoding(true);
-      geocoderRef.current.geocode({ location: { lat, lng } }, (results, status) => {
-        setIsReverseGeocoding(false);
-        if (status === "OK" && results?.[0]?.formatted_address) {
-          resolve(results[0].formatted_address);
-          return;
-        }
-        resolve("");
-      });
-    });
-
-  const handlePinDrop = async (lat, lng) => {
-    setTempLocation((prev) => ({ ...prev, lat, lng }));
-    const resolved = await reverseGeocodeLocation(lat, lng);
-    if (resolved) {
-      setTempLocation((prev) => ({ ...prev, address: resolved }));
     }
   };
 
@@ -462,14 +406,9 @@ export default function HostOnboardingFlow() {
                     </div>
                   )}
                   {placesError && <p className="text-xs text-red-600">{placesError}</p>}
-                  <button
-                    type="button"
-                    onClick={() => setIsMapModalOpen(true)}
-                    className="w-full py-3 border border-gray-300 rounded-lg flex justify-center items-center gap-2 font-medium hover:bg-gray-50 transition text-gray-900"
-                  >
-                    <Crosshair className="h-4 w-4" />
-                    Drop Pin on Map
-                  </button>
+                  <p className="text-xs text-gray-500">
+                    Choose one suggested address so coordinates save correctly.
+                  </p>
                 </div>
               )}
 
@@ -630,84 +569,6 @@ export default function HostOnboardingFlow() {
         </button>
       </footer>
 
-      {isMapModalOpen && (
-        <div className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[78vh] flex flex-col overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Drop pin for pickup location</h3>
-                {isReverseGeocoding && <p className="text-xs text-gray-500 mt-1">Resolving address...</p>}
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsMapModalOpen(false)}
-                className="text-gray-500 hover:text-gray-900"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="flex-grow relative">
-              {!apiKey || !isPlacesLoaded ? (
-                <div className="h-full flex items-center justify-center text-sm text-gray-600">
-                  Add Google Maps key to use map picker.
-                </div>
-              ) : (
-                <APIProvider apiKey={apiKey}>
-                  <VisMap
-                    mapId="DEMO_MAP_ID"
-                    defaultCenter={{ lat: tempLocation.lat, lng: tempLocation.lng }}
-                    defaultZoom={13}
-                    clickableIcons={false}
-                    zoomControl={true}
-                    streetViewControl={false}
-                    mapTypeControl={false}
-                    fullscreenControl={false}
-                    style={{ width: "100%", height: "100%" }}
-                  >
-                    <AdvancedMarker
-                      position={{ lat: tempLocation.lat, lng: tempLocation.lng }}
-                      draggable
-                      onDragEnd={(event) => {
-                        const lat = event?.latLng?.lat?.();
-                        const lng = event?.latLng?.lng?.();
-                        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-                          handlePinDrop(lat, lng);
-                        }
-                      }}
-                    >
-                      <Pin background={"#EF4444"} borderColor={"#7F1D1D"} glyphColor={"#7F1D1D"} />
-                    </AdvancedMarker>
-                  </VisMap>
-                </APIProvider>
-              )}
-            </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setIsMapModalOpen(false)}
-                className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setListingData((prev) => ({
-                    ...prev,
-                    address: tempLocation.address || prev.address,
-                    lat: tempLocation.lat,
-                    lng: tempLocation.lng,
-                  }));
-                  setIsMapModalOpen(false);
-                }}
-                className="rounded-lg bg-gray-900 text-white px-4 py-2 font-semibold"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -3,9 +3,9 @@
 
 INSERT INTO app_user (email, password_hash, role, full_name, is_admin)
 VALUES
-  ('user1@example.com', 'pbkdf2:sha256:260000$demo$user', 'RENTER', 'User One', FALSE),
-  ('host1@example.com', 'pbkdf2:sha256:260000$demo$host', 'OWNER', 'Host One', FALSE),
-  ('admin1@example.com', 'pbkdf2:sha256:260000$demo$admin', 'ADMIN', 'Ops Admin', TRUE)
+  ('user1@example.com', 'pbkdf2:sha256:260000$seed$user', 'RENTER', 'User One', FALSE),
+  ('host1@example.com', 'pbkdf2:sha256:260000$seed$host', 'OWNER', 'Host One', FALSE),
+  ('admin1@example.com', 'pbkdf2:sha256:260000$seed$admin', 'ADMIN', 'Ops Admin', TRUE)
 ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO vehicle_listing (
@@ -24,7 +24,7 @@ SELECT
   u.user_id,
   'OWNER',
   'Host-owned compact car',
-  'Direct host listing for RBAC demo.',
+  'Direct host listing for RBAC example.',
   79.00,
   TRUE,
   'ACTIVE',
@@ -48,7 +48,7 @@ SELECT
   u.user_id,
   u.user_id,
   'OWNER',
-  'Company-owned demo listing',
+  'Company-owned example listing',
   'Managed by admin account with company ownership flag.',
   110.00,
   TRUE,

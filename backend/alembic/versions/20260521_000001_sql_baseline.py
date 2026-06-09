@@ -32,7 +32,7 @@ def _project_root() -> Path:
 MIGRATIONS_DIR = _project_root() / "db" / "migrations"
 
 SQL_MIGRATIONS = (
-    "001_marketplace_mvp.sql",
+    "001_marketplace.sql",
     "002_listing_vehicle_fields.sql",
     "003_s3_assets_and_regions.sql",
     "004_multi_role_rbac.sql",

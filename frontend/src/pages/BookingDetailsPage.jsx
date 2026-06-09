@@ -447,7 +447,7 @@ export default function BookingDetailsPage() {
               {!isHost && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
                   <CreditCard className="h-3.5 w-3.5" />
-                  Paid with Mock Card
+                  Paid with card
                 </span>
               )}
             </div>

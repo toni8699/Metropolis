@@ -1,6 +1,6 @@
 # Metropolis Nexus (DriveBnb) — Architectural Summary
 
-**Purpose:** Handoff document for AI/human reviewers to suggest improvements, testing strategies, and DevOps setups.  
+**Purpose:** Architecture reference for Metropolis Nexus — stack, domain model, testing, infrastructure, and known gaps.  
 **Codebase:** Monorepo at project root — `frontend/`, `backend/`, `db/`, `tests/`.  
 **Last aligned with:** migrations through `012_review_sub_ratings.sql`, Flask marketplace + fleet hybrid model.
 
@@ -111,9 +111,9 @@ No Redux, Zustand, or Next.js. No frontend test runner (no Jest/Vitest/Cypress i
 
 | Integration | Status | Implementation |
 |-------------|--------|----------------|
-| **Payments (Stripe, etc.)** | **Not integrated** | Checkout shows mock card UI (`BookingCheckoutPage.jsx`); `booking.price_snapshot_json` stores `{ pricePerDay }` only |
+| **Payments (Stripe, etc.)** | **Not integrated** | Checkout shows placeholder card UI (`BookingCheckoutPage.jsx`); `booking.price_snapshot_json` stores `{ pricePerDay }` only |
 | **Payouts** | **Schema only** | `owner_profile.payout_ref` — unused in booking flow |
-| **KYC / identity** | **Internal MVP** | `owner_profile.verification_status`; S3 scope `USER_DOC` — no Onfido/Persona/etc. |
+| **KYC / identity** | **In-app only** | `owner_profile.verification_status`; S3 scope `USER_DOC` — no Onfido/Persona/etc. |
 | **Maps / geolocation** | **Client-side Google Maps** | No backend geocoding proxy |
 | **GPS / telematics** | **Simulated for fleet** | `_fleet_coords(city, vin)` in `marketplace_service.py`; no device API |
 | **Object storage** | **AWS S3** | `uploads_service` presign + `file_asset` / `listing_image` |
@@ -261,7 +261,7 @@ Operational visibility today is effectively **Docker/terminal stdout** and **Neo
 
 4. **Search ignores date range** — Frontend sends `start`/`end` to `GET /api/market/listings`; `search_listings()` filters only `active`, `cityZone`, `bbox` — renters may see unavailable cars.
 5. **`listing_availability` underused** — Table exists; conflict logic uses overlapping `booking` rows only.
-6. **Instant confirmation** — `create_booking` inserts `CONFIRMED` directly (MVP); no host approval step for P2P.
+6. **Instant book vs approval** — `instant_book` listings go `CONFIRMED` on create; others enter `PENDING_APPROVAL` until host acts.
 7. **Fleet VIN conflicts** — Correctly handled in SQL, but multiple FLEET listings per VIN possible after sync — operational complexity.
 
 ### Architecture & code health
@@ -304,7 +304,7 @@ Operational visibility today is effectively **Docker/terminal stdout** and **Neo
 
 ---
 
-## Suggested review focus areas (for downstream AI)
+## Suggested improvement focus areas
 
 1. Payment state machine + idempotent webhooks + separate `payments` table.  
 2. Date-aware search using `listing_availability` + `booking` exclusion in one query.  

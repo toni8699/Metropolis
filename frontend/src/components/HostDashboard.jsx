@@ -22,8 +22,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useJsApiLoader } from "@react-google-maps/api";
-import { APIProvider, AdvancedMarker, Map as VisMap, Pin } from "@vis.gl/react-google-maps";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import {
   Bar,
   CartesianGrid,
@@ -44,7 +43,9 @@ import {
   fetchPlacePredictions,
   resolvePredictionCoordinates,
 } from "../lib/placesAutocomplete";
+import { CANADA_CENTER, CANADA_MAP_OPTIONS } from "../lib/location";
 import { MIN_LISTING_PHOTOS } from "../lib/listingPhotos";
+import MapPinPicker from "./MapPinPicker";
 import {
   bookingStatusBadgeClass,
   formatBookingStatusLabel,
@@ -92,7 +93,6 @@ const mapContainerStyle = {
   width: "100%",
   height: "260px",
 };
-const FALLBACK_CENTER = { lat: 43.6532, lng: -79.3832 };
 
 function getNavItems(isAdmin) {
   const items = [{ id: "overview", label: "Overview", icon: LayoutDashboard }];
@@ -186,8 +186,8 @@ export default function HostDashboard({ mode = "admin" }) {
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [locationMode, setLocationMode] = useState(isAdmin ? "hub" : "custom");
   const [tempLocation, setTempLocation] = useState({
-    lat: FALLBACK_CENTER.lat,
-    lng: FALLBACK_CENTER.lng,
+    lat: null,
+    lng: null,
     address: "",
   });
   const fileInputRef = useRef(null);
@@ -225,6 +225,7 @@ export default function HostDashboard({ mode = "admin" }) {
       try {
         const predictions = await fetchPlacePredictions(addressQuery, {
           types: ["geocode"],
+          country: "ca",
         });
         if (!cancelled) {
           setPlacePredictions(predictions);
@@ -251,11 +252,9 @@ export default function HostDashboard({ mode = "admin" }) {
     if (!isMapModalOpen) return;
     const lat = Number(listingForm.latitude ?? listingForm.lat);
     const lng = Number(listingForm.longitude ?? listingForm.lng);
-    const safeLat = Number.isFinite(lat) ? lat : FALLBACK_CENTER.lat;
-    const safeLng = Number.isFinite(lng) ? lng : FALLBACK_CENTER.lng;
     setTempLocation({
-      lat: safeLat,
-      lng: safeLng,
+      lat: Number.isFinite(lat) ? lat : null,
+      lng: Number.isFinite(lng) ? lng : null,
       address: listingForm.address || "",
     });
   }, [
@@ -715,7 +714,7 @@ export default function HostDashboard({ mode = "admin" }) {
     }));
 
     if (!geocoderRef.current) return;
-    geocoderRef.current.geocode({ location: { lat, lng } }, (results, status) => {
+    geocoderRef.current.geocode({ location: { lat, lng }, region: "ca" }, (results, status) => {
       if (status === "OK" && results?.[0]?.formatted_address) {
         const formatted = results[0].formatted_address;
         setAddressQuery(formatted);
@@ -731,7 +730,7 @@ export default function HostDashboard({ mode = "admin" }) {
         return;
       }
       setIsReverseGeocoding(true);
-      geocoderRef.current.geocode({ location: { lat, lng } }, (results, status) => {
+      geocoderRef.current.geocode({ location: { lat, lng }, region: "ca" }, (results, status) => {
         setIsReverseGeocoding(false);
         if (status === "OK" && results?.[0]?.formatted_address) {
           resolve(results[0].formatted_address);
@@ -1658,51 +1657,19 @@ export default function HostDashboard({ mode = "admin" }) {
                     <X className="h-5 w-5" />
                   </button>
                 </div>
-                <div className="flex-grow w-full relative">
-                  {!apiKey ? (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 m-6">
-                      Add `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env.local` to use map picker.
+                <div className="flex-grow w-full relative min-h-[320px]">
+                  {tempLocation.address && (
+                    <div className="absolute inset-x-4 bottom-4 z-10 rounded-lg border border-gray-200 bg-white/95 px-3 py-2 text-sm text-gray-700 shadow-sm">
+                      {tempLocation.address}
                     </div>
-                  ) : !isMapLoaded ? (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 m-6">
-                      Loading map...
-                    </div>
-                  ) : (
-                    <>
-                      <div className="absolute z-10 top-4 left-4 right-4 bg-white/95 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 shadow-sm">
-                        {tempLocation.address || "Drop or drag pin to resolve address."}
-                      </div>
-                      <APIProvider apiKey={apiKey}>
-                        <VisMap
-                          mapId="DEMO_MAP_ID"
-                          defaultCenter={{ lat: tempLocation.lat, lng: tempLocation.lng }}
-                          defaultZoom={14}
-                          zoomControl={true}
-                          cameraControl={false}
-                          rotateControl={false}
-                          streetViewControl={false}
-                          mapTypeControl={false}
-                          fullscreenControl={false}
-                          clickableIcons={false}
-                          style={{ width: "100%", height: "100%" }}
-                        >
-                          <AdvancedMarker
-                            position={{ lat: tempLocation.lat, lng: tempLocation.lng }}
-                            draggable
-                            onDragEnd={(event) => {
-                              const newLat = event?.latLng?.lat?.();
-                              const newLng = event?.latLng?.lng?.();
-                              if (Number.isFinite(newLat) && Number.isFinite(newLng)) {
-                                handlePinDrop(newLat, newLng);
-                              }
-                            }}
-                          >
-                            <Pin background={"#EF4444"} borderColor={"#7F1D1D"} glyphColor={"#7F1D1D"} />
-                          </AdvancedMarker>
-                        </VisMap>
-                      </APIProvider>
-                    </>
                   )}
+                  <MapPinPicker
+                    apiKey={apiKey}
+                    isLoaded={isMapLoaded}
+                    latitude={tempLocation.lat}
+                    longitude={tempLocation.lng}
+                    onPinMove={handlePinDrop}
+                  />
                 </div>
                 <div className="p-4 border-t bg-white flex justify-end gap-3">
                   <button
@@ -1714,8 +1681,11 @@ export default function HostDashboard({ mode = "admin" }) {
                   </button>
                   <button
                     type="button"
+                    disabled={
+                      !Number.isFinite(tempLocation.lat) || !Number.isFinite(tempLocation.lng)
+                    }
                     onClick={confirmMapPickerLocation}
-                    className="rounded-lg bg-indigo-600 px-4 py-2 text-white font-semibold hover:bg-indigo-700 transition"
+                    className="rounded-lg bg-indigo-600 px-4 py-2 text-white font-semibold hover:bg-indigo-700 transition disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Confirm Location
                   </button>
@@ -1988,7 +1958,8 @@ function AddressPickerMapCard({ apiKey, isMapLoaded, latitude, longitude }) {
   const lat = Number(latitude);
   const lng = Number(longitude);
   const hasCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
-  const center = hasCoordinates ? { lat, lng } : FALLBACK_CENTER;
+  const center = hasCoordinates ? { lat, lng } : CANADA_CENTER;
+  const zoom = hasCoordinates ? 14 : 4;
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
@@ -2006,34 +1977,14 @@ function AddressPickerMapCard({ apiKey, isMapLoaded, latitude, longitude }) {
             Loading map...
           </div>
         ) : (
-          <div style={mapContainerStyle}>
-            <APIProvider apiKey={apiKey}>
-              <VisMap
-                mapId="PREVIEW_MAP_ID"
-                defaultCenter={center}
-                center={center}
-                defaultZoom={14}
-                zoomControl={true}
-                cameraControl={false}
-                rotateControl={false}
-                streetViewControl={false}
-                mapTypeControl={false}
-                fullscreenControl={false}
-                clickableIcons={false}
-                style={{ width: "100%", height: "100%" }}
-              >
-                {hasCoordinates && (
-                  <AdvancedMarker position={{ lat, lng }} draggable={false}>
-                    <Pin
-                      background={"#EF4444"}
-                      borderColor={"#7F1D1D"}
-                      glyphColor={"#7F1D1D"}
-                    />
-                  </AdvancedMarker>
-                )}
-              </VisMap>
-            </APIProvider>
-          </div>
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={center}
+            zoom={zoom}
+            options={CANADA_MAP_OPTIONS}
+          >
+            {hasCoordinates && <Marker position={{ lat, lng }} />}
+          </GoogleMap>
         )}
       </div>
     </div>

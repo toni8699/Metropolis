@@ -1,6 +1,6 @@
 \echo 'Applying clean initial schema from current baseline'
 \ir ../schema.sql
-\ir ./001_marketplace_mvp.sql
+\ir ./001_marketplace.sql
 \ir ./002_listing_vehicle_fields.sql
 \ir ./003_s3_assets_and_regions.sql
 \ir ./004_multi_role_rbac.sql

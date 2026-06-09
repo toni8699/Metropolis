@@ -70,6 +70,9 @@ export async function fetchPlacePredictions(input, options = {}) {
       if (options.bounds) {
         request.locationBias = options.bounds;
       }
+      if (options.country) {
+        request.includedRegionCodes = [String(options.country).toLowerCase()];
+      }
 
       const { suggestions } =
         await places.AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
@@ -101,6 +104,9 @@ export async function fetchPlacePredictions(input, options = {}) {
         input: trimmed,
         types: options.types,
         bounds: options.bounds,
+        componentRestrictions: options.country
+          ? { country: String(options.country).toLowerCase() }
+          : undefined,
         sessionToken: getSessionToken(places),
       },
       (predictions, status) => {

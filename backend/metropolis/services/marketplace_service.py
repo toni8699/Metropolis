@@ -705,7 +705,7 @@ class MarketplaceService:
         ):
             return {
                 "status": "forbidden",
-                "message": "User vehicle listings disabled for this demo. Admin fleet only.",
+                "message": "User vehicle listings are disabled. Admin fleet only.",
             }
         is_company_owned = bool(payload.get("isCompanyOwned")) and bool(actor.get("isAdmin"))
         owner_user_id = actor["userId"]

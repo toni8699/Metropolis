@@ -1,3 +1,15 @@
+export const googleMapId = import.meta.env.VITE_GOOGLE_MAP_ID?.trim() || undefined;
+
+/** Geographic center of Canada — default map view when no pin is set. */
+export const CANADA_CENTER = { lat: 56.1304, lng: -106.3468 };
+
+export const CANADA_MAP_OPTIONS = {
+  streetViewControl: false,
+  mapTypeControl: false,
+  fullscreenControl: false,
+  clickableIcons: false,
+};
+
 export function haversineKm(from, to) {
   if (!from || !to) return null;
   const R = 6371;

@@ -73,7 +73,7 @@ CREATE TABLE Relocation
   CHECK (sourceAreaID <> targetAreaID)
 );
 
--- Marketplace + auth extension (single-city MVP)
+-- Marketplace + auth extension (single-city launch schema)
 
 CREATE TYPE user_role AS ENUM ('RENTER', 'OWNER', 'ADMIN');
 CREATE TYPE listing_source_type AS ENUM ('OWNER', 'FLEET');
