@@ -60,9 +60,7 @@ class MessageService:
         requester_user_id: int,
         requester_is_admin: bool,
     ) -> dict:
-        access = self.assert_booking_participant(
-            booking_id, requester_user_id, requester_is_admin
-        )
+        access = self.assert_booking_participant(booking_id, requester_user_id, requester_is_admin)
         if access["status"] != "ok":
             return access
 
@@ -107,9 +105,7 @@ class MessageService:
                 "message": "Message is too long (max 4000 characters).",
             }
 
-        access = self.assert_booking_participant(
-            booking_id, sender_id, requester_is_admin
-        )
+        access = self.assert_booking_participant(booking_id, sender_id, requester_is_admin)
         if access["status"] != "ok":
             return access
 
@@ -145,9 +141,7 @@ class MessageService:
         snapshot = row.get("price_snapshot_json") or {}
         if isinstance(snapshot, str):
             snapshot = {}
-        price_per_day = float(
-            snapshot.get("pricePerDay") or row.get("price_per_day") or 0
-        )
+        price_per_day = float(snapshot.get("pricePerDay") or row.get("price_per_day") or 0)
         return {
             "pricePerDay": price_per_day,
             "dayCount": snapshot.get("dayCount"),
