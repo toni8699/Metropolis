@@ -28,7 +28,6 @@ def _fleet_coords(city: str, vin: str) -> tuple[float, float]:
     return base[0] + lat_jitter, base[1] + lng_jitter
 
 
-
 class FleetService:
     def _resolve_company_location(self, cur, payload: dict) -> dict:
         source_type = str(payload.get("locationSourceType") or "").upper()

@@ -237,7 +237,6 @@ def _to_booking_row(row: dict, instructions: list[dict], *, include_detail: bool
     return payload
 
 
-
 class BookingService:
     def _has_active_booking_conflict(
         self,
@@ -810,7 +809,6 @@ class BookingService:
                 )
                 rows = cur.fetchall()
         return {"status": "success", "bookings": [_to_booking_row(row, []) for row in rows]}
-
 
 
 booking_service = BookingService()

@@ -580,5 +580,4 @@ class ListingService:
         return {"status": "success", "analytics": analytics}
 
 
-
 listing_service = ListingService()
