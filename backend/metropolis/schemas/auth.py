@@ -13,6 +13,10 @@ class AuthLoginSchema(ma.Schema):
     password = ma.String(required=True)
 
 
+class AuthGoogleSchema(ma.Schema):
+    idToken = ma.String(required=True)
+
+
 class UserSummarySchema(ma.Schema):
     userId = ma.Integer(required=True)
     email = ma.Email(required=True)

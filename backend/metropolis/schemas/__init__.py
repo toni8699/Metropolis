@@ -24,15 +24,8 @@ from metropolis.schemas.marketplace import (
     ListingSearchSchema,
     ListingUpdateSchema,
 )
-from metropolis.schemas.reservations import (
-    ReservationLookupResponseSchema,
-    ReservationQuerySchema,
-    ReservationSchema,
-)
-from metropolis.schemas.vehicles import AreaAvailabilitySchema
 
 __all__ = [
-    "AreaAvailabilitySchema",
     "AuthLoginSchema",
     "AuthRegisterSchema",
     "AuthTokenSchema",
@@ -55,7 +48,4 @@ __all__ = [
     "ListingUpdateSchema",
     "MeSchema",
     "RelocationSimulationSchema",
-    "ReservationLookupResponseSchema",
-    "ReservationQuerySchema",
-    "ReservationSchema",
 ]

@@ -64,3 +64,14 @@ class AdminCompanyLocationsSchema(ma.Schema):
 class AdminAnalyticsSchema(ma.Schema):
     status = ma.String(required=True)
     analytics = ma.Raw(required=True)
+
+
+class AdminKycQueueSchema(ma.Schema):
+    status = ma.String(required=True)
+    queue = ma.List(ma.Raw(), required=True)
+
+
+class AdminKycUpdateSchema(ma.Schema):
+    status = ma.String(required=True)
+    userId = ma.Integer(required=True)
+    verificationStatus = ma.String(required=True)

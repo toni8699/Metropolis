@@ -9,6 +9,7 @@ from metropolis.errors import register_error_handlers
 from metropolis.extensions import apifairy, limiter, ma, socketio, sqldb
 from metropolis.models import sqlalchemy_models  # noqa: F401
 from metropolis.observability import register_observability
+from metropolis.security import validate_security_config
 
 
 def create_app(config: type[Config] | None = None) -> Flask:
@@ -16,16 +17,23 @@ def create_app(config: type[Config] | None = None) -> Flask:
     settings = config or Config
 
     app.config.from_object(settings)
+    validate_security_config(
+        jwt_secret=settings.JWT_SECRET,
+        debug=settings.DEBUG,
+        cors_origins=settings.CORS_ORIGINS,
+    )
 
     CORS(
         app,
         resources={r"/api/*": {"origins": settings.CORS_ORIGINS}},
     )
 
+    redis_url = os.environ.get("REDIS_URL", "").strip() or None
     socketio.init_app(
         app,
         cors_allowed_origins=settings.CORS_ORIGINS,
         async_mode=os.environ.get("SOCKETIO_ASYNC_MODE", "eventlet"),
+        message_queue=redis_url,
         logger=settings.DEBUG,
         engineio_logger=settings.DEBUG,
     )

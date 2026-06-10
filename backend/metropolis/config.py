@@ -26,3 +26,7 @@ class Config:
         "yes",
         "YES",
     }
+
+    STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "").strip()
+    STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "").strip()
+    GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "").strip()

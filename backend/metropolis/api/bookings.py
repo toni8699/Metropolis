@@ -3,6 +3,7 @@ from flask import Blueprint, g
 from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotFound
 
 from metropolis.auth import require_auth
+from metropolis.extensions import limiter, rate_limit_user_or_ip
 from metropolis.schemas.bookings import (
     BookingCollectionSchema,
     BookingCreateSchema,
@@ -15,8 +16,14 @@ from metropolis.schemas.messages import (
     BookingMessageCreateSchema,
     BookingMessageItemSchema,
 )
+from metropolis.schemas.payments import PaymentIntentResponseSchema
 from metropolis.schemas.reviews import ReviewItemSchema, ReviewSubmitSchema
-from metropolis.services import marketplace_service, message_service, review_service
+from metropolis.services import (
+    marketplace_service,
+    message_service,
+    payment_service,
+    review_service,
+)
 from metropolis.sockets import emit_booking_message
 
 bp = Blueprint("bookings", __name__, url_prefix="/api/bookings")
@@ -36,6 +43,7 @@ def list_my_bookings():
 
 @bp.post("")
 @require_auth()
+@limiter.limit("20 per minute", key_func=rate_limit_user_or_ip)
 @body(BookingCreateSchema)
 @response(BookingItemSchema, 201)
 @other_responses(
@@ -46,13 +54,39 @@ def list_my_bookings():
     }
 )
 def create_booking(payload):
-    """Create booking (instant confirm or pending host approval)."""
+    """Create booking (status PENDING until payment succeeds)."""
     try:
         result = marketplace_service.create_booking(int(g.current_user["sub"]), payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
     if result["status"] == "validation_error":
         raise BadRequest(description=result["message"])
+    if result["status"] == "not_found":
+        raise NotFound(description=result["message"])
+    return result
+
+
+@bp.post("/<int:booking_id>/payment-intent")
+@require_auth()
+@response(PaymentIntentResponseSchema)
+@other_responses(
+    {
+        400: (ErrorSchema, "Validation error."),
+        403: (ErrorSchema, "Forbidden."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
+def create_booking_payment_intent(booking_id: int):
+    """Create Stripe PaymentIntent for a pending booking (dev auto-completes without keys)."""
+    try:
+        result = payment_service.create_payment_intent(booking_id, int(g.current_user["sub"]))
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+    if result["status"] == "validation_error":
+        raise BadRequest(description=result["message"])
+    if result["status"] == "forbidden":
+        raise Forbidden(description=result["message"])
     if result["status"] == "not_found":
         raise NotFound(description=result["message"])
     return result

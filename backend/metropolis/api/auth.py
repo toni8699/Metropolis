@@ -2,7 +2,13 @@ from apifairy import body, other_responses, response
 from flask import Blueprint
 from werkzeug.exceptions import BadRequest, InternalServerError
 
-from metropolis.schemas.auth import AuthLoginSchema, AuthRegisterSchema, AuthTokenSchema
+from metropolis.extensions import limiter
+from metropolis.schemas.auth import (
+    AuthGoogleSchema,
+    AuthLoginSchema,
+    AuthRegisterSchema,
+    AuthTokenSchema,
+)
 from metropolis.schemas.common import ErrorSchema
 from metropolis.services import auth_service
 
@@ -10,6 +16,7 @@ bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 
 @bp.post("/register")
+@limiter.limit("5 per minute")
 @body(AuthRegisterSchema)
 @response(AuthTokenSchema, 201)
 @other_responses({400: (ErrorSchema, "Validation error."), 500: (ErrorSchema, "Server error.")})
@@ -31,6 +38,7 @@ def register(payload):
 
 
 @bp.post("/login")
+@limiter.limit("10 per minute")
 @body(AuthLoginSchema)
 @response(AuthTokenSchema)
 @other_responses({400: (ErrorSchema, "Validation error."), 500: (ErrorSchema, "Server error.")})
@@ -38,6 +46,22 @@ def login(payload):
     """Login with email/password and get JWT."""
     try:
         result = auth_service.login(email=payload["email"], password=payload["password"])
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+
+    if result["status"] != "success":
+        raise BadRequest(description=result["message"])
+    return result
+
+
+@bp.post("/google")
+@body(AuthGoogleSchema)
+@response(AuthTokenSchema)
+@other_responses({400: (ErrorSchema, "Validation error."), 500: (ErrorSchema, "Server error.")})
+def google_login(payload):
+    """Login or register via Google ID token; issues same JWT as password login."""
+    try:
+        result = auth_service.google_login(payload["idToken"])
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 

@@ -1,10 +1,37 @@
 from __future__ import annotations
 
+import json
+import os
+import secrets
+import urllib.parse
+import urllib.request
+
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from metropolis.auth import create_access_token
 from metropolis.db import get_connection
+
+
+def _verify_google_id_token(id_token: str) -> dict | None:
+    client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+    if not client_id:
+        return None
+    query = urllib.parse.urlencode({"id_token": id_token})
+    url = f"https://oauth2.googleapis.com/tokeninfo?{query}"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return None
+    if payload.get("aud") != client_id:
+        return None
+    if str(payload.get("email_verified", "")).lower() not in {"true", "1"}:
+        return None
+    email = payload.get("email")
+    if not email:
+        return None
+    return payload
 
 
 def _fetch_has_listings(cur, user_id: int) -> bool:
@@ -149,3 +176,49 @@ class AuthService:
                     for row in cur.fetchall()
                 ]
         return {"status": "success", "users": users}
+
+    def google_login(self, id_token: str) -> dict:
+        profile = _verify_google_id_token(id_token)
+        if not profile:
+            return {"status": "validation_error", "message": "Invalid Google token."}
+
+        email = profile["email"]
+        full_name = profile.get("name")
+
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT user_id, email, full_name, is_admin
+                    FROM app_user
+                    WHERE email = %s
+                    """,
+                    (email,),
+                )
+                user = cur.fetchone()
+                if not user:
+                    cur.execute(
+                        """
+                        INSERT INTO app_user (email, password_hash, role, full_name, is_admin)
+                        VALUES (%s, %s, 'RENTER'::user_role, %s, FALSE)
+                        RETURNING user_id, email, full_name, is_admin
+                        """,
+                        (email, generate_password_hash(secrets.token_urlsafe(32)), full_name),
+                    )
+                    user = cur.fetchone()
+                has_listings = _fetch_has_listings(cur, user["user_id"])
+                conn.commit()
+
+        token = create_access_token(user["user_id"], user["email"], bool(user["is_admin"]))
+        return {
+            "status": "success",
+            "token": token,
+            "user": {
+                "userId": user["user_id"],
+                "email": user["email"],
+                "fullName": user["full_name"],
+                "role": "admin" if user["is_admin"] else "user",
+                "isAdmin": bool(user["is_admin"]),
+                "hasListings": has_listings,
+            },
+        }

@@ -1,12 +1,10 @@
-"""Rental business logic (service layer)."""
+"""Fleet relocation simulation (admin tooling)."""
 
 from __future__ import annotations
 
 import math
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
-from decimal import Decimal
 from typing import Any
 
 from psycopg2.extras import RealDictCursor
@@ -18,8 +16,6 @@ DONOR_MAX_UTIL = 0.65
 UTIL_SAFE_THRESHOLD = 0.45
 ALPHA = 100.0
 BETA = 10.0
-
-ACTIVE_BOOKING_STATUSES = ("PENDING", "PENDING_APPROVAL", "CONFIRMED", "IN_PROGRESS")
 
 BRANCH_STATS_SQL = """
 SELECT b.branchid, b.city, b.areaid,
@@ -57,62 +53,6 @@ GROUP BY b.branchid, b.city, b.areaid
 
 RELOCATION_FEE_SQL = "SELECT sourceareaid, targetareaid, fee FROM relocation"
 
-MARKETPLACE_BOOKINGS_BY_EMAIL_SQL = """
-SELECT
-  b.booking_id,
-  b.created_at AS bookedattime,
-  b.start_at AS pickupdate,
-  b.end_at AS returndate,
-  l.title AS listing_title,
-  l.fleet_vehicle_vin AS vin,
-  l.make,
-  l.model,
-  l.source_type,
-  b.status,
-  b.price_snapshot_json
-FROM booking b
-JOIN vehicle_listing l ON l.listing_id = b.listing_id
-JOIN app_user u ON u.user_id = b.renter_user_id
-WHERE lower(trim(u.email)) = lower(trim(%s))
-ORDER BY b.created_at DESC, b.booking_id DESC
-"""
-
-AVAILABLE_BY_AREA_SQL = """
-WITH fleet_vehicles AS (
-  SELECT a.areaname, v.vin
-  FROM area a
-  JOIN branch br ON br.areaid = a.areaid
-  JOIN vehicle v ON v.branchid = br.branchid
-  WHERE v.status = 'Available'
-),
-booked_now AS (
-  SELECT DISTINCT vl.fleet_vehicle_vin AS vin
-  FROM vehicle_listing vl
-  JOIN booking b ON b.listing_id = vl.listing_id
-  WHERE vl.source_type = 'FLEET'
-    AND vl.fleet_vehicle_vin IS NOT NULL
-    AND b.status IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS')
-    AND b.start_at <= NOW()
-    AND b.end_at > NOW()
-)
-SELECT fv.areaname, COUNT(*) AS number_vehicles
-FROM fleet_vehicles fv
-LEFT JOIN booked_now bn ON bn.vin = fv.vin
-WHERE bn.vin IS NULL
-GROUP BY fv.areaname
-ORDER BY number_vehicles DESC
-"""
-
-
-def _json_value(value: Any) -> Any:
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, date):
-        return value.isoformat()
-    if isinstance(value, Decimal):
-        return float(value)
-    return value
-
 
 @dataclass
 class BranchStats:
@@ -140,85 +80,12 @@ class RelocationMove:
 
 
 class RentalService:
-    """Coordinates rental operations against the database."""
-
-    def get_reservations_by_email(self, email: str | None) -> dict[str, Any]:
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                return _lookup_customer_reservations(cur, email)
-
-    def list_available_vehicles_by_area(self) -> list[dict[str, Any]]:
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                return _list_available_vehicles_by_area(cur)
+    """Coordinates fleet relocation simulation against the database."""
 
     def simulate_relocation(self) -> dict[str, Any]:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 return _run_relocation_planner(cur)
-
-
-def _lookup_customer_reservations(cur, email: str | None) -> dict[str, Any]:
-    if not email or not email.strip():
-        return {
-            "status": "validation_error",
-            "message": "Please enter a customer email.",
-            "reservations": [],
-        }
-
-    trimmed = email.strip()
-    cur.execute(
-        "SELECT user_id, email, full_name FROM app_user WHERE lower(trim(email)) = lower(trim(%s))",
-        (trimmed,),
-    )
-    user = cur.fetchone()
-    if not user:
-        return {
-            "status": "not_found",
-            "message": "No marketplace account found for this email.",
-            "reservations": [],
-        }
-
-    cur.execute(MARKETPLACE_BOOKINGS_BY_EMAIL_SQL, (trimmed,))
-    rows = cur.fetchall()
-    if not rows:
-        return {
-            "status": "not_found",
-            "message": "No bookings found for this email.",
-            "reservations": [],
-        }
-
-    reservations = []
-    for row in rows:
-        price_snapshot = row.get("price_snapshot_json") or {}
-        reservations.append(
-            {
-                "resId": row["booking_id"],
-                "bookedAt": _json_value(row["bookedattime"]),
-                "pickupDate": _json_value(row["pickupdate"]),
-                "returnDate": _json_value(row["returndate"]),
-                "contractId": row["booking_id"],
-                "planType": row["status"],
-                "totalCost": price_snapshot.get("pricePerDay"),
-                "employeeName": None,
-                "vehicleClassName": row["listing_title"],
-                "make": row["make"],
-                "model": row["model"],
-                "branchId": None,
-                "city": None,
-                "areaName": row["source_type"],
-            }
-        )
-
-    return {"status": "success", "message": None, "reservations": reservations}
-
-
-def _list_available_vehicles_by_area(cur) -> list[dict[str, Any]]:
-    cur.execute(AVAILABLE_BY_AREA_SQL)
-    return [
-        {"areaName": row["areaname"], "availableCount": row["number_vehicles"]}
-        for row in cur.fetchall()
-    ]
 
 
 def _run_relocation_planner(cur) -> dict[str, Any]:

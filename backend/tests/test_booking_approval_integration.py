@@ -113,7 +113,23 @@ def _create_booking(renter_token: str, listing_id: int) -> dict:
         },
     )
     assert resp.status_code == 201, _error_message(resp)
-    return resp.json()["booking"]
+    booking = resp.json()["booking"]
+    assert booking["status"] == "PENDING"
+    return booking
+
+
+def _pay_for_booking(renter_token: str, booking_id: int) -> dict:
+    resp = _api("POST", f"/api/bookings/{booking_id}/payment-intent", token=renter_token)
+    assert resp.status_code == 200, _error_message(resp)
+    return resp.json()
+
+
+def _create_paid_booking(renter_token: str, listing_id: int) -> dict:
+    booking = _create_booking(renter_token, listing_id)
+    _pay_for_booking(renter_token, int(booking["bookingId"]))
+    detail = _api("GET", f"/api/bookings/{booking['bookingId']}", token=renter_token)
+    assert detail.status_code == 200, _error_message(detail)
+    return detail.json()["booking"]
 
 
 def _ensure_fleet_listing(host_user_id: int) -> int:
@@ -201,7 +217,7 @@ def test_fleet_listing_auto_confirms():
     renter_token, _renter_id = _register_user("fleet-renter")
     listing_id = _ensure_fleet_listing(host_user_id)
 
-    booking = _create_booking(renter_token, listing_id)
+    booking = _create_paid_booking(renter_token, listing_id)
     assert booking["status"] == "CONFIRMED"
     assert booking["sourceType"] == "FLEET"
 
@@ -211,7 +227,7 @@ def test_owner_instant_book_auto_confirms():
     renter_token, _renter_id = _register_user("instant-renter")
     listing_id = _create_owner_listing(host_token, instant_book=True)
 
-    booking = _create_booking(renter_token, listing_id)
+    booking = _create_paid_booking(renter_token, listing_id)
     assert booking["status"] == "CONFIRMED"
     assert booking["sourceType"] == "OWNER"
 
@@ -221,7 +237,7 @@ def test_owner_request_to_book_starts_pending_approval():
     renter_token, _renter_id = _register_user("pending-renter")
     listing_id = _create_owner_listing(host_token, instant_book=False)
 
-    booking = _create_booking(renter_token, listing_id)
+    booking = _create_paid_booking(renter_token, listing_id)
     assert booking["status"] == "PENDING_APPROVAL"
     assert booking["sourceType"] == "OWNER"
 
@@ -230,7 +246,7 @@ def test_host_approves_pending_booking():
     host_token, _host_user_id = _register_user("approve-host")
     renter_token, _renter_id = _register_user("approve-renter")
     listing_id = _create_owner_listing(host_token, instant_book=False)
-    booking = _create_booking(renter_token, listing_id)
+    booking = _create_paid_booking(renter_token, listing_id)
     booking_id = int(booking["bookingId"])
     assert booking["status"] == "PENDING_APPROVAL"
 
@@ -249,7 +265,7 @@ def test_approve_fails_when_confirmed_conflict_exists():
     renter_b_token, renter_b_id = _register_user("conflict-renter-b")
     listing_id = _create_owner_listing(host_token, instant_book=False)
 
-    pending = _create_booking(renter_a_token, listing_id)
+    pending = _create_paid_booking(renter_a_token, listing_id)
     booking_id = int(pending["bookingId"])
 
     _insert_confirmed_booking(
@@ -273,7 +289,7 @@ def test_renter_cancel_before_start():
     host_token, _ = _register_user("cancel-host")
     renter_token, _ = _register_user("cancel-renter")
     listing_id = _create_owner_listing(host_token, instant_book=True)
-    booking = _create_booking(renter_token, listing_id)
+    booking = _create_paid_booking(renter_token, listing_id)
     booking_id = int(booking["bookingId"])
     assert booking["status"] == "CONFIRMED"
 
@@ -301,7 +317,7 @@ def test_duplicate_booking_same_dates_rejected():
     renter_b_token, _ = _register_user("dup-renter-b")
     listing_id = _create_owner_listing(host_token, instant_book=True)
 
-    first = _create_booking(renter_a_token, listing_id)
+    first = _create_paid_booking(renter_a_token, listing_id)
     assert first["status"] == "CONFIRMED"
 
     second = _api(
@@ -322,7 +338,7 @@ def test_host_rejects_pending_booking():
     host_token, _host_id = _register_user("reject-host")
     renter_token, _renter_id = _register_user("reject-renter")
     listing_id = _create_owner_listing(host_token, instant_book=False)
-    booking = _create_booking(renter_token, listing_id)
+    booking = _create_paid_booking(renter_token, listing_id)
     booking_id = int(booking["bookingId"])
 
     reject_resp = _api("POST", f"/api/bookings/{booking_id}/reject", token=host_token)

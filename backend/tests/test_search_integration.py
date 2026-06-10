@@ -176,7 +176,9 @@ def listing_with_confirmed_booking():
     )
     assert resp.status_code == 201, _error_message(resp)
     booking_id = int(resp.json()["booking"]["bookingId"])
-    assert resp.json()["booking"]["status"] == "CONFIRMED"
+    assert resp.json()["booking"]["status"] == "PENDING"
+    pay_resp = _api("POST", f"/api/bookings/{booking_id}/payment-intent", token=renter_token)
+    assert pay_resp.status_code == 200, _error_message(pay_resp)
     yield listing_id, booking_id
     _delete_booking(booking_id)
     if delete_listing:
@@ -240,6 +242,44 @@ def test_search_validation_requires_both_dates():
     )
     assert resp.status_code == 400, resp.text
     assert "start_at and end_at" in _error_message(resp)
+
+
+def test_search_hides_listing_during_blocked_availability_window():
+    host_token = _register_user("search-block-host")
+    listing_id, delete_listing = _prepare_listing_for_booking(host_token)
+    blocked_start = datetime(2099, 9, 10, 10, 0, tzinfo=timezone.utc)
+    blocked_end = blocked_start + timedelta(days=5)
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO listing_availability (listing_id, start_at, end_at, status)
+                VALUES (%s, %s, %s, 'BLOCKED')
+                """,
+                (listing_id, blocked_start, blocked_end),
+            )
+        conn.commit()
+    try:
+        resp = _api(
+            "GET",
+            "/api/market/listings",
+            params={
+                "start_at": _iso_z(blocked_start + timedelta(days=1)),
+                "end_at": _iso_z(blocked_start + timedelta(days=3)),
+            },
+        )
+        assert resp.status_code == 200, _error_message(resp)
+        assert listing_id not in _listing_ids(resp)
+    finally:
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM listing_availability WHERE listing_id = %s",
+                    (listing_id,),
+                )
+            conn.commit()
+        if delete_listing:
+            _delete_listing(listing_id)
 
 
 def test_search_validation_end_must_be_after_start():

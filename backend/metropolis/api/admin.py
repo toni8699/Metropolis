@@ -1,19 +1,21 @@
 from apifairy import other_responses, response
 from flask import Blueprint
-from werkzeug.exceptions import InternalServerError
+from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
 
 from metropolis.auth import require_admin
 from metropolis.schemas.admin import (
     AdminAnalyticsSchema,
     AdminBookingsSchema,
     AdminCompanyLocationsSchema,
+    AdminKycQueueSchema,
+    AdminKycUpdateSchema,
     AdminListingsSchema,
     AdminUsersSchema,
     FleetSyncSchema,
     RelocationSimulationSchema,
 )
 from metropolis.schemas.common import ErrorSchema
-from metropolis.services import auth_service, marketplace_service, rental_service
+from metropolis.services import auth_service, kyc_service, marketplace_service, rental_service
 
 bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
@@ -116,3 +118,49 @@ def admin_analytics():
         return marketplace_service.admin_analytics()
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
+
+
+@bp.get("/kyc-queue")
+@require_admin()
+@response(AdminKycQueueSchema)
+@other_responses({500: (ErrorSchema, "Database or server error.")})
+def admin_kyc_queue():
+    """List host identity verifications awaiting review."""
+    try:
+        return kyc_service.list_pending()
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+
+
+@bp.post("/kyc/<int:user_id>/approve")
+@require_admin()
+@response(AdminKycUpdateSchema)
+@other_responses({400: (ErrorSchema, "Validation error."), 404: (ErrorSchema, "Not found.")})
+def admin_kyc_approve(user_id: int):
+    """Approve a pending host KYC submission."""
+    try:
+        result = kyc_service.set_status(user_id, "VERIFIED")
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+    if result["status"] == "validation_error":
+        raise BadRequest(description=result["message"])
+    if result["status"] == "not_found":
+        raise NotFound(description=result["message"])
+    return result
+
+
+@bp.post("/kyc/<int:user_id>/reject")
+@require_admin()
+@response(AdminKycUpdateSchema)
+@other_responses({400: (ErrorSchema, "Validation error."), 404: (ErrorSchema, "Not found.")})
+def admin_kyc_reject(user_id: int):
+    """Reject a pending host KYC submission."""
+    try:
+        result = kyc_service.set_status(user_id, "REJECTED")
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+    if result["status"] == "validation_error":
+        raise BadRequest(description=result["message"])
+    if result["status"] == "not_found":
+        raise NotFound(description=result["message"])
+    return result

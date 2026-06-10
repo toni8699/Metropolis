@@ -3,7 +3,7 @@ from __future__ import annotations
 from psycopg2.extras import RealDictCursor
 
 from metropolis.db import get_connection
-from metropolis.services.marketplace_service import _fetch_listing_images_map
+from metropolis.services.marketplace_common import _fetch_listing_images_map
 
 
 class MessageService:
