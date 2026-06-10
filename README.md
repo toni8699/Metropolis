@@ -1,108 +1,88 @@
 # Metropolis Nexus (DriveBnb)
 
-React + Flask + Neon Postgres + S3. Copy `.env.example` → `.env` before first run.
+Peer-to-peer and fleet car rental marketplace. Renters search, book, and pay; hosts manage listings; admins sync fleet inventory. Includes map browse, Stripe checkout, real-time trip chat, and host KYC review.
 
-**Production JWT:** set `JWT_SECRET` to a strong value (`openssl rand -hex 32`). The API refuses to start with the dev default when `FLASK_DEBUG=0`.
+**Stack:** React + Vite · Flask + Socket.IO · Neon Postgres · AWS S3 · Stripe · Google Maps
 
-## Start
+---
+
+## Architecture
+
+```
+┌─────────────┐     REST / JWT      ┌──────────────────┐
+│  Vercel     │ ──────────────────► │  Render          │
+│  React SPA  │     Socket.IO       │  Flask + Gunicorn│
+└─────────────┘ ◄────────────────── └────────┬─────────┘
+                                             │
+                    ┌────────────────────────┼────────────────┐
+                    ▼                        ▼                ▼
+              Neon Postgres              AWS S3            Stripe
+              (psycopg2 + Alembic)    (presigned PUT)   (webhooks)
+```
+
+| Layer | Details |
+|-------|---------|
+| **Frontend** | `frontend/` — React 18, Vite, Tailwind. Env baked at build (`VITE_*`). |
+| **Backend** | `backend/` — Flask monolith, raw SQL services, ApiFairy docs at `/docs`. |
+| **Database** | `db/` — Postgres via Neon; Alembic migrations + `schema.sql` snapshot. |
+| **Local** | Docker Compose — backend `:5000`, frontend `:3000`, Redis for Socket.IO. |
+| **CI / deploy** | GitHub Actions on `main` → test → push image to GHCR → Render deploy hook. |
+
+Production setup: [docs/production-deployment.md](docs/production-deployment.md)
+
+---
+
+## Dev flow
+
+### 1. One-time setup
 
 ```bash
+cp .env.example .env
+cp frontend/.env.example frontend/.env.local
+# Fill DATABASE_URL, JWT_SECRET, AWS/S3 in .env
+# Fill VITE_API_URL=http://localhost:5000 and VITE_GOOGLE_MAPS_API_KEY in frontend/.env.local
+
 docker compose up --build
 ```
 
-- Frontend: http://localhost:3000  
-- Backend: http://localhost:5000 · API docs: http://localhost:5000/docs  
+| Local | URL |
+|-------|-----|
+| App | http://localhost:3000 |
+| API | http://localhost:5000 |
+| Docs | http://localhost:5000/docs |
 
-Migrations run automatically on backend start.
+### 2. Daily loop
 
-## Rebuild
+```
+edit code  →  docker compose up  →  lint / test  →  PR  →  merge main  →  prod deploy
+```
 
-After `Dockerfile`, `requirements.txt`, or dependency changes:
+- **Local:** hot reload via compose volumes. Restart backend after env or dependency changes.
+- **Prod:** push to `main` deploys backend (Render via GHCR) and frontend (Vercel). Secrets live in Render / Vercel / GitHub — not in the repo.
+- **DB:** schema change → Alembic revision → `docker compose exec backend alembic upgrade head` → update `db/schema.sql`.
+
+### 3. Commands
 
 ```bash
-docker compose build backend
+# Start / rebuild
 docker compose up --build
-```
+docker compose build backend && docker compose up --build
 
-Recompile backend lockfile (when `pyproject.toml` changes):
+# Lint
+cd backend && ruff check metropolis tests
+cd frontend && npm run lint && npm run test
 
-```bash
-cd backend && uv pip compile pyproject.toml -o requirements.txt
-docker compose build backend
-```
-
-## Database migrations
-
-New migration:
-
-```bash
-cd backend
-alembic revision -m "describe change"
-# edit alembic/versions/<file>.py
-```
-
-Apply:
-
-```bash
-docker compose exec backend alembic upgrade head
-```
-
-Update `db/schema.sql` when the schema changes.
-
-## Tests
-
-Backend must be running and healthy.
-
-```bash
-# Compose test runner (waits for /api/health)
-docker compose --profile test up --build backend test
-
-# One-off (backend already up)
+# Integration tests (backend must be running)
 docker compose --profile test run --rm test
 
-# Exec inside backend container (pytest not in image — install dev deps first)
-docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 -e RATELIMIT_ENABLED=0 backend \
-  bash -c 'pip install -q pytest requests python-dotenv && python -m pytest tests/test_search_integration.py -v'
-```
-
-All integration tests:
-
-```bash
 docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 -e RATELIMIT_ENABLED=0 backend \
   bash -c 'pip install -q pytest requests python-dotenv && python -m pytest tests -v --tb=short'
+
+# Migrations
+docker compose exec backend alembic upgrade head
+
+# Health
+curl http://localhost:5000/api/health
 ```
 
-From host (API on localhost:5000):
-
-```bash
-cd backend && uv sync --extra dev
-pytest tests/test_search_integration.py -v
-```
-
-## CI
-
-GitHub Actions (`.github/workflows/ci.yml`) on push/PR to `main` or `develop`: Ruff, Postgres + migrations + pytest, Vite build. No GitHub secrets required for the default pipeline.
-
-## Lint (before push)
-
-Optional local check (matches CI backend-lint). Not hooked into `git commit`.
-
-```bash
-chmod +x scripts/lint.sh   # once
-./scripts/lint.sh
-```
-
-Or manually:
-
-```bash
-cd backend && ruff check --fix metropolis tests scripts && ruff format metropolis tests scripts
-ruff check tests && ruff format tests
-```
-
-CI still runs Ruff on every push/PR.
-
-## Production deployment
-
-Production logging, Gunicorn, production Docker image, and the full environment-variable checklist:
-
-[docs/production-deployment.md](docs/production-deployment.md)
+More detail: [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/architecture-summary.md](docs/architecture-summary.md)
