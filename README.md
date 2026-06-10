@@ -2,6 +2,8 @@
 
 React + Flask + Neon Postgres + S3. Copy `.env.example` → `.env` before first run.
 
+**Production JWT:** set `JWT_SECRET` to a strong value (`openssl rand -hex 32`). The API refuses to start with the dev default when `FLASK_DEBUG=0`.
+
 ## Start
 
 ```bash
@@ -58,16 +60,16 @@ docker compose --profile test up --build backend test
 # One-off (backend already up)
 docker compose --profile test run --rm test
 
-# Exec inside backend container
-docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 backend \
-  pytest tests/test_search_integration.py -v
+# Exec inside backend container (pytest not in image — install dev deps first)
+docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 -e RATELIMIT_ENABLED=0 backend \
+  bash -c 'pip install -q pytest requests python-dotenv && python -m pytest tests/test_search_integration.py -v'
 ```
 
 All integration tests:
 
 ```bash
-docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 backend \
-  pytest tests -v
+docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 -e RATELIMIT_ENABLED=0 backend \
+  bash -c 'pip install -q pytest requests python-dotenv && python -m pytest tests -v --tb=short'
 ```
 
 From host (API on localhost:5000):

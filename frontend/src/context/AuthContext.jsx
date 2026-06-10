@@ -75,6 +75,20 @@ export function AuthProvider({ children }) {
     return result;
   };
 
+  const googleLogin = async (idToken) => {
+    const result = await apiPost("/api/auth/google", { idToken });
+    const nextToken = result?.token;
+    const nextUser = result?.user;
+    if (!nextToken || !nextUser) {
+      throw new Error("Invalid Google login response.");
+    }
+    localStorage.setItem("accessToken", nextToken);
+    setToken(nextToken);
+    setUser(nextUser);
+    await refreshMe();
+    return result;
+  };
+
   const logout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem(AUTH_USER_KEY);
@@ -93,6 +107,7 @@ export function AuthProvider({ children }) {
       refreshMe,
       login,
       register,
+      googleLogin,
       logout,
     }),
     [token, user],

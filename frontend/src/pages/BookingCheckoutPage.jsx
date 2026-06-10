@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
+import { Elements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 import ListingRatingLine from "../components/ListingRatingLine";
+import StripePaymentForm from "../components/StripePaymentForm";
 import { differenceInDays, format, parseISO } from "date-fns";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { bookingWindowFromDateStrings } from "../lib/bookingDates";
+import { computeCheckoutTotals } from "../lib/checkoutPricing";
 import { apiGet, apiPost } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
+
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "";
 
 function safeParseDate(value) {
   if (!value) return null;
@@ -25,6 +31,12 @@ export default function BookingCheckoutPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [clientSecret, setClientSecret] = useState(null);
+
+  const stripePromise = useMemo(
+    () => (stripePublishableKey ? loadStripe(stripePublishableKey) : null),
+    [],
+  );
 
   const startDate = location.state?.startDate;
   const endDate = location.state?.endDate;
@@ -59,12 +71,12 @@ export default function BookingCheckoutPage() {
 
   const start = safeParseDate(startDate);
   const end = safeParseDate(endDate);
-  const dayCount = Math.max(1, start && end ? differenceInDays(end, start) : 1);
+  const rawDayCount = start && end ? differenceInDays(end, start) : 1;
   const pricePerDay = Number(listing?.pricePerDay || 0);
-  const subtotal = pricePerDay * dayCount;
-  const cleaningFee = 50;
-  const serviceFee = Number((subtotal * 0.1).toFixed(2));
-  const total = Number((subtotal + cleaningFee + serviceFee).toFixed(2));
+  const { subtotal, cleaningFee, serviceFee, total, dayCount } = computeCheckoutTotals(
+    pricePerDay,
+    rawDayCount,
+  );
 
   const formattedDateRange =
     start && end ? `${format(start, "MMM d, yyyy")} - ${format(end, "MMM d, yyyy")}` : "";
@@ -75,7 +87,7 @@ export default function BookingCheckoutPage() {
     setIsSubmitting(true);
     try {
       const { startAt, endAt } = bookingWindowFromDateStrings(startDate, endDate);
-      await apiPost(
+      const bookingResp = await apiPost(
         "/api/bookings",
         {
           listingId: Number(id),
@@ -84,7 +96,16 @@ export default function BookingCheckoutPage() {
         },
         true,
       );
-      navigate("/app/trips");
+      const bookingId = bookingResp?.booking?.bookingId;
+      if (!bookingId) {
+        throw new Error("Booking was not created.");
+      }
+      const intent = await apiPost(`/api/bookings/${bookingId}/payment-intent`, {}, true);
+      if (intent?.mock || !intent?.clientSecret) {
+        navigate("/app/trips");
+        return;
+      }
+      setClientSecret(intent.clientSecret);
     } catch (err) {
       setSubmitError(err?.message || "Could not request booking.");
     } finally {
@@ -133,7 +154,7 @@ export default function BookingCheckoutPage() {
 
       <div className="relative mt-6 flex flex-col-reverse gap-12 md:flex-row">
         <section className="w-full md:w-[55%]">
-          <h1 className="mb-8 text-3xl font-semibold text-gray-900">Request to book</h1>
+          <h1 className="mb-8 text-3xl font-semibold text-gray-900">Confirm and pay</h1>
 
           <div className="pb-6">
             <h2 className="mb-4 text-xl font-semibold text-gray-900">Your trip</h2>
@@ -145,11 +166,20 @@ export default function BookingCheckoutPage() {
 
           <div className="border-t py-6">
             <h2 className="mb-4 text-xl font-semibold text-gray-900">Pay with</h2>
-            <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-sm font-medium text-gray-800">
-                Credit Card ending in •••• 4242
-              </span>
-            </div>
+            {clientSecret && stripePromise ? (
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <StripePaymentForm
+                  onSuccess={() => navigate("/app/trips")}
+                  onError={setSubmitError}
+                />
+              </Elements>
+            ) : (
+              <p className="text-sm text-gray-600">
+                {stripePublishableKey
+                  ? "Confirm your booking to enter card details."
+                  : "Dev mode: payment completes automatically when you confirm."}
+              </p>
+            )}
           </div>
 
           <div className="border-t py-6">
@@ -164,13 +194,15 @@ export default function BookingCheckoutPage() {
               </div>
             )}
 
-            <button
-              onClick={handleRequestBooking}
-              disabled={isSubmitting}
-              className="mt-6 w-full rounded-xl bg-indigo-600 px-8 py-4 text-lg font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto"
-            >
-              {isSubmitting ? "Requesting..." : "Request to book"}
-            </button>
+            {!clientSecret && (
+              <button
+                onClick={handleRequestBooking}
+                disabled={isSubmitting}
+                className="mt-6 w-full rounded-xl bg-indigo-600 px-8 py-4 text-lg font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto"
+              >
+                {isSubmitting ? "Confirming..." : "Confirm and pay"}
+              </button>
+            )}
           </div>
         </section>
 

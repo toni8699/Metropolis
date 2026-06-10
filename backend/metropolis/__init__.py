@@ -43,7 +43,14 @@ def create_app(config: type[Config] | None = None) -> Flask:
 
     ma.init_app(app)
     sqldb.init_app(app)
+    rate_limits_enabled = os.environ.get("RATELIMIT_ENABLED", "1").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
     limiter.init_app(app)
+    limiter.enabled = rate_limits_enabled
     apifairy.init_app(app)
     register_error_handlers(app)
     register_observability(app)

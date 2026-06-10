@@ -27,7 +27,7 @@ Both models share one marketplace surface: the `vehicle_listing` table with a di
 | Host visibility | `GET /api/owner/bookings` (`_HOST_LISTING_FILTER`) | `GET /api/admin/bookings` (`_COMPANY_FLEET_FILTER`) |
 | UI label | “Individual host” | “DriveBnb Fleet” when `sourceType === "FLEET"` |
 
-**Single booking pipeline:** Renters always use `POST /api/bookings` → `marketplace_service.create_booking()`. There is no separate checkout for “traditional” rental; legacy endpoints (`/api/vehicles/available`, `/api/reservations?email=`) read fleet tables via `rental_service` but are **not wired into the React booking UI**.
+**Single booking pipeline:** Renters use `POST /api/bookings` (status `PENDING`) → `POST /api/bookings/:id/payment-intent` → Stripe webhook or dev mock → `CONFIRMED` / `PENDING_APPROVAL`. Legacy `/api/vehicles` and `/api/reservations` blueprints were **removed**; fleet relocation remains at `POST /api/admin/relocation/simulate`.
 
 **Traditional fleet ops (parallel):** `rental_service` implements branch utilization stats, inter-area relocation fee simulation (`relocation` table), and email-based reservation lookup against the unified `booking` table. Legacy tables `customer`, `reservation`, `rentalperiod`, `agreement` were dropped in migration `010`.
 
@@ -145,15 +145,16 @@ Legacy `user_role` enum (`RENTER`, `OWNER`, `ADMIN`) remains in older schema sna
 | `/api/owner` | `owner` | Host listings, analytics, owner bookings |
 | `/api/admin` | `admin` | Fleet sync, relocation, admin CRUD/analytics |
 | `/api/uploads` | `uploads` | S3 presign + complete |
-| `/api/vehicles` | `vehicles` | Fleet availability by area (legacy) |
-| `/api/reservations` | `reservations` | Email booking lookup (legacy) |
+| `/webhooks/stripe` | `webhooks` | Stripe `payment_intent.succeeded` (no JWT) |
+| `/api/admin/kyc-queue` | `admin` | Host identity review queue |
 
 ### Service layer
 
 | Service | File | Scope |
 |---------|------|--------|
 | `marketplace_service` | `marketplace_service.py` (~1391 LOC) | Listings, search, bookings, conflicts, fleet sync, reviews aggregation |
-| `rental_service` | `rental_service.py` | Branch stats, relocation simulation, legacy reservation queries |
+| `rental_service` | `rental_service.py` | Fleet relocation simulation (admin only) |
+| `payment_service` | `payment_service.py` | Stripe PaymentIntent + webhook completion |
 | `auth_service` | `auth_service.py` | Register/login password hashing |
 | `review_service` | `review_service.py` | Review CRUD, 30-day window, sub-ratings |
 | `uploads_service` | `uploads_service.py` | S3 presign policies by scope |
@@ -268,7 +269,7 @@ Operational visibility today is effectively **Docker/terminal stdout** and **Neo
 
 8. **`marketplace_service.py` concentration** — ~1400 lines; listings, bookings, fleet sync, analytics intertwined — high change risk.
 9. **Dual DB access patterns** — psycopg2 raw SQL + partial SQLAlchemy models — ORM migrations don't match query layer mental model.
-10. **Legacy API surface** — `/api/reservations`, `/api/vehicles` parallel marketplace without frontend consumers — confusion for new contributors.
+10. ~~**Legacy API surface**~~ — removed; use marketplace bookings + payments only.
 11. **Organizations RBAC** — DB tables without backend usage — dead schema path.
 12. **Simulated fleet GPS** — Not suitable for real telematics or live fleet map.
 
@@ -313,4 +314,4 @@ Operational visibility today is effectively **Docker/terminal stdout** and **Neo
 5. Frontend Vitest + MSW; Playwright smoke for book → trips.  
 6. Observability: structured JSON logs, request ID, Sentry, health/readiness split.  
 7. Production deploy blueprint (e.g. Fly.io/ECS + S3 + Neon + CloudFront).  
-8. Remove or implement organizations; deprecate legacy reservation endpoints explicitly.
+8. Remove or implement organizations schema (no runtime code yet).

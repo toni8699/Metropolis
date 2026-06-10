@@ -22,8 +22,6 @@ import {
   formatBookingStatusLabel,
 } from "../lib/tripDetail";
 
-const FALLBACK_CENTER = { lat: 43.6532, lng: -79.3832 };
-
 const mapContainerStyle = { width: "100%", height: "100%" };
 
 function PickupMap({ lat, lng, apiKey }) {

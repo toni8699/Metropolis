@@ -102,6 +102,7 @@ function getNavItems(isAdmin) {
       { id: "host_listings", label: "Host Listings", icon: Building2 },
       { id: "create_listing", label: "Create Listing", icon: UploadCloud },
       { id: "users", label: "Users", icon: Users },
+      { id: "kyc", label: "KYC Queue", icon: ShieldCheck },
     );
   } else {
     items.push(
@@ -120,6 +121,7 @@ const pageTitles = {
   host_listings: "Host Listings",
   create_listing: "Create Listing",
   users: "Users",
+  kyc: "KYC Queue",
   bookings: "Bookings",
 };
 
@@ -158,6 +160,7 @@ export default function HostDashboard({ mode = "admin" }) {
   const [listings, setListings] = useState([]);
   const [hostListings, setHostListings] = useState([]);
   const [users, setUsers] = useState([]);
+  const [kycQueue, setKycQueue] = useState([]);
   const [companyLocations, setCompanyLocations] = useState({
     areas: [],
     branches: [],
@@ -308,7 +311,7 @@ export default function HostDashboard({ mode = "admin" }) {
     setIsLoading(true);
     try {
       if (isAdmin) {
-        const [analyticsRes, bookingsRes, listingsRes, hostListingsRes, usersRes, locationsRes] =
+        const [analyticsRes, bookingsRes, listingsRes, hostListingsRes, usersRes, locationsRes, kycRes] =
           await Promise.all([
             apiGet("/api/admin/analytics", true),
             apiGet("/api/admin/bookings", true),
@@ -316,12 +319,14 @@ export default function HostDashboard({ mode = "admin" }) {
             apiGet("/api/admin/host-listings", true),
             apiGet("/api/admin/users", true),
             apiGet("/api/admin/company-locations", true),
+            apiGet("/api/admin/kyc-queue", true),
           ]);
         setAnalytics(analyticsRes?.analytics || null);
         setBookings(bookingsRes?.bookings || []);
         setListings(listingsRes?.listings || []);
         setHostListings(hostListingsRes?.listings || []);
         setUsers(usersRes?.users || []);
+        setKycQueue(kycRes?.queue || []);
         const nextLocations = {
           areas: locationsRes?.areas || [],
           branches: locationsRes?.branches || [],
@@ -879,8 +884,12 @@ export default function HostDashboard({ mode = "admin" }) {
                   value={`$${Number(analytics?.grossDailyRevenue || 0).toFixed(2)}`}
                 />
                 <AnalyticsCard
-                  label={isAdmin ? "Fleet Utilization" : "Active Listings"}
-                  value={isAdmin ? fleetUtilization : String(analytics?.activeListings ?? 0)}
+                  label={isAdmin ? "Paid Revenue" : "Active Listings"}
+                  value={
+                    isAdmin
+                      ? `$${Number(analytics?.paidRevenue || 0).toFixed(2)}`
+                      : String(analytics?.activeListings ?? 0)
+                  }
                 />
               </section>
 
@@ -1457,6 +1466,51 @@ export default function HostDashboard({ mode = "admin" }) {
               onEdit={startEditListing}
               onDelete={deleteListing}
             />
+          )}
+
+          {isAdmin && activeTab === "kyc" && (
+            <section className="mx-10 mt-6 mb-10 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h3 className="mb-4 text-lg font-semibold text-gray-900">Host identity review</h3>
+              {kycQueue.length === 0 ? (
+                <p className="text-sm text-gray-600">No pending verifications.</p>
+              ) : (
+                <div className="space-y-3">
+                  {kycQueue.map((item) => (
+                    <div
+                      key={item.userId}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 p-4"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">{item.fullName || item.email}</p>
+                        <p className="text-sm text-gray-500">{item.email}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await apiPost(`/api/admin/kyc/${item.userId}/approve`, {}, true);
+                            await loadAll();
+                          }}
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await apiPost(`/api/admin/kyc/${item.userId}/reject`, {}, true);
+                            await loadAll();
+                          }}
+                          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
 
           {isAdmin && activeTab === "users" && (

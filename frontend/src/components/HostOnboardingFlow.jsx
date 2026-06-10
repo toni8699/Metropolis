@@ -42,7 +42,7 @@ export default function HostOnboardingFlow() {
 
   const fileInputRef = useRef(null);
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  const { isLoaded: isPlacesLoaded, loadError: placesLoadError } = useJsApiLoader({
+  const { loadError: placesLoadError } = useJsApiLoader({
     id: "google-maps-script",
     googleMapsApiKey: apiKey || "",
     libraries: ["places"],

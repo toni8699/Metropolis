@@ -1,17 +1,60 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+
+const googleClientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || "";
 
 export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }) {
   const [authMode, setAuthMode] = useState(mode);
   const [form, setForm] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const { login, register } = useAuth();
+  const { login, register, googleLogin } = useAuth();
+  const googleButtonRef = useRef(null);
 
   useEffect(() => {
     setAuthMode(mode);
   }, [mode, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !googleClientId || !googleButtonRef.current) return undefined;
+    const mountGoogle = () => {
+      if (!window.google?.accounts?.id || !googleButtonRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response) => {
+          setError("");
+          setIsLoading(true);
+          try {
+            await googleLogin(response.credential);
+            onClose?.();
+            onSuccess?.();
+          } catch (err) {
+            setError(err?.message || "Google sign-in failed.");
+          } finally {
+            setIsLoading(false);
+          }
+        },
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        width: 320,
+      });
+    };
+    if (window.google?.accounts?.id) {
+      mountGoogle();
+      return undefined;
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.onload = mountGoogle;
+    document.body.appendChild(script);
+    return () => {
+      script.remove();
+    };
+  }, [isOpen, googleLogin, onClose, onSuccess]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -104,6 +147,12 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
                 : submitLabel}
             </button>
           </form>
+
+          {googleClientId && (
+            <div className="mt-4 flex justify-center">
+              <div ref={googleButtonRef} />
+            </div>
+          )}
 
           <p className="mt-4 text-center text-sm text-gray-600">
             {authMode === "login" ? "New to DriveBnb?" : "Already have an account?"}{" "}

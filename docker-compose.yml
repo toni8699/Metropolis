@@ -6,6 +6,12 @@
 #       (starts backend, waits for /api/health, runs pytest, test container exits)
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: drivebnb_redis
+    ports:
+      - "6379:6379"
+
   backend:
     build:
       context: .
@@ -18,6 +24,10 @@ services:
       PORT: "5000"
       FLASK_DEBUG: "1"
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      REDIS_URL: redis://redis:6379/0
+      RATELIMIT_ENABLED: "0"
+    depends_on:
+      - redis
     ports:
       - "5000:5000"
     volumes:
@@ -49,16 +59,17 @@ services:
       - .env
     environment:
       INTEGRATION_API_URL: http://backend:5000
+      RATELIMIT_ENABLED: "0"
     volumes:
       - .:/app
-    working_dir: /app
+    working_dir: /app/backend
     depends_on:
       backend:
         condition: service_healthy
     command: >
       bash -c "
         pip install -q pytest requests python-dotenv &&
-        pytest backend/tests tests -v --tb=short
+        python -m pytest tests -v --tb=short
       "
 
   frontend:
