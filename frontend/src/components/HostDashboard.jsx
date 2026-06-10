@@ -299,13 +299,6 @@ export default function HostDashboard({ mode = "admin" }) {
     [bookings],
   );
 
-  const fleetUtilization = useMemo(() => {
-    const total = Number(analytics?.listingCount || 0);
-    const active = Number(analytics?.activeListings || 0);
-    if (!total) return "0%";
-    return `${Math.round((active / total) * 100)}%`;
-  }, [analytics]);
-
   const loadAll = async () => {
     setError("");
     setIsLoading(true);

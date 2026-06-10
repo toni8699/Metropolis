@@ -8,6 +8,14 @@ import eslintConfigPrettier from "eslint-config-prettier";
 export default [
   { ignores: ["dist", "node_modules"] },
   {
+    files: ["playwright.config.js", "e2e/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: globals.node,
+    },
+  },
+  {
     files: ["**/*.{js,jsx}"],
     languageOptions: {
       ecmaVersion: 2022,

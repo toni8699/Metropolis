@@ -196,10 +196,12 @@ jobs:
 
       - name: Build and push backend image
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/metropolis-backend:${{ github.sha }}
+          IMAGE_SHA: ghcr.io/${{ github.repository_owner }}/metropolis-backend:${{ github.sha }}
+          IMAGE_LATEST: ghcr.io/${{ github.repository_owner }}/metropolis-backend:latest
         run: |
-          docker build -f backend/Dockerfile.prod -t "$IMAGE" .
-          docker push "$IMAGE"
+          docker build -f backend/Dockerfile.prod -t "$IMAGE_SHA" -t "$IMAGE_LATEST" .
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
 
       - name: Trigger Render deploy
         env:

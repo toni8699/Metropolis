@@ -20,7 +20,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.execute(
         """
-        CREATE TABLE payment (
+        CREATE TABLE IF NOT EXISTS payment (
           payment_id BIGSERIAL PRIMARY KEY,
           booking_id BIGINT NOT NULL
             REFERENCES booking(booking_id) ON DELETE CASCADE,
@@ -33,10 +33,10 @@ def upgrade() -> None:
         )
         """
     )
-    op.execute("CREATE UNIQUE INDEX idx_payment_booking_id ON payment(booking_id)")
+    op.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_booking_id ON payment(booking_id)")
     op.execute(
         """
-        CREATE INDEX idx_payment_stripe_intent ON payment(stripe_payment_intent_id)
+        CREATE INDEX IF NOT EXISTS idx_payment_stripe_intent ON payment(stripe_payment_intent_id)
         WHERE stripe_payment_intent_id IS NOT NULL
         """
     )
