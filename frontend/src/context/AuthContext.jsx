@@ -33,7 +33,7 @@ export function AuthProvider({ children }) {
         setUser(null);
       });
     }
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token]);  
 
   const refreshMe = async () => {
     if (!localStorage.getItem("accessToken")) return null;

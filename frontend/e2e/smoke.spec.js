@@ -20,7 +20,7 @@ test.describe("Metropolis smoke", () => {
   });
 
   test("search page loads listings", async ({ page }) => {
-    await page.goto("/app/browse");
+    await page.goto("/app");
     await expect(page.getByRole("heading", { name: /browse|search|cars/i }).first()).toBeVisible({
       timeout: 15_000,
     });
@@ -65,7 +65,7 @@ test.describe("Metropolis smoke", () => {
     await page.addInitScript((token) => {
       localStorage.setItem("accessToken", token);
     }, host.token);
-    await page.goto("/app/host");
+    await page.goto("/host");
     await expect(page.getByText(/host dashboard|manage listings/i).first()).toBeVisible({
       timeout: 15_000,
     });
