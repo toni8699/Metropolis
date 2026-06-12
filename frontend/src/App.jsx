@@ -79,9 +79,18 @@ export default function App() {
     </Layout>
   );
 
+  const accountAppShell = (
+    <Layout onSearch={handleSearch} onHome={handleGoHome}>
+      <div className="w-full px-3 py-3 sm:px-4 md:px-5 lg:px-6 xl:px-7">
+        <AccountSettingsPage />
+      </div>
+    </Layout>
+  );
+
   return (
     <Routes>
       <Route path="/" element={mainAppShell} />
+      <Route path="/app/account" element={accountAppShell} />
       <Route path="/app/*" element={mainAppShell} />
 
       <Route element={<RequireAuth />}>
