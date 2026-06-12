@@ -49,6 +49,18 @@ def _fetch_has_listings(cur, user_id: int) -> bool:
 
 
 class AuthService:
+    def _format_me_user(self, user: dict, has_listings: bool) -> dict:
+        return {
+            "userId": user["user_id"],
+            "email": user["email"],
+            "fullName": user["full_name"],
+            "phone": user["phone"],
+            "createdAt": user["created_at"].isoformat() if user["created_at"] else None,
+            "role": "admin" if user["is_admin"] else "user",
+            "isAdmin": bool(user["is_admin"]),
+            "hasListings": has_listings,
+        }
+
     def register(self, email: str, password: str, full_name: str | None, role: str | None) -> dict:
         normalized_role = (role or "user").strip().lower()
         is_admin = normalized_role == "admin"
@@ -139,18 +151,42 @@ class AuthService:
         if not user:
             return {"status": "not_found", "message": "User not found."}
 
+        return {"status": "success", "user": self._format_me_user(user, has_listings)}
+
+    def update_me(self, user_id: int, full_name: str | None, phone: str | None) -> dict:
+        normalized_full_name = full_name.strip() if isinstance(full_name, str) else full_name
+        normalized_phone = phone.strip() if isinstance(phone, str) else phone
+        if normalized_full_name == "":
+            normalized_full_name = None
+        if normalized_phone == "":
+            normalized_phone = None
+
+        if normalized_full_name is not None and len(normalized_full_name) > 150:
+            return {"status": "validation_error", "message": "Full name must be 150 characters or less."}
+        if normalized_phone is not None and len(normalized_phone) > 32:
+            return {"status": "validation_error", "message": "Phone must be 32 characters or less."}
+
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    UPDATE app_user
+                    SET full_name = %s, phone = %s
+                    WHERE user_id = %s
+                    RETURNING user_id, email, full_name, phone, created_at, is_admin
+                    """,
+                    (normalized_full_name, normalized_phone, user_id),
+                )
+                user = cur.fetchone()
+                has_listings = _fetch_has_listings(cur, user_id) if user else False
+                conn.commit()
+
+        if not user:
+            return {"status": "not_found", "message": "User not found."}
+
         return {
             "status": "success",
-            "user": {
-                "userId": user["user_id"],
-                "email": user["email"],
-                "fullName": user["full_name"],
-                "phone": user["phone"],
-                "createdAt": user["created_at"].isoformat() if user["created_at"] else None,
-                "role": "admin" if user["is_admin"] else "user",
-                "isAdmin": bool(user["is_admin"]),
-                "hasListings": has_listings,
-            },
+            "user": self._format_me_user(user, has_listings),
         }
 
     def admin_list_users(self) -> dict:

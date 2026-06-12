@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "000002_review_sub_ratings"
-down_revision: str | None = "31f6267c43dc"
+down_revision: str | None = "000001_sql_baseline"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

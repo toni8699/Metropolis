@@ -40,3 +40,8 @@ class MeUserSchema(UserSummarySchema):
 class MeSchema(ma.Schema):
     status = ma.String(required=True)
     user = ma.Nested(MeUserSchema)
+
+
+class MeUpdateSchema(ma.Schema):
+    fullName = ma.String(required=False, allow_none=True)
+    phone = ma.String(required=False, allow_none=True)

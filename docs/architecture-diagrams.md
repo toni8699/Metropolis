@@ -8,7 +8,7 @@ Mermaid diagrams reflecting the current codebase. Render in GitHub, GitLab, VS C
 | Booking flow (sequence) | [§2](#2-booking-flow-sequence) |
 | Database ER | [§3](#3-database-entity-relationship) |
 
-**Notes:** Single React SPA (no mobile app). Flask monolith (no API gateway). Payments not integrated — checkout UI only; no Stripe. KYC is `owner_profile` + S3 docs. No `maintenance_log` table — fleet health uses `vehicle.status`.
+**Notes:** Single React SPA (no mobile app). Flask monolith (no API gateway). Payments via Stripe PaymentIntents (`payment_service.py`, `/webhooks/stripe`); dev/CI uses mock path when `STRIPE_SECRET_KEY` is absent. KYC is `owner_profile` + S3 docs. No `maintenance_log` table — fleet health uses `vehicle.status`.
 
 ---
 
@@ -38,7 +38,7 @@ graph TD
 
     subgraph External["Third-party & external (as implemented)"]
         GM["Google Maps / Places JS API<br/>Client-side geocoding & map UI"]
-        PAY["Payment processing<br/>Not integrated — checkout UI only<br/>price_snapshot_json in DB"]
+        PAY["Stripe<br/>PaymentIntents + Webhooks<br/>payment_service.py · /webhooks/stripe<br/>Dev/CI: mock path (no key needed)"]
         KYC["Host verification<br/>owner_profile.verification_status<br/>S3 USER_DOC uploads — no vendor API"]
         GPS["Vehicle location<br/>listing_location lat/lng<br/>Fleet coords simulated in marketplace_service"]
     end
@@ -51,20 +51,20 @@ graph TD
     RW & HD & FM -->|"direct PUT presigned"| S3
     RW & HD & FM -->|"@react-google-maps/api"| GM
 
-    PAY -.->|"not wired — checkout UI only"| RW
+    SVC -->|"Stripe SDK"| PAY
+    RW -->|"@stripe/react-stripe-js"| PAY
     KYC --> S3
     GPS --> PG
     GPS -.-> GM
 
     style MOB stroke-dasharray: 5 5
-    style PAY stroke-dasharray: 5 5
 ```
 
 ---
 
 ## 2. Booking Flow (Sequence)
 
-End-to-end path: search → listing → checkout → `POST /api/bookings` → `marketplace_service.create_booking()` (status `CONFIRMED` on create).
+End-to-end path: search → listing → checkout → `POST /api/bookings` (status `PENDING`) → `POST /api/bookings/:id/payment-intent` (Stripe PaymentIntent or dev mock) → status transitions to `CONFIRMED` or `PENDING_APPROVAL`.
 
 ```mermaid
 sequenceDiagram
@@ -76,7 +76,7 @@ sequenceDiagram
     participant Book as Flask /api/bookings
     participant MS as marketplace_service
     participant DB as PostgreSQL
-    participant Pay as Payment (UI placeholder)
+    participant Pay as Stripe / payment_service
     participant Host as Host (P2P OWNER listing)
     participant Fleet as Fleet ops (FLEET listing)
 
@@ -105,8 +105,6 @@ sequenceDiagram
     Note over Renter,Fleet: Checkout
     SPA->>Market: GET /api/market/listings/:id (reload)
     Renter->>SPA: Request to book
-    SPA->>Pay: Display card UI (no API call)
-    Pay-->>SPA: UI acknowledgment only
     SPA->>SPA: bookingWindowFromDateStrings() → ISO startAt/endAt
     SPA->>Book: POST /api/bookings {listingId, startAt, endAt}
     Book->>MS: create_booking(renter_user_id, payload)
@@ -119,11 +117,21 @@ sequenceDiagram
         MS->>DB: Conflict check by listing_id only
     end
 
-    MS->>DB: INSERT booking status=CONFIRMED, price_snapshot_json
+    MS->>DB: INSERT booking status=PENDING, price_snapshot_json
     MS->>DB: INSERT trip_event BOOKING_CREATED
     MS->>DB: COMMIT
-    MS->>DB: SELECT booking (hydrate for response)
-    Book-->>SPA: booking CONFIRMED
+    Book-->>SPA: booking PENDING
+
+    Note over Renter,Fleet: Payment
+    SPA->>Pay: Display @stripe/react-stripe-js card UI
+    Renter->>SPA: Submit payment form
+    SPA->>Book: POST /api/bookings/:id/payment-intent
+    Book->>Pay: Create/confirm Stripe PaymentIntent (or mock)
+    Pay-->>Book: PaymentIntent confirmed
+    Book->>MS: resolve post-payment status
+    MS->>DB: UPDATE booking → CONFIRMED or PENDING_APPROVAL
+    MS->>DB: INSERT trip_event PAYMENT_COMPLETED
+    Book-->>SPA: booking CONFIRMED or PENDING_APPROVAL
     SPA->>Renter: redirect /app/trips
 
     par Host / fleet notification (read path)
@@ -384,5 +392,8 @@ erDiagram
 | Frontend routes | `frontend/src/App.jsx` |
 | API blueprints | `backend/metropolis/api/` |
 | Booking logic | `backend/metropolis/services/marketplace_service.py` |
+| Payment logic | `backend/metropolis/services/payment_service.py` |
+| Stripe webhook | `backend/metropolis/api/webhooks.py` |
 | Base schema | `db/schema.sql` |
-| Migrations | `db/migrations/` |
+| Active migrations | `backend/alembic/versions/` |
+| Historical SQL migrations | `db/migrations/` (read-only history) |

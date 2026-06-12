@@ -26,6 +26,7 @@ services:
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       REDIS_URL: redis://redis:6379/0
       RATELIMIT_ENABLED: "0"
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
     depends_on:
       - redis
     ports:
@@ -78,6 +79,8 @@ services:
       dockerfile: Dockerfile
     image: drivebnb-frontend:local
     container_name: drivebnb_frontend
+    env_file:
+      - frontend/.env.local
     ports:
       - "3000:3000"
     volumes:
