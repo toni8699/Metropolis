@@ -11,6 +11,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from metropolis.auth import create_access_token
 from metropolis.db import get_connection
+from metropolis.text_sanitize import sanitize_display_text
 
 
 def _verify_google_id_token(id_token: str) -> dict | None:
@@ -156,6 +157,8 @@ class AuthService:
     def update_me(self, user_id: int, full_name: str | None, phone: str | None) -> dict:
         normalized_full_name = full_name.strip() if isinstance(full_name, str) else full_name
         normalized_phone = phone.strip() if isinstance(phone, str) else phone
+        if isinstance(normalized_full_name, str):
+            normalized_full_name = sanitize_display_text(normalized_full_name, max_length=150)
         if normalized_full_name == "":
             normalized_full_name = None
         if normalized_phone == "":

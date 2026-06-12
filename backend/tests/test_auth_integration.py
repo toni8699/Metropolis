@@ -201,3 +201,59 @@ def test_patch_me_blank_profile_fields_become_null():
 def test_patch_me_requires_auth():
     resp = _api("PATCH", "/api/me", json={"fullName": "No Auth"})
     assert resp.status_code == 401
+
+
+def test_patch_me_rejects_email_and_role_updates():
+    email = _unique_email("patch-protected")
+    reg = _api(
+        "POST",
+        "/api/auth/register",
+        json={"email": email, "password": "PatchProt123!", "fullName": "Protected User"},
+    )
+    assert reg.status_code == 201
+    token = reg.json()["token"]
+
+    email_resp = _api(
+        "PATCH",
+        "/api/me",
+        token=token,
+        json={"email": "hacker@example.com"},
+    )
+    assert email_resp.status_code in (400, 422), email_resp.text
+
+    role_resp = _api(
+        "PATCH",
+        "/api/me",
+        token=token,
+        json={"role": "admin", "isAdmin": True},
+    )
+    assert role_resp.status_code in (400, 422), role_resp.text
+
+    me_resp = _api("GET", "/api/me", token=token)
+    assert me_resp.status_code == 200
+    body = me_resp.json()["user"]
+    assert body["email"] == email
+    assert body["isAdmin"] is False
+
+
+def test_patch_me_sanitizes_xss_in_full_name():
+    reg = _api(
+        "POST",
+        "/api/auth/register",
+        json={
+            "email": _unique_email("patch-xss"),
+            "password": "PatchXss123!",
+            "fullName": "Before",
+        },
+    )
+    assert reg.status_code == 201
+    token = reg.json()["token"]
+
+    resp = _api(
+        "PATCH",
+        "/api/me",
+        token=token,
+        json={"fullName": "<script>alert(1)</script>Jane Doe"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["user"]["fullName"] == "Jane Doe"

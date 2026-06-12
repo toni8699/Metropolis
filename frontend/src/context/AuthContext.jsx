@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { apiGet, apiPatch, apiPost } from "../utils/api";
+import { apiGet, apiPatch, apiPost } from "@/shared/api/api";
 
 const AuthContext = createContext(null);
 
@@ -61,7 +61,6 @@ export function AuthProvider({ children }) {
     const result = await apiPost("/api/auth/register", {
       email: data.email,
       password: data.password,
-      fullName: data.fullName,
       role: data.role || "user",
     });
     const nextToken = result?.token;

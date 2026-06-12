@@ -1,3 +1,5 @@
+from marshmallow import RAISE
+
 from metropolis.extensions import ma
 
 
@@ -43,5 +45,8 @@ class MeSchema(ma.Schema):
 
 
 class MeUpdateSchema(ma.Schema):
+    class Meta:
+        unknown = RAISE
+
     fullName = ma.String(required=False, allow_none=True)
     phone = ma.String(required=False, allow_none=True)
