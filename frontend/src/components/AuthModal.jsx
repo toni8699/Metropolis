@@ -148,11 +148,15 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
             </button>
           </form>
 
-          {googleClientId && (
-            <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex min-h-[44px] flex-col items-center justify-center">
+            {googleClientId ? (
               <div ref={googleButtonRef} />
-            </div>
-          )}
+            ) : (
+              <p className="text-center text-sm text-amber-600">
+                Google sign-in: set VITE_GOOGLE_OAUTH_CLIENT_ID in frontend/.env.local
+              </p>
+            )}
+          </div>
 
           <p className="mt-4 text-center text-sm text-gray-600">
             {authMode === "login" ? "New to DriveBnb?" : "Already have an account?"}{" "}
