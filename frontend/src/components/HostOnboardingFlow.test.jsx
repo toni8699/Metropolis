@@ -159,18 +159,6 @@ describe("HostOnboardingFlow — Step 2 (location)", () => {
 });
 
 describe("HostOnboardingFlow — Step 4 (price)", () => {
-  async function goToStep4() {
-    const { container } = renderFlow();
-    fillStep1(container);
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    await vi.waitFor(() => screen.getByText(/where can guests find/i));
-
-    // Inject coordinates directly by advancing via internal state via step 3
-    // Easier: use back/forward if step 2 passes with lat/lng already set.
-    // For simplicity just verify step 4 headline text and price input.
-    // This test is skipped if we cannot reach step 4 cleanly.
-  }
-
   it("shows price input on step 4", async () => {
     // Render and manually fast-forward to step 4 by bypassing validation
     // We do this by injecting valid coordinates before clicking Next
