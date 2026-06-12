@@ -162,9 +162,15 @@ class AuthService:
             normalized_phone = None
 
         if normalized_full_name is not None and len(normalized_full_name) > 150:
-            return {"status": "validation_error", "message": "Full name must be 150 characters or less."}
+            return {
+                "status": "validation_error",
+                "message": "Full name must be 150 characters or less.",
+            }
         if normalized_phone is not None and len(normalized_phone) > 32:
-            return {"status": "validation_error", "message": "Phone must be 32 characters or less."}
+            return {
+                "status": "validation_error",
+                "message": "Phone must be 32 characters or less.",
+            }
 
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:

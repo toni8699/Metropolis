@@ -102,7 +102,7 @@ def test_renter_can_post_and_retrieve_message():
         "POST",
         f"/api/bookings/{booking_id}/messages",
         token=renter_token,
-        json={"text": "Hello from renter!"},
+        json={"messageText": "Hello from renter!"},
     )
     assert post.status_code in (200, 201), post.text
 
@@ -123,7 +123,7 @@ def test_host_can_post_message_to_own_booking():
         "POST",
         f"/api/bookings/{booking_id}/messages",
         token=host_token,
-        json={"text": "Hello from host!"},
+        json={"messageText": "Hello from host!"},
     )
     assert post.status_code in (200, 201), post.text
 

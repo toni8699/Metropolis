@@ -176,7 +176,11 @@ def test_patch_me_blank_profile_fields_become_null():
     reg = _api(
         "POST",
         "/api/auth/register",
-        json={"email": _unique_email("patch-blank"), "password": "PatchBlank123!", "fullName": "Blank User"},
+        json={
+            "email": _unique_email("patch-blank"),
+            "password": "PatchBlank123!",
+            "fullName": "Blank User",
+        },
     )
     assert reg.status_code == 201
     token = reg.json()["token"]

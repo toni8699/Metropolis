@@ -80,20 +80,19 @@ def _seed_fleet_vehicle(vin: str) -> None:
 
 
 def test_non_admin_cannot_access_fleet_admin():
-    _, _ = _register("fleet-nonadmin")
     token, _ = _register("fleet-renter-nonadmin")
-    resp = _api("GET", "/api/admin/fleet/listings", token=token)
+    resp = _api("GET", "/api/admin/listings", token=token)
     assert resp.status_code == 403, resp.text
 
 
 def test_unauthenticated_cannot_access_fleet_admin():
-    resp = _api("GET", "/api/admin/fleet/listings")
+    resp = _api("GET", "/api/admin/listings")
     assert resp.status_code == 401, resp.text
 
 
 def test_admin_can_list_fleet_listings():
     admin_token, _ = _register("fleet-admin-list", admin=True)
-    resp = _api("GET", "/api/admin/fleet/listings", token=admin_token)
+    resp = _api("GET", "/api/admin/listings", token=admin_token)
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert "listings" in body
@@ -103,15 +102,15 @@ def test_admin_fleet_sync_idempotent():
     """Syncing the same fleet vehicle twice should not duplicate listings."""
     vin = f"{SYNC_VIN_PREFIX}{uuid.uuid4().hex[:8].upper()}"
     _seed_fleet_vehicle(vin)
-    admin_token, admin_id = _register("fleet-admin-sync", admin=True)
+    admin_token, _ = _register("fleet-admin-sync", admin=True)
 
-    resp1 = _api("POST", "/api/admin/fleet/sync", token=admin_token)
+    resp1 = _api("POST", "/api/admin/fleet/sync-listings", token=admin_token)
     assert resp1.status_code == 200, resp1.text
 
-    resp2 = _api("POST", "/api/admin/fleet/sync", token=admin_token)
+    resp2 = _api("POST", "/api/admin/fleet/sync-listings", token=admin_token)
     assert resp2.status_code == 200, resp2.text
 
-    listings_resp = _api("GET", "/api/admin/fleet/listings", token=admin_token)
+    listings_resp = _api("GET", "/api/admin/listings", token=admin_token)
     assert listings_resp.status_code == 200
     listings = listings_resp.json().get("listings", [])
     vins = [li.get("fleetVehicleVin") for li in listings]
@@ -120,7 +119,7 @@ def test_admin_fleet_sync_idempotent():
 
 def test_relocation_simulation_returns_result():
     admin_token, _ = _register("fleet-admin-reloc", admin=True)
-    resp = _api("POST", "/api/admin/relocation/simulate", token=admin_token)
+    resp = _api("GET", "/api/admin/relocation/simulate", token=admin_token)
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert "relocationNeeded" in body
@@ -129,5 +128,5 @@ def test_relocation_simulation_returns_result():
 
 def test_non_admin_cannot_run_relocation():
     token, _ = _register("fleet-renter-reloc")
-    resp = _api("POST", "/api/admin/relocation/simulate", token=token)
+    resp = _api("GET", "/api/admin/relocation/simulate", token=token)
     assert resp.status_code == 403, resp.text

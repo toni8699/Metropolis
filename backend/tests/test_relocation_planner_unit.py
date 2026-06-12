@@ -149,7 +149,10 @@ def test_grand_total_equals_transfer_plus_opportunity():
     )
     result = _run_relocation_planner(cur)
     if result["relocationNeeded"] and result["moves"]:
-        assert abs(
-            result["grandTotalCost"]
-            - (result["totalTransferCost"] + result["totalOpportunityCost"])
-        ) < 1e-6
+        assert (
+            abs(
+                result["grandTotalCost"]
+                - (result["totalTransferCost"] + result["totalOpportunityCost"])
+            )
+            < 1e-6
+        )

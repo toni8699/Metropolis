@@ -32,7 +32,6 @@ pytestmark = pytest.mark.skipif(
 
 BOOKING_START = datetime(2099, 7, 10, 10, 0, tzinfo=timezone.utc)
 BOOKING_END = BOOKING_START + timedelta(days=3)
-FLEET_VIN = "CI000000000000001"
 
 
 def _iso_z(dt: datetime) -> str:
@@ -133,6 +132,7 @@ def _create_paid_booking(renter_token: str, listing_id: int) -> dict:
 
 
 def _ensure_fleet_listing(host_user_id: int) -> int:
+    fleet_vin = f"CI{uuid.uuid4().hex[:13].upper()}"
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -162,7 +162,7 @@ def _ensure_fleet_listing(host_user_id: int) -> int:
                 VALUES (%s, 99001, 99001, 'Available', 'Fleet', 'Sedan')
                 ON CONFLICT (vin) DO NOTHING
                 """,
-                (FLEET_VIN,),
+                (fleet_vin,),
             )
             cur.execute(
                 """
@@ -173,7 +173,7 @@ def _ensure_fleet_listing(host_user_id: int) -> int:
                 VALUES (%s, 'FLEET', %s, %s, 60.00, TRUE, TRUE, TRUE)
                 RETURNING listing_id
                 """,
-                (host_user_id, FLEET_VIN, f"CI Fleet {uuid.uuid4().hex[:6]}"),
+                (host_user_id, fleet_vin, f"CI Fleet {uuid.uuid4().hex[:6]}"),
             )
             listing_id = int(cur.fetchone()[0])
             cur.execute(
