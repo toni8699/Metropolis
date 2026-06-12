@@ -25,9 +25,10 @@ import {
 
 export default function Header({ onSearch, onHome }) {
   const navigate = useNavigate();
-  const { isAuthenticated, isAdmin, logout } = useAuth();
+  const { isAuthenticated, isAdmin, user, logout } = useAuth();
   const canAdmin = isAdmin;
   const showHostDashboard = isAuthenticated && !isAdmin;
+  const userDisplayName = user?.fullName || user?.email || "";
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
@@ -319,13 +320,23 @@ export default function Header({ onSearch, onHome }) {
                 aria-label="User menu"
               >
                 <Menu className="h-5 w-5 text-gray-700" />
+                {isAuthenticated && userDisplayName && (
+                  <span className="hidden max-w-28 truncate text-xs font-semibold text-gray-700 lg:inline">
+                    {userDisplayName}
+                  </span>
+                )}
                 <UserCircle2 className="h-7 w-7 fill-gray-500 text-gray-500" />
               </button>
               {isUserMenuOpen && (
                 <UserMenuDropdown
                   isAuthenticated={isAuthenticated}
+                  user={user}
                   onLogin={() => openAuthModal("login")}
                   onSignup={() => openAuthModal("signup")}
+                  onOpenAccount={() => {
+                    navigate("/app/account");
+                    setIsUserMenuOpen(false);
+                  }}
                   onOpenTrips={() => {
                     navigate("/app/trips");
                     setIsUserMenuOpen(false);
@@ -455,13 +466,23 @@ export default function Header({ onSearch, onHome }) {
                 aria-label="User menu"
               >
                 <Menu className="h-5 w-5 text-gray-700" />
+                {isAuthenticated && userDisplayName && (
+                  <span className="hidden max-w-28 truncate text-xs font-semibold text-gray-700 lg:inline">
+                    {userDisplayName}
+                  </span>
+                )}
                 <UserCircle2 className="h-7 w-7 fill-gray-500 text-gray-500" />
               </button>
               {isUserMenuOpen && (
                 <UserMenuDropdown
                   isAuthenticated={isAuthenticated}
+                  user={user}
                   onLogin={() => openAuthModal("login")}
                   onSignup={() => openAuthModal("signup")}
+                  onOpenAccount={() => {
+                    navigate("/app/account");
+                    setIsUserMenuOpen(false);
+                  }}
                   onOpenTrips={() => {
                     navigate("/app/trips");
                     setIsUserMenuOpen(false);

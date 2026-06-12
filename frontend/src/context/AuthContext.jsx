@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { apiGet, apiPost } from "../utils/api";
+import { apiGet, apiPatch, apiPost } from "../utils/api";
 
 const AuthContext = createContext(null);
 
@@ -61,6 +61,7 @@ export function AuthProvider({ children }) {
     const result = await apiPost("/api/auth/register", {
       email: data.email,
       password: data.password,
+      fullName: data.fullName,
       role: data.role || "user",
     });
     const nextToken = result?.token;
@@ -73,6 +74,16 @@ export function AuthProvider({ children }) {
     setUser(nextUser);
     await refreshMe();
     return result;
+  };
+
+  const updateProfile = async (data) => {
+    const result = await apiPatch("/api/me", data, true);
+    const nextUser = result?.user;
+    if (!nextUser) {
+      throw new Error("Invalid profile response.");
+    }
+    setUser(nextUser);
+    return nextUser;
   };
 
   const googleLogin = async (idToken) => {
@@ -107,6 +118,7 @@ export function AuthProvider({ children }) {
       refreshMe,
       login,
       register,
+      updateProfile,
       googleLogin,
       logout,
     }),

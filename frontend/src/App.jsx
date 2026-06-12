@@ -10,6 +10,7 @@ import OwnerDashboardPage from "./pages/OwnerDashboardPage";
 import TripsPage from "./pages/TripsPage";
 import InboxPage from "./pages/InboxPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import AccountSettingsPage from "./pages/AccountSettingsPage";
 import Layout from "./components/Layout";
 import HostOnboardingFlow from "./components/HostOnboardingFlow";
 import { RequireAuth, RequireRole } from "./components/RouteGuards";
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/app/trips" element={<TripsPage />} />
           <Route path="/messages" element={<InboxPage />} />
           <Route path="/app/messages" element={<InboxPage />} />
+          <Route path="/app/account" element={<AccountSettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
@@ -92,6 +94,7 @@ export default function App() {
 
       <Route path="/trips" element={<Navigate to="/app/trips" replace />} />
       <Route path="/messages" element={<Navigate to="/app/messages" replace />} />
+      <Route path="/account" element={<Navigate to="/app/account" replace />} />
       <Route path="/book/:id" element={<AppPathRedirect prefix="/app/book" />} />
       <Route path="/listings/:listingId" element={<AppPathRedirect prefix="/app/listings" />} />
       <Route path="/bookings/:bookingId" element={<AppPathRedirect prefix="/app/bookings" />} />

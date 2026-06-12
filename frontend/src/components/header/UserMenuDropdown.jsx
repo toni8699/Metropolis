@@ -1,7 +1,9 @@
 export default function UserMenuDropdown({
   isAuthenticated,
+  user,
   onLogin,
   onSignup,
+  onOpenAccount,
   onOpenTrips,
   onOpenMessages,
   onOpenHostDashboard,
@@ -29,6 +31,20 @@ export default function UserMenuDropdown({
         </>
       ) : (
         <>
+          <div className="border-b border-gray-100 px-3 py-2">
+            <p className="truncate text-sm font-semibold text-gray-900">
+              {user?.fullName || user?.email || "Your account"}
+            </p>
+            {user?.fullName && (
+              <p className="mt-0.5 truncate text-xs text-gray-500">{user.email}</p>
+            )}
+          </div>
+          <button
+            onClick={onOpenAccount}
+            className="mt-1 w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
+          >
+            Account settings
+          </button>
           <button
             onClick={onOpenMessages}
             className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"

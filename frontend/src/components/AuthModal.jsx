@@ -6,7 +6,7 @@ const googleClientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || "";
 
 export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }) {
   const [authMode, setAuthMode] = useState(mode);
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const { login, register, googleLogin } = useAuth();
@@ -114,6 +114,19 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
               <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
                 {error}
               </div>
+            )}
+            {authMode === "signup" && (
+              <input
+                type="text"
+                required
+                maxLength={150}
+                value={form.fullName}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, fullName: event.target.value }))
+                }
+                placeholder="Full name"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+              />
             )}
             <input
               type="email"
