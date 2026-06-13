@@ -128,7 +128,7 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
 
   if (fetchError && !isLoading) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div className="rounded-3xl border-2 border-black bg-[#ffd8cf] p-4 text-sm font-semibold text-[#7a2215]">
         {fetchError}
       </div>
     );
@@ -143,10 +143,14 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
         isLoading={isLoading}
       />
     ) : (
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Popular Locations and Vehicles</h2>
+      <div className="relative space-y-5 overflow-hidden rounded-[2rem] border-2 border-black bg-[#f5f5d0] px-6 py-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+        <div className="pointer-events-none absolute -left-12 -top-12 h-28 w-28 rounded-full bg-[#E34B31]/20" />
+        <div className="pointer-events-none absolute -bottom-10 right-10 h-24 w-24 rounded-full bg-[#183B1E]/15" />
+        <h2 className="relative text-2xl font-extrabold text-[#183B1E]">
+          Popular Locations and Vehicles
+        </h2>
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="relative grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, idx) => (
               <div key={idx} className="space-y-3">
                 <div className="aspect-[20/19] animate-pulse rounded-2xl bg-gray-200" />

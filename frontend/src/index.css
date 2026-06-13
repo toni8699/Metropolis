@@ -8,7 +8,30 @@ html {
 
 body {
   margin: 0;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #d0f0c0;
+  color: #2d5a27;
+  font-family: "Lexend", Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: "Fredoka", "Lexend", Inter, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+h1 {
+  font-size: clamp(2rem, 2.2vw + 1rem, 3rem);
+}
+
+h2 {
+  font-size: clamp(1.44rem, 1.5vw + 0.9rem, 2.2rem);
+}
+
+h3 {
+  font-size: clamp(1.2rem, 1.2vw + 0.75rem, 1.8rem);
 }
 
 /* Airbnb-style range picker: black endpoints, darker in-between */

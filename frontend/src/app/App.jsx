@@ -43,7 +43,7 @@ export default function App() {
 
   const mainAppShell = (
     <Layout onSearch={handleSearch} onHome={handleGoHome}>
-      <div className="w-full px-3 py-3 sm:px-4 md:px-5 lg:px-6 xl:px-7">
+      <div className="w-full px-4 py-4 sm:px-5 md:px-6 lg:px-7 xl:px-8">
         <Routes>
           <Route
             path="/"
@@ -81,7 +81,7 @@ export default function App() {
 
   const accountAppShell = (
     <Layout onSearch={handleSearch} onHome={handleGoHome}>
-      <div className="w-full px-3 py-3 sm:px-4 md:px-5 lg:px-6 xl:px-7">
+      <div className="w-full px-4 py-4 sm:px-5 md:px-6 lg:px-7 xl:px-8">
         <AccountSettingsPage />
       </div>
     </Layout>

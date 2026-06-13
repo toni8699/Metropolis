@@ -237,11 +237,11 @@ export default function Header({ onSearch, onHome }) {
   };
 
   const sectionBaseClass =
-    "h-full flex flex-col justify-center rounded-full px-4 transition";
+    "h-full flex flex-col justify-center rounded-full px-5 transition font-semibold";
   const getSectionClass = (section) =>
     activeSection === section
-      ? `${sectionBaseClass} bg-white shadow-md`
-      : `${sectionBaseClass} hover:bg-gray-200`;
+      ? `${sectionBaseClass} bg-[#FCFCE5] shadow-[4px_4px_0px_0px_rgba(24,59,30,0.75)]`
+      : `${sectionBaseClass} hover:bg-[#dbe8be]`;
 
   const openAuthModal = (mode = "login") => {
     setAuthModalMode(mode);
@@ -289,8 +289,8 @@ export default function Header({ onSearch, onHome }) {
         />
       )}
 
-      <header className="fixed inset-x-0 top-0 z-50 w-full border-b bg-white transition-all">
-        <div className="flex flex-col gap-2 px-3 py-2.5 sm:px-4 md:flex-row md:items-center md:justify-between md:px-5 md:py-3 lg:px-6 xl:px-8">
+      <header className="fixed inset-x-0 top-0 z-50 w-full border-b-4 border-black bg-[#D0F0C0] transition-all">
+        <div className="flex flex-col gap-3 px-3 py-2.5 sm:px-4 md:flex-row md:items-center md:justify-between md:px-5 md:py-3 lg:px-6 xl:px-8">
           <div className="flex items-center justify-between md:w-auto">
             <Link
               to="/"
@@ -306,22 +306,22 @@ export default function Header({ onSearch, onHome }) {
               {isAuthenticated && (
                 <Link
                   to="/app/messages"
-                  className="rounded-full p-2 text-gray-700 transition hover:bg-gray-100"
+                  className="rounded-full border-2 border-black bg-[#F8AFA1] p-2 text-[#2D5A27] transition hover:scale-105"
                   aria-label="Messages"
                 >
-                  <Mail className="h-5 w-5" />
+                  <Mail className="h-6 w-6" />
                 </Link>
               )}
               <button
                 onClick={() => setIsUserMenuOpen((open) => !open)}
-                className="flex items-center gap-1.5 rounded-full border p-1 pl-2.5 transition hover:shadow-md"
+                className="flex items-center gap-1.5 rounded-full border-2 border-black bg-[#FCFCE5] p-1 pl-2.5 transition hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                 aria-label="User menu"
               >
-                <Menu className="h-5 w-5 text-gray-700" />
+                <Menu className="h-6 w-6 text-[#2D5A27]" />
                 {isAuthenticated ? (
-                  <UserAvatar user={user} className="h-7 w-7 text-xs" />
+                  <UserAvatar user={user} className="h-9 w-9 text-sm ring-2 ring-[#E34B31]" />
                 ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFD166] text-sm font-extrabold text-[#2D5A27]">
                     G
                   </div>
                 )}
@@ -372,12 +372,12 @@ export default function Header({ onSearch, onHome }) {
                 }}
               />
             ) : (
-              <div className="relative mx-auto flex h-16 w-full max-w-xl items-center rounded-full border border-gray-200 bg-gray-100 shadow-sm">
+              <div className="relative mx-auto flex h-[4.6rem] w-full max-w-2xl items-center rounded-full border-4 border-black bg-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
                 <button
                   onClick={() => setActiveSection("where")}
                   className={getSectionClass("where")}
                 >
-                  <span className="text-sm font-bold">Where</span>
+                  <span className="text-sm font-extrabold uppercase text-[#2D5A27]">Where go?</span>
                   <input
                     value={searchQuery}
                     onChange={(event) => {
@@ -385,24 +385,26 @@ export default function Header({ onSearch, onHome }) {
                       setSelectedCoordinates(null);
                     }}
                     placeholder="Search destinations"
-                    className="w-40 bg-transparent text-sm text-gray-700 outline-none"
+                    className="w-44 bg-transparent text-sm text-[#2D5A27] outline-none placeholder:text-[#46634b]"
                   />
                 </button>
+
+                <div className="h-8 w-[2px] bg-black" />
 
                 <button
                   onClick={() => setActiveSection("when")}
                   className={getSectionClass("when")}
                 >
-                  <span className="text-sm font-bold">When</span>
-                  <span className="text-xs text-gray-700">{whenLabel}</span>
+                  <span className="text-sm font-extrabold uppercase text-[#2D5A27]">Select dates</span>
+                  <span className="text-xs text-[#35593b]">{whenLabel}</span>
                 </button>
 
                 <button
                   onClick={handleSearch}
-                  className="mr-1.5 flex items-center gap-1.5 rounded-full bg-indigo-600 px-3.5 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                  className="mr-2 flex items-center gap-1.5 rounded-full border-4 border-black border-b-4 border-r-4 bg-[#E34B31] px-4 py-2 text-sm font-extrabold text-white transition hover:scale-110 active:translate-x-1 active:translate-y-1 active:border-0"
                 >
-                  <Search className="h-3.5 w-3.5" />
-                  <span>Search</span>
+                  <Search className="h-4 w-4" />
+                  <span>Go</span>
                 </button>
 
                 {activeSection === "when" && (
@@ -432,43 +434,43 @@ export default function Header({ onSearch, onHome }) {
             )}
           </div>
 
-          <div className="hidden items-center gap-1 md:flex">
-            <button className="hidden cursor-pointer items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold transition hover:border-gray-900 md:flex">
-              <SlidersHorizontal className="h-4 w-4" />
+          <div className="hidden items-center gap-2 md:flex">
+            <button className="hidden cursor-pointer items-center gap-1.5 rounded-full border-4 border-black border-b-4 border-r-4 bg-[#FCFCE5] px-3 py-1.5 text-xs font-bold transition hover:translate-y-[-1px] active:translate-x-1 active:translate-y-1 active:border-0 md:flex">
+              <SlidersHorizontal className="h-4 w-4 text-[#2D5A27]" />
               Filters
             </button>
             <button
               onClick={handleHostClick}
-              className="rounded-full px-3 py-1.5 text-xs font-semibold hover:bg-gray-100"
+              className="rounded-full border-4 border-black border-b-4 border-r-4 bg-[#E34B31] px-4 py-2 text-sm font-extrabold text-white transition hover:translate-y-[-1px] hover:scale-105 active:translate-x-1 active:translate-y-1 active:border-0"
             >
               {isAdmin ? "Admin dashboard" : "Host your car"}
             </button>
             <button
-              className="rounded-full p-2 hover:bg-gray-100"
+              className="rounded-full border-2 border-black bg-[#FFD166] p-2.5 hover:scale-105"
               aria-label="Language selector"
             >
-              <Globe className="h-4 w-4 text-gray-700" />
+              <Globe className="h-5 w-5 text-[#2D5A27]" />
             </button>
             {isAuthenticated && (
               <Link
                 to="/app/messages"
-                className="rounded-full p-2 text-gray-700 transition hover:bg-gray-100"
+                className="rounded-full border-2 border-black bg-[#F8AFA1] p-2.5 text-[#2D5A27] transition hover:scale-105"
                 aria-label="Messages"
               >
-                <Mail className="h-4 w-4" />
+                <Mail className="h-5 w-5" />
               </Link>
             )}
             <div ref={desktopUserMenuRef} className="relative">
               <button
                 onClick={() => setIsUserMenuOpen((open) => !open)}
-                className="flex items-center gap-1.5 rounded-full border p-1 pl-2.5 transition hover:shadow-md"
+                className="flex items-center gap-1.5 rounded-full border-2 border-black bg-[#FCFCE5] p-1.5 pl-2.5 transition hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                 aria-label="User menu"
               >
-                <Menu className="h-5 w-5 text-gray-700" />
+                <Menu className="h-6 w-6 text-[#2D5A27]" />
                 {isAuthenticated ? (
-                  <UserAvatar user={user} className="h-7 w-7 text-xs" />
+                  <UserAvatar user={user} className="h-9 w-9 text-sm ring-2 ring-[#E34B31]" />
                 ) : (
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFD166] text-sm font-extrabold text-[#2D5A27]">
                     G
                   </div>
                 )}

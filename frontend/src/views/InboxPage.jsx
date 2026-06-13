@@ -35,8 +35,8 @@ function ConversationListItem({ thread, isActive, onSelect }) {
     <button
       type="button"
       onClick={() => onSelect(thread.bookingId)}
-      className={`flex w-full gap-3 border-b border-gray-100 px-4 py-4 text-left transition hover:bg-gray-50 ${
-        isActive ? "border-l-4 border-l-blue-600 bg-gray-50" : "border-l-4 border-l-transparent"
+      className={`flex w-full gap-3 border-b-2 border-black/10 px-4 py-4 text-left transition hover:bg-[#f5f5d0] ${
+        isActive ? "border-l-4 border-l-[#E34B31] bg-[#f5f5d0]" : "border-l-4 border-l-transparent"
       }`}
     >
       <ThreadAvatar name={otherName} className="h-11 w-11 text-xs" />
@@ -61,7 +61,7 @@ function ReservationSidebar({ thread }) {
 
   return (
     <div className="space-y-4 p-5">
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+      <div className="overflow-hidden rounded-2xl border-2 border-black bg-[#dbe8be]">
         {cover ? (
           <img src={cover} alt={thread.listing?.title || "Vehicle"} className="h-40 w-full object-cover" />
         ) : (
@@ -89,7 +89,7 @@ function ReservationSidebar({ thread }) {
       </div>
 
       {thread.pricing && (
-        <dl className="space-y-2 rounded-xl border border-gray-200 bg-white p-4 text-sm">
+        <dl className="space-y-2 rounded-2xl border-2 border-black bg-[#FCFCE5] p-4 text-sm">
           <div className="flex justify-between gap-3">
             <dt className="text-gray-600">Daily rate</dt>
             <dd className="font-medium text-gray-900">
@@ -109,7 +109,7 @@ function ReservationSidebar({ thread }) {
 
       <Link
         to={`/app/bookings/${thread.bookingId}`}
-        className="block rounded-lg bg-gray-900 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-black"
+        className="block rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-2.5 text-center text-sm font-extrabold text-white active:border-b-0"
       >
         View full reservation details
       </Link>
@@ -159,13 +159,6 @@ export default function InboxPage() {
     if (!isAuthenticated) return;
     loadThreads();
   }, [isAuthenticated, loadThreads]);
-
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
 
   const handleThreadMessage = useCallback((message) => {
     setThreads((prev) => {
@@ -229,15 +222,15 @@ export default function InboxPage() {
   const otherName = selectedThread?.otherParty?.name || "Guest";
 
   return (
-    <div className="fixed inset-x-0 bottom-0 top-20 z-10 grid min-h-0 grid-cols-1 overflow-hidden border-t border-gray-200 bg-white md:top-[72px] md:grid-cols-12">
+    <div className="grid min-h-[calc(100vh-16rem)] grid-cols-1 overflow-hidden rounded-[2rem] border-4 border-black bg-[#FCFCE5] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] md:grid-cols-12">
       <aside
-        className={`col-span-12 flex min-h-0 flex-col border-r border-gray-200 md:col-span-3 ${
+        className={`col-span-12 flex min-h-0 flex-col border-r-2 border-black md:col-span-3 ${
           mobilePane === "chat" ? "hidden md:flex" : "flex"
         }`}
       >
-        <div className="shrink-0 border-b border-gray-200 px-4 py-4">
-          <h1 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-            <MessageCircle className="h-5 w-5 text-indigo-600" />
+        <div className="shrink-0 border-b-2 border-black px-4 py-4">
+          <h1 className="flex items-center gap-2 text-2xl font-extrabold text-[#183B1E]">
+            <MessageCircle className="h-6 w-6 text-[#E34B31]" />
             Messages
           </h1>
         </div>
@@ -276,13 +269,13 @@ export default function InboxPage() {
         }`}
       >
         {!selectedThread ? (
-          <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-gray-500">
+            <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-[#35593b]">
             <MessageCircle className="mb-3 h-10 w-10 text-gray-300" />
             <p className="text-sm">Select a conversation to start messaging</p>
           </div>
         ) : (
           <>
-            <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 px-4 py-3">
+            <div className="flex shrink-0 items-center gap-3 border-b-2 border-black px-4 py-3">
               <button
                 type="button"
                 onClick={() => setMobilePane("list")}
@@ -311,7 +304,7 @@ export default function InboxPage() {
               <p className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{loadError}</p>
             )}
 
-            <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-gray-50 px-4 py-4">
+            <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#f5f5d0] px-4 py-4">
               <ChatMessageList
                 messages={messages}
                 currentUserId={user?.userId}
@@ -327,7 +320,7 @@ export default function InboxPage() {
 
             <form
               onSubmit={handleSend}
-              className="flex shrink-0 gap-2 border-t border-gray-200 bg-white px-4 py-3"
+              className="flex shrink-0 gap-2 border-t-2 border-black bg-[#FCFCE5] px-4 py-3"
             >
               <label htmlFor="inbox-message" className="sr-only">
                 Message
@@ -340,12 +333,12 @@ export default function InboxPage() {
                 placeholder="Write a message…"
                 maxLength={4000}
                 disabled={isSending}
-                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
+                className="min-w-0 flex-1 rounded-full border-2 border-black bg-white px-4 py-2 text-sm text-[#183B1E] placeholder:text-[#46634b] focus:outline-none disabled:bg-gray-100"
               />
               <button
                 type="submit"
                 disabled={!draft.trim() || isSending}
-                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-2 text-sm font-extrabold text-white active:border-b-0 disabled:opacity-50"
               >
                 <Send className="h-4 w-4" />
                 Send
@@ -355,7 +348,7 @@ export default function InboxPage() {
         )}
       </section>
 
-      <aside className="hidden min-h-0 overflow-y-auto overscroll-contain border-l border-gray-200 lg:col-span-3 lg:block">
+      <aside className="hidden min-h-0 overflow-y-auto overscroll-contain border-l-2 border-black lg:col-span-3 lg:block">
         <ReservationSidebar thread={selectedThread} />
       </aside>
     </div>

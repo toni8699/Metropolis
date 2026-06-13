@@ -41,13 +41,13 @@ export default function CarCard({ car, distanceKm }) {
     : `/app/listings/${car.id}`;
 
   return (
-    <article className="group">
+    <article className="group rounded-[2rem] border-2 border-black bg-[#FCFCE5] p-3 shadow-[6px_6px_0px_0px_rgba(24,59,30,0.45)] transition-transform hover:-translate-y-2">
       <Link to={href} className="block">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-gray-100">
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.5rem] border-2 border-black bg-[#dbe8be]">
           <img
             src={carouselImages[currentImageIndex] || fallbackPhoto}
             alt={row1Title}
-            className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.02]"
+            className="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
           />
 
           {hasCarousel && (
@@ -60,7 +60,7 @@ export default function CarCard({ car, distanceKm }) {
                   e.stopPropagation();
                   handlePrevImage();
                 }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm transition hover:scale-105 hover:bg-white opacity-0 group-hover:opacity-100"
+                className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-[#FCFCE5] text-black opacity-0 shadow-sm transition group-hover:opacity-100 hover:scale-105"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -72,7 +72,7 @@ export default function CarCard({ car, distanceKm }) {
                   e.stopPropagation();
                   handleNextImage();
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm transition hover:scale-105 hover:bg-white opacity-0 group-hover:opacity-100"
+                className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-[#FCFCE5] text-black opacity-0 shadow-sm transition group-hover:opacity-100 hover:scale-105"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -86,7 +86,7 @@ export default function CarCard({ car, distanceKm }) {
               e.preventDefault();
               setIsFavorite((v) => !v);
             }}
-            className="absolute top-3 right-3 z-10 rounded-full p-1 hover:scale-110 transition"
+            className="absolute right-3 top-3 z-10 rounded-full border-2 border-black bg-white/80 p-1 transition hover:scale-110"
           >
             <Heart
               className={`h-6 w-6 transition ${
@@ -112,24 +112,29 @@ export default function CarCard({ car, distanceKm }) {
           )}
         </div>
 
-        <div className="mt-3 flex flex-col gap-1">
+        <div className="mt-4 flex flex-col gap-1.5">
           <div className="flex items-start justify-between gap-2">
-            <p className="truncate text-[15px] font-semibold text-gray-900">{row1Title}</p>
+            <p className="truncate text-lg font-extrabold text-black">{row1Title}</p>
             <div className="shrink-0">
               <ListingRatingLine
                 listing={car}
-                className="text-[14px] font-normal text-gray-900"
+                className="text-[14px] font-semibold text-black"
               />
             </div>
           </div>
 
-          <p className="truncate text-[14px] font-light text-gray-500">{details}</p>
-          <p className="truncate text-[14px] font-light text-gray-500">{distanceText}</p>
+          <p className="truncate text-[14px] font-semibold text-[#35593b]">{details}</p>
+          <p className="truncate text-[14px] font-medium text-[#46634b]">{distanceText}</p>
 
-          <p className="mt-1 text-[15px] text-gray-900">
-            <span className="font-semibold">${car.pricePerDay}</span>
-            <span className="font-normal"> / day</span>
-          </p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <p className="text-lg text-black">
+              <span className="font-extrabold">${car.pricePerDay}</span>
+              <span className="font-semibold text-sm"> / day</span>
+            </p>
+            <span className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-1.5 text-sm font-extrabold text-white transition group-hover:translate-y-[-1px]">
+              Book now
+            </span>
+          </div>
         </div>
       </Link>
     </article>
