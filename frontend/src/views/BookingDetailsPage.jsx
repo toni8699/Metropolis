@@ -231,7 +231,7 @@ export default function BookingDetailsPage() {
                 {isRenter && host && (
                   <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                     <p className="font-semibold text-gray-900">
-                      Host: {host.name || "DriveBnb Host"}
+                      Host: {host.name || "VROOM Host"}
                       {host.verified && (
                         <span className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
                           <ShieldCheck className="h-3.5 w-3.5" />

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useJsApiLoader } from "@react-google-maps/api";
-import { CarFront, UploadCloud, X } from "lucide-react";
+import { UploadCloud, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import VroomLogo from "@/layout/VroomLogo";
 import { apiPost } from "@/shared/api/api";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -292,9 +293,8 @@ export default function HostOnboardingFlow() {
   return (
     <div className="min-h-screen bg-white text-gray-900 flex flex-col">
       <header className="fixed top-0 left-0 right-0 h-20 flex justify-between items-center px-10 border-b bg-white z-50">
-        <div className="flex items-center gap-3 text-indigo-600">
-          <CarFront className="h-8 w-8" />
-          <span className="text-2xl font-bold">DriveBnb</span>
+        <div className="flex items-center">
+          <VroomLogo />
         </div>
         <button
           type="button"

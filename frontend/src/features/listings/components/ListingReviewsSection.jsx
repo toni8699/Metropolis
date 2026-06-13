@@ -76,7 +76,7 @@ function ReviewSubRatings({ review }) {
 }
 
 function ReviewCard({ review }) {
-  const displayName = review.authorName || "DriveBnb guest";
+  const displayName = review.authorName || "VROOM guest";
 
   return (
     <article>

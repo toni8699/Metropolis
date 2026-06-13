@@ -50,7 +50,7 @@ export default function Footer() {
 
         <div className="mt-8 flex flex-col gap-4 border-t pt-6 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-            <span>© 2024 DriveBnb, Inc.</span>
+            <span>© 2024 VROOM, Inc.</span>
             <span>·</span>
             <a href="#" className="hover:underline">
               Terms

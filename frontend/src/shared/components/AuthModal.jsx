@@ -108,7 +108,7 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
         </div>
 
         <div className="px-6 pb-6">
-          <h2 className="mb-6 mt-4 text-2xl font-semibold">Welcome to DriveBnb</h2>
+          <h2 className="mb-6 mt-4 text-2xl font-semibold">Welcome to VROOM</h2>
           <form className="space-y-3" onSubmit={handleSubmit}>
             {error && (
               <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
@@ -159,7 +159,7 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
           </div>
 
           <p className="mt-4 text-center text-sm text-gray-600">
-            {authMode === "login" ? "New to DriveBnb?" : "Already have an account?"}{" "}
+            {authMode === "login" ? "New to VROOM?" : "Already have an account?"}{" "}
             <button
               onClick={() =>
                 setAuthMode((current) => (current === "login" ? "signup" : "login"))

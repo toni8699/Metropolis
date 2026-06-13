@@ -816,7 +816,7 @@ export default function HostDashboard({ mode = "admin" }) {
       <div className="min-h-screen bg-gray-50 flex">
         <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-6 border-b border-gray-200">
-          <p className="text-xl font-bold text-gray-900">{isAdmin ? "DriveBnb Admin" : "DriveBnb Host"}</p>
+          <p className="text-xl font-bold text-gray-900">{isAdmin ? "VROOM Admin" : "VROOM Host"}</p>
         </div>
         <nav className="flex-1 py-6 space-y-2">
           {navItems.map((item) => {

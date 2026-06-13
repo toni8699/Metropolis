@@ -185,7 +185,7 @@ export default function BookingCheckoutPage() {
           <div className="border-t py-6">
             <p className="text-sm leading-6 text-gray-600">
               By selecting the button below, I agree to the Host&apos;s House Rules,
-              Ground rules for guests, and DriveBnb&apos;s policies.
+              Ground rules for guests, and VROOM&apos;s policies.
             </p>
 
             {submitError && (
@@ -241,7 +241,7 @@ export default function BookingCheckoutPage() {
                 <p>${cleaningFee.toFixed(2)}</p>
               </div>
               <div className="flex items-center justify-between">
-                <p>DriveBnb service fee</p>
+                <p>VROOM service fee</p>
                 <p>${serviceFee.toFixed(2)}</p>
               </div>
             </div>

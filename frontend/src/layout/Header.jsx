@@ -1,5 +1,4 @@
 import {
-  CarFront,
   Globe,
   Mail,
   Menu,
@@ -17,6 +16,7 @@ import UserMenuDropdown from "@/layout/header/UserMenuDropdown";
 import CollapsedSearchPill from "@/layout/header/CollapsedSearchPill";
 import WhereSuggestionsDropdown from "@/layout/header/WhereSuggestionsDropdown";
 import WhenDateDropdown from "@/layout/header/WhenDateDropdown";
+import VroomLogo from "@/layout/VroomLogo";
 import { defaultDateRangeFromToday, startOfToday } from "@/shared/lib/datePicker";
 import {
   fetchPlacePredictions,
@@ -298,10 +298,9 @@ export default function Header({ onSearch, onHome }) {
                 setIsSearchExpanded(false);
                 onHome?.();
               }}
-              className="flex items-center gap-2 text-indigo-600"
+              className="flex items-center"
             >
-              <CarFront className="h-7 w-7" />
-              <span className="text-xl font-extrabold">DriveBnb</span>
+              <VroomLogo />
             </Link>
             <div ref={mobileUserMenuRef} className="relative flex items-center gap-1 md:hidden">
               {isAuthenticated && (
