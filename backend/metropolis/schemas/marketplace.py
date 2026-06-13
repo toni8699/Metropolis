@@ -161,6 +161,7 @@ class ListingSchema(ma.Schema):
     ownerUserId = ma.Integer(allow_none=True)
     isCompanyOwned = ma.Boolean(required=True)
     ownerName = ma.String(allow_none=True)
+    ownerProfilePhotoUrl = ma.String(allow_none=True)
     fleetVehicleVin = ma.String(allow_none=True)
     lat = ma.Float(allow_none=True)
     lng = ma.Float(allow_none=True)

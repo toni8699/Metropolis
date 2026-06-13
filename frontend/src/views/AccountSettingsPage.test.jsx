@@ -25,6 +25,14 @@ describe("AccountSettingsPage", () => {
     mockUpdateProfile.mockResolvedValue({
       fullName: "Jane Driver",
       phone: "+1 514 555 0100",
+      lives: "",
+      about: "",
+      languages: "",
+      work: "",
+      tripsCount: 0,
+      hasPhone: true,
+      hasEmail: true,
+      isApprovedToDrive: false,
     });
     mockAuth = {
       isAuthenticated: true,
@@ -36,6 +44,15 @@ describe("AccountSettingsPage", () => {
         phone: "",
         role: "user",
         createdAt: "2026-06-01T12:00:00Z",
+        joinedLabel: "Joined June 2026",
+        lives: "",
+        about: "",
+        languages: "",
+        work: "",
+        tripsCount: 0,
+        hasPhone: false,
+        hasEmail: true,
+        isApprovedToDrive: false,
       },
     };
   });
@@ -45,11 +62,14 @@ describe("AccountSettingsPage", () => {
     renderPage();
 
     await user.type(screen.getByLabelText(/phone/i), "+1 514 555 0100");
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    await user.click(screen.getByRole("button", { name: /save profile/i }));
 
     await vi.waitFor(() =>
       expect(mockUpdateProfile).toHaveBeenCalledWith({
-        fullName: "Jane Driver",
+        lives: "",
+        about: "",
+        languages: "",
+        work: "",
         phone: "+1 514 555 0100",
       }),
     );

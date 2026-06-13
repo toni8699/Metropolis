@@ -12,7 +12,8 @@ LISTING_SELECT_SQL = """
            loc.geohash,
            loc.city_zone,
            loc.raw_address,
-           u.full_name AS owner_name
+           u.full_name AS owner_name,
+           u.profile_photo_url AS owner_profile_photo_url
     FROM vehicle_listing l
     LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
     LEFT JOIN app_user u ON u.user_id = l.owner_user_id
@@ -344,6 +345,7 @@ def _to_listing_row(
         "ownerUserId": row["owner_user_id"],
         "isCompanyOwned": bool(row.get("is_company_owned")),
         "ownerName": row["owner_name"],
+        "ownerProfilePhotoUrl": row.get("owner_profile_photo_url"),
         "fleetVehicleVin": row["fleet_vehicle_vin"],
         "lat": float(lat) if lat is not None else None,
         "lng": float(lng) if lng is not None else None,

@@ -36,7 +36,18 @@ class AuthTokenSchema(ma.Schema):
 
 class MeUserSchema(UserSummarySchema):
     phone = ma.String(allow_none=True)
+    profilePhotoUrl = ma.String(allow_none=True)
     createdAt = ma.String(allow_none=True)
+    joinedLabel = ma.String(allow_none=True)
+    lives = ma.String(allow_none=True)
+    about = ma.String(allow_none=True)
+    languages = ma.String(allow_none=True)
+    work = ma.String(allow_none=True)
+    isApprovedToDrive = ma.Boolean(required=True)
+    hasEmail = ma.Boolean(required=True)
+    hasPhone = ma.Boolean(required=True)
+    tripsCount = ma.Integer(required=True)
+    averageRating = ma.Float(allow_none=True)
 
 
 class MeSchema(ma.Schema):
@@ -50,3 +61,8 @@ class MeUpdateSchema(ma.Schema):
 
     fullName = ma.String(required=False, allow_none=True)
     phone = ma.String(required=False, allow_none=True)
+    profilePhotoUrl = ma.String(required=False, allow_none=True)
+    lives = ma.String(required=False, allow_none=True)
+    about = ma.String(required=False, allow_none=True)
+    languages = ma.String(required=False, allow_none=True)
+    work = ma.String(required=False, allow_none=True)

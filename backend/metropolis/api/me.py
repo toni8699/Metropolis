@@ -42,8 +42,7 @@ def update_me(payload):
     try:
         result = auth_service.update_me(
             int(g.current_user["sub"]),
-            full_name=payload.get("fullName"),
-            phone=payload.get("phone"),
+            payload,
         )
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc

@@ -95,6 +95,12 @@ CREATE TABLE app_user
   role user_role NOT NULL DEFAULT 'RENTER',
   full_name VARCHAR(150),
   phone VARCHAR(32),
+  profile_photo_url TEXT,
+  lives VARCHAR(100),
+  about TEXT,
+  languages VARCHAR(150),
+  work VARCHAR(100),
+  is_approved_to_drive BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from uuid import uuid4
 
 import boto3
@@ -13,7 +13,7 @@ from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotF
 from metropolis.config import Config
 from metropolis.db import get_connection
 
-ALLOWED_SCOPES = {"FLEET", "OWNER_LISTING", "USER_DOC"}
+ALLOWED_SCOPES = {"FLEET", "OWNER_LISTING", "USER_DOC", "USER_AVATAR"}
 
 
 def _safe_filename(file_name: str) -> str:
@@ -24,6 +24,15 @@ def _safe_filename(file_name: str) -> str:
 def _public_file_url(bucket: str, region: str, object_key: str) -> str:
     encoded_key = quote(object_key, safe="/")
     return f"https://{bucket}.s3.{region}.amazonaws.com/{encoded_key}"
+
+
+def object_key_from_file_url(bucket: str, region: str, file_url: str) -> str | None:
+    if not bucket or not region:
+        return None
+    prefix = f"https://{bucket}.s3.{region}.amazonaws.com/"
+    if not file_url.startswith(prefix):
+        return None
+    return unquote(file_url[len(prefix) :])
 
 
 class UploadsService:
@@ -49,6 +58,8 @@ class UploadsService:
             if not listing_id:
                 raise BadRequest(description="listingId required for OWNER_LISTING uploads.")
             return f"owner/{user_id}/listing/{listing_id}"
+        if scope == "USER_AVATAR":
+            return f"user/{user_id}/avatar"
         return f"user/{user_id}/documents"
 
     def _assert_listing_access(
@@ -82,6 +93,8 @@ class UploadsService:
         content_type = str(payload.get("contentType", "")).strip()
         if not file_name or not content_type:
             raise BadRequest(description="fileName and contentType are required.")
+        if scope == "USER_AVATAR" and not content_type.startswith("image/"):
+            raise BadRequest(description="Avatar must be an image.")
         listing_id = payload.get("listingId")
         if listing_id is not None:
             listing_id = int(listing_id)
@@ -194,3 +207,22 @@ class UploadsService:
             "objectKey": object_key,
             "fileUrl": file_url,
         }
+
+    def delete_user_avatar_file(self, user_id: int, file_url: str | None) -> None:
+        """Remove a superseded avatar from S3 and file_asset. Best-effort when S3 is unavailable."""
+        if not file_url:
+            return
+        object_key = object_key_from_file_url(self.bucket, self.region, file_url)
+        if not object_key:
+            return
+        if not object_key.startswith(f"user/{user_id}/avatar/"):
+            return
+        if self.client and self.bucket:
+            try:
+                self.client.delete_object(Bucket=self.bucket, Key=object_key)
+            except (ClientError, BotoCoreError):
+                pass
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM file_asset WHERE object_key = %s", (object_key,))
+                conn.commit()

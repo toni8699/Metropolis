@@ -10,6 +10,7 @@ from psycopg2.extras import RealDictCursor
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from metropolis.auth import create_access_token
+from metropolis.config import Config
 from metropolis.db import get_connection
 from metropolis.text_sanitize import sanitize_display_text
 
@@ -49,14 +50,86 @@ def _fetch_has_listings(cur, user_id: int) -> bool:
     return bool(cur.fetchone()["has_listings"])
 
 
+def _fetch_trips_count(cur, user_id: int) -> int:
+    cur.execute(
+        """
+        SELECT COUNT(*) AS trips_count
+        FROM booking
+        WHERE renter_user_id = %s
+          AND status = 'COMPLETED'
+        """,
+        (user_id,),
+    )
+    return int(cur.fetchone()["trips_count"])
+
+
+def _fetch_average_rating(cur, user_id: int) -> float | None:
+    cur.execute(
+        """
+        SELECT AVG(rating)::float AS average_rating
+        FROM review
+        WHERE target_user_id = %s
+        """,
+        (user_id,),
+    )
+    value = cur.fetchone()["average_rating"]
+    return float(value) if value is not None else None
+
+
+def _joined_label(created_at) -> str | None:
+    if not created_at:
+        return None
+    return created_at.strftime("Joined %B %Y")
+
+
+def _normalize_profile_photo_url(value: str | None) -> str | None | bool:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return False
+    url = value.strip()
+    if not url:
+        return None
+    bucket = Config.S3_BUCKET_NAME
+    region = Config.AWS_REGION
+    if bucket and region:
+        prefix = f"https://{bucket}.s3.{region}.amazonaws.com/user/"
+        if not url.startswith(prefix) or "/avatar/" not in url:
+            return False
+    elif not url.startswith("https://"):
+        return False
+    if len(url) > 2048:
+        return False
+    return url
+
+
 class AuthService:
-    def _format_me_user(self, user: dict, has_listings: bool) -> dict:
+    def _format_me_user(
+        self,
+        user: dict,
+        has_listings: bool,
+        *,
+        trips_count: int = 0,
+        average_rating: float | None = None,
+    ) -> dict:
+        phone = user.get("phone")
         return {
             "userId": user["user_id"],
             "email": user["email"],
             "fullName": user["full_name"],
-            "phone": user["phone"],
+            "phone": phone,
+            "profilePhotoUrl": user.get("profile_photo_url"),
             "createdAt": user["created_at"].isoformat() if user["created_at"] else None,
+            "joinedLabel": _joined_label(user.get("created_at")),
+            "lives": user.get("lives"),
+            "about": user.get("about"),
+            "languages": user.get("languages"),
+            "work": user.get("work"),
+            "isApprovedToDrive": bool(user.get("is_approved_to_drive")),
+            "hasEmail": bool(user.get("email")),
+            "hasPhone": bool(phone and str(phone).strip()),
+            "tripsCount": trips_count,
+            "averageRating": average_rating,
             "role": "admin" if user["is_admin"] else "user",
             "isAdmin": bool(user["is_admin"]),
             "hasListings": has_listings,
@@ -140,7 +213,9 @@ class AuthService:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     """
-                    SELECT user_id, email, full_name, phone, created_at, is_admin
+                    SELECT user_id, email, full_name, phone, profile_photo_url,
+                           lives, about, languages, work, is_approved_to_drive,
+                           created_at, is_admin
                     FROM app_user
                     WHERE user_id = %s
                     """,
@@ -148,54 +223,180 @@ class AuthService:
                 )
                 user = cur.fetchone()
                 has_listings = _fetch_has_listings(cur, user_id) if user else False
-
-        if not user:
-            return {"status": "not_found", "message": "User not found."}
-
-        return {"status": "success", "user": self._format_me_user(user, has_listings)}
-
-    def update_me(self, user_id: int, full_name: str | None, phone: str | None) -> dict:
-        normalized_full_name = full_name.strip() if isinstance(full_name, str) else full_name
-        normalized_phone = phone.strip() if isinstance(phone, str) else phone
-        if isinstance(normalized_full_name, str):
-            normalized_full_name = sanitize_display_text(normalized_full_name, max_length=150)
-        if normalized_full_name == "":
-            normalized_full_name = None
-        if normalized_phone == "":
-            normalized_phone = None
-
-        if normalized_full_name is not None and len(normalized_full_name) > 150:
-            return {
-                "status": "validation_error",
-                "message": "Full name must be 150 characters or less.",
-            }
-        if normalized_phone is not None and len(normalized_phone) > 32:
-            return {
-                "status": "validation_error",
-                "message": "Phone must be 32 characters or less.",
-            }
-
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    """
-                    UPDATE app_user
-                    SET full_name = %s, phone = %s
-                    WHERE user_id = %s
-                    RETURNING user_id, email, full_name, phone, created_at, is_admin
-                    """,
-                    (normalized_full_name, normalized_phone, user_id),
-                )
-                user = cur.fetchone()
-                has_listings = _fetch_has_listings(cur, user_id) if user else False
-                conn.commit()
+                trips_count = _fetch_trips_count(cur, user_id) if user else 0
+                average_rating = _fetch_average_rating(cur, user_id) if user else None
 
         if not user:
             return {"status": "not_found", "message": "User not found."}
 
         return {
             "status": "success",
-            "user": self._format_me_user(user, has_listings),
+            "user": self._format_me_user(
+                user,
+                has_listings,
+                trips_count=trips_count,
+                average_rating=average_rating,
+            ),
+        }
+
+    def update_me(self, user_id: int, payload: dict) -> dict:
+        set_clauses: list[str] = []
+        params: list[object] = []
+
+        if "fullName" in payload:
+            full_name = payload.get("fullName")
+            normalized_full_name = full_name.strip() if isinstance(full_name, str) else full_name
+            if isinstance(normalized_full_name, str):
+                normalized_full_name = sanitize_display_text(normalized_full_name, max_length=150)
+            if normalized_full_name == "":
+                normalized_full_name = None
+            if normalized_full_name is not None and len(normalized_full_name) > 150:
+                return {
+                    "status": "validation_error",
+                    "message": "Full name must be 150 characters or less.",
+                }
+            set_clauses.append("full_name = %s")
+            params.append(normalized_full_name)
+
+        if "phone" in payload:
+            phone = payload.get("phone")
+            normalized_phone = phone.strip() if isinstance(phone, str) else phone
+            if normalized_phone == "":
+                normalized_phone = None
+            if normalized_phone is not None and len(normalized_phone) > 32:
+                return {
+                    "status": "validation_error",
+                    "message": "Phone must be 32 characters or less.",
+                }
+            set_clauses.append("phone = %s")
+            params.append(normalized_phone)
+
+        if "lives" in payload:
+            lives = payload.get("lives")
+            normalized_lives = lives.strip() if isinstance(lives, str) else lives
+            if isinstance(normalized_lives, str):
+                normalized_lives = sanitize_display_text(normalized_lives, max_length=100)
+            if normalized_lives == "":
+                normalized_lives = None
+            if normalized_lives is not None and len(normalized_lives) > 100:
+                return {
+                    "status": "validation_error",
+                    "message": "Lives must be 100 characters or less.",
+                }
+            set_clauses.append("lives = %s")
+            params.append(normalized_lives)
+
+        if "about" in payload:
+            about = payload.get("about")
+            normalized_about = about.strip() if isinstance(about, str) else about
+            if isinstance(normalized_about, str):
+                normalized_about = sanitize_display_text(normalized_about, max_length=2000)
+            if normalized_about == "":
+                normalized_about = None
+            if normalized_about is not None and len(normalized_about) > 2000:
+                return {
+                    "status": "validation_error",
+                    "message": "About must be 2000 characters or less.",
+                }
+            set_clauses.append("about = %s")
+            params.append(normalized_about)
+
+        if "languages" in payload:
+            languages = payload.get("languages")
+            normalized_languages = languages.strip() if isinstance(languages, str) else languages
+            if isinstance(normalized_languages, str):
+                normalized_languages = sanitize_display_text(normalized_languages, max_length=150)
+            if normalized_languages == "":
+                normalized_languages = None
+            if normalized_languages is not None and len(normalized_languages) > 150:
+                return {
+                    "status": "validation_error",
+                    "message": "Languages must be 150 characters or less.",
+                }
+            set_clauses.append("languages = %s")
+            params.append(normalized_languages)
+
+        if "work" in payload:
+            work = payload.get("work")
+            normalized_work = work.strip() if isinstance(work, str) else work
+            if isinstance(normalized_work, str):
+                normalized_work = sanitize_display_text(normalized_work, max_length=100)
+            if normalized_work == "":
+                normalized_work = None
+            if normalized_work is not None and len(normalized_work) > 100:
+                return {
+                    "status": "validation_error",
+                    "message": "Work must be 100 characters or less.",
+                }
+            set_clauses.append("work = %s")
+            params.append(normalized_work)
+
+        new_photo_url: str | None = None
+        if "profilePhotoUrl" in payload:
+            normalized_url = _normalize_profile_photo_url(payload.get("profilePhotoUrl"))
+            if normalized_url is False:
+                return {
+                    "status": "validation_error",
+                    "message": "Invalid profile photo URL.",
+                }
+            new_photo_url = normalized_url
+            set_clauses.append("profile_photo_url = %s")
+            params.append(normalized_url)
+
+        if not set_clauses:
+            return {"status": "validation_error", "message": "No profile fields to update."}
+
+        params.append(user_id)
+        old_photo_url: str | None = None
+
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                if "profilePhotoUrl" in payload:
+                    cur.execute(
+                        "SELECT profile_photo_url FROM app_user WHERE user_id = %s",
+                        (user_id,),
+                    )
+                    existing = cur.fetchone()
+                    if existing:
+                        old_photo_url = existing.get("profile_photo_url")
+
+                cur.execute(
+                    f"""
+                    UPDATE app_user
+                    SET {", ".join(set_clauses)}
+                    WHERE user_id = %s
+                    RETURNING user_id, email, full_name, phone, profile_photo_url,
+                              lives, about, languages, work, is_approved_to_drive,
+                              created_at, is_admin
+                    """,
+                    tuple(params),
+                )
+                user = cur.fetchone()
+                has_listings = _fetch_has_listings(cur, user_id) if user else False
+                trips_count = _fetch_trips_count(cur, user_id) if user else 0
+                average_rating = _fetch_average_rating(cur, user_id) if user else None
+                conn.commit()
+
+        if not user:
+            return {"status": "not_found", "message": "User not found."}
+
+        if (
+            "profilePhotoUrl" in payload
+            and old_photo_url
+            and old_photo_url != new_photo_url
+        ):
+            from metropolis.services import uploads_service
+
+            uploads_service.delete_user_avatar_file(user_id, old_photo_url)
+
+        return {
+            "status": "success",
+            "user": self._format_me_user(
+                user,
+                has_listings,
+                trips_count=trips_count,
+                average_rating=average_rating,
+            ),
         }
 
     def admin_list_users(self) -> dict:
