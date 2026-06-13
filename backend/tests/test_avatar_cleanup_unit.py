@@ -20,8 +20,12 @@ def test_object_key_from_file_url_decodes_key():
 
 
 def test_object_key_from_file_url_rejects_foreign_bucket():
-    assert object_key_from_file_url("my-bucket",
-     "us-east-1", "https://other.s3.us-east-1.amazonaws.com/x") is None
+    assert (
+        object_key_from_file_url(
+            "my-bucket", "us-east-1", "https://other.s3.us-east-1.amazonaws.com/x"
+        )
+        is None
+    )
 
 
 @pytest.fixture

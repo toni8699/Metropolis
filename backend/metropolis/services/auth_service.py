@@ -380,11 +380,7 @@ class AuthService:
         if not user:
             return {"status": "not_found", "message": "User not found."}
 
-        if (
-            "profilePhotoUrl" in payload
-            and old_photo_url
-            and old_photo_url != new_photo_url
-        ):
+        if "profilePhotoUrl" in payload and old_photo_url and old_photo_url != new_photo_url:
             from metropolis.services import uploads_service
 
             uploads_service.delete_user_avatar_file(user_id, old_photo_url)

@@ -85,4 +85,4 @@ docker compose exec backend alembic upgrade head
 curl http://localhost:5000/api/health
 ```
 
-More detail: [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/architecture-summary.md](docs/architecture-summary.md)
+[docs/architecture-summary.md](docs/architecture-summary.md)
