@@ -109,7 +109,10 @@ def _fetch_dashboard_analytics(cur, listing_where: str, params: tuple = ()) -> d
         SELECT
             COUNT(DISTINCT l.listing_id) AS listing_count,
             COUNT(DISTINCT l.listing_id) FILTER (
-              WHERE COALESCE(l.status, CASE WHEN l.active THEN 'ACTIVE' ELSE 'INACTIVE' END) = 'ACTIVE'
+              WHERE COALESCE(
+                l.status,
+                CASE WHEN l.active THEN 'ACTIVE' ELSE 'INACTIVE' END
+              ) = 'ACTIVE'
             ) AS active_listings,
             COUNT(DISTINCT b.booking_id) AS booking_count,
             COALESCE(
