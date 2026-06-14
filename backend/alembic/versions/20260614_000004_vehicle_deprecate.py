@@ -22,21 +22,8 @@ def upgrade() -> None:
         """
         ALTER TABLE vehicle_asset
           ADD COLUMN IF NOT EXISTS branch_id INT REFERENCES branch(branchid) ON DELETE SET NULL,
-          ADD COLUMN IF NOT EXISTS vehicle_class_id INT REFERENCES vehicleclass(classid) ON DELETE SET NULL,
           ADD COLUMN IF NOT EXISTS odometer_km INT CHECK (odometer_km IS NULL OR odometer_km >= 0),
           ADD COLUMN IF NOT EXISTS fleet_status VARCHAR(30)
-        """
-    )
-    op.execute(
-        """
-        UPDATE vehicle_asset va
-        SET
-          branch_id = COALESCE(va.branch_id, v.branchid),
-          vehicle_class_id = COALESCE(va.vehicle_class_id, v.classid),
-          odometer_km = COALESCE(va.odometer_km, v.mileage),
-          fleet_status = COALESCE(va.fleet_status, v.status)
-        FROM vehicle v
-        WHERE va.vin = v.vin
         """
     )
     op.execute(

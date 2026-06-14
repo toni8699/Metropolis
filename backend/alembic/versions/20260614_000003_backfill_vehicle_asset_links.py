@@ -31,11 +31,10 @@ def upgrade() -> None:
           'Company Fleet',
           CASE WHEN l.active THEN 'ACTIVE'::vehicle_asset_status
                ELSE 'ONBOARDING'::vehicle_asset_status END,
-          COALESCE(v.make, l.make, l.brand),
-          COALESCE(v.model, l.model),
+          l.make,
+          l.model,
           l.year
         FROM vehicle_listing l
-        LEFT JOIN vehicle v ON v.vin = l.fleet_vehicle_vin
         WHERE l.source_type = 'FLEET'
           AND l.fleet_vehicle_vin IS NOT NULL
         ON CONFLICT (vin) DO UPDATE
@@ -64,7 +63,7 @@ def upgrade() -> None:
           normalized_owner vehicle_owner_type;
         BEGIN
           FOR r IN
-            SELECT listing_id, owner_user_id, is_company_owned, active, make, brand, model, year
+            SELECT listing_id, owner_user_id, is_company_owned, active, make, model, year
             FROM vehicle_listing
             WHERE source_type = 'OWNER'
               AND vehicle_id IS NULL
@@ -92,7 +91,7 @@ def upgrade() -> None:
               CASE WHEN normalized_owner = 'COMPANY'::vehicle_owner_type THEN 'Company Managed' ELSE NULL END,
               CASE WHEN r.active THEN 'ACTIVE'::vehicle_asset_status
                    ELSE 'ONBOARDING'::vehicle_asset_status END,
-              COALESCE(r.make, r.brand),
+              r.make,
               r.model,
               r.year
             )

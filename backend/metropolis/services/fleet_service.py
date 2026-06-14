@@ -18,6 +18,13 @@ from metropolis.services.marketplace_common import (
     _upsert_listing_location,
 )
 
+_VEHICLE_CATEGORY_OPTIONS = [
+    {"vehicleCategory": "STANDARD", "name": "Standard"},
+    {"vehicleCategory": "LUXURY", "name": "Luxury"},
+    {"vehicleCategory": "TRUCK", "name": "Truck"},
+    {"vehicleCategory": "EV", "name": "EV"},
+]
+
 
 def _fleet_coords(city: str, vin: str) -> tuple[float, float]:
     city_key = (city or "").lower()
@@ -194,17 +201,7 @@ class FleetService:
                     for row in cur.fetchall()
                 ]
 
-                cur.execute(
-                    """
-                    SELECT classid, classname
-                    FROM vehicleclass
-                    ORDER BY classname ASC
-                    """
-                )
-                vehicle_classes = [
-                    {"vehicleClassId": row["classid"], "name": row["classname"]}
-                    for row in cur.fetchall()
-                ]
+                vehicle_classes = list(_VEHICLE_CATEGORY_OPTIONS)
 
         return {
             "status": "success",
@@ -215,18 +212,7 @@ class FleetService:
         }
 
     def list_vehicle_classes(self) -> list[dict]:
-        with get_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
-                SELECT classid, classname
-                FROM vehicleclass
-                ORDER BY classname ASC
-                """
-            )
-            return [
-                {"vehicleClassId": row["classid"], "name": row["classname"]}
-                for row in cur.fetchall()
-            ]
+        return list(_VEHICLE_CATEGORY_OPTIONS)
 
     def admin_bookings(self) -> dict:
         with get_connection() as conn:
@@ -262,8 +248,7 @@ class FleetService:
                       COALESCE(va.fleet_status, 'Available') AS status,
                       b.city,
                       a.areaName,
-                      va.branch_id,
-                      va.vehicle_class_id
+                      va.branch_id
                     FROM vehicle_asset va
                     JOIN Branch b ON b.branchID = va.branch_id
                     JOIN Area a ON a.areaID = b.areaID
@@ -323,18 +308,17 @@ class FleetService:
                         """
                         INSERT INTO vehicle_listing
                         (
-                          source_type, fleet_vehicle_vin, vehicle_id, title, brand, make, model, year,
+                          source_type, fleet_vehicle_vin, vehicle_id, title, make, model, year,
                           description, guidelines, pickup_notes_template, price_per_day, active,
                           is_company_owned
                         )
-                        VALUES ('FLEET', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE)
+                        VALUES ('FLEET', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE)
                         RETURNING listing_id
                         """,
                         (
                             row["vin"],
                             vehicle_id,
                             f"{row['make']} {row['model']} (Fleet)",
-                            row["make"],
                             row["make"],
                             row["model"],
                             None,

@@ -108,7 +108,9 @@ def _fetch_dashboard_analytics(cur, listing_where: str, params: tuple = ()) -> d
         f"""
         SELECT
             COUNT(DISTINCT l.listing_id) AS listing_count,
-            COUNT(DISTINCT l.listing_id) FILTER (WHERE l.active) AS active_listings,
+            COUNT(DISTINCT l.listing_id) FILTER (
+              WHERE COALESCE(l.status, CASE WHEN l.active THEN 'ACTIVE' ELSE 'INACTIVE' END) = 'ACTIVE'
+            ) AS active_listings,
             COUNT(DISTINCT b.booking_id) AS booking_count,
             COALESCE(
                 SUM((b.price_snapshot_json->>'pricePerDay')::numeric), 0
@@ -320,12 +322,12 @@ def _to_listing_row(
         "vehicleId": row.get("vehicle_id"),
         "sourceType": row["source_type"],
         "title": row["title"],
-        "brand": row.get("brand"),
+        "brand": row.get("make"),
         "make": row.get("make"),
         "model": row.get("model"),
         "year": row.get("year"),
         "mileage": row.get("mileage"),
-        "vehicleClassId": row.get("vehicle_class_id"),
+        "vehicleClassId": None,
         "description": row.get("description"),
         "guidelines": guidelines,
         "transmission": row.get("transmission"),

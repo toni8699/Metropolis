@@ -8,13 +8,6 @@ CREATE TABLE Area
   areaName VARCHAR(100) NOT NULL
 );
 
-CREATE TABLE VehicleClass
-(
-  classID INT NOT NULL PRIMARY KEY,
-  className VARCHAR(100) NOT NULL,
-  securityDeposit DECIMAL(10,2) NOT NULL
-);
-
 CREATE TABLE Branch
 (
   branchID INT NOT NULL PRIMARY KEY,
@@ -22,55 +15,7 @@ CREATE TABLE Branch
   phone_number VARCHAR(20),
   city VARCHAR(100),
   areaID INT NOT NULL,
-  managerID INT,
   FOREIGN KEY (areaID) REFERENCES Area(areaID)
-);
-
-CREATE TABLE Employee
-(
-  eID INT NOT NULL PRIMARY KEY,
-  name VARCHAR(150) NOT NULL,
-  salary DECIMAL(12,2),
-  branchID INT NOT NULL,
-  supervisorID INT,
-  FOREIGN KEY (branchID) REFERENCES Branch(branchID),
-  FOREIGN KEY (supervisorID) REFERENCES Employee(eID)
-);
-
-CREATE TABLE BranchManager
-(
-  eID INT NOT NULL PRIMARY KEY,
-  branchID INT NOT NULL UNIQUE,
-  FOREIGN KEY (eID) REFERENCES Employee(eID),
-  FOREIGN KEY (branchID) REFERENCES Branch(branchID)
-);
-
-ALTER TABLE Branch
-  ADD CONSTRAINT fk_branch_manager FOREIGN KEY (managerID) REFERENCES Employee(eID);
-
-CREATE TABLE Vehicle
-(
-  vin CHAR(17) NOT NULL PRIMARY KEY,
-  license_plate VARCHAR(20),
-  mileage INT,
-  model VARCHAR(100),
-  status VARCHAR(30),
-  make VARCHAR(50),
-  classID INT NOT NULL,
-  branchID INT NOT NULL,
-  FOREIGN KEY (classID) REFERENCES VehicleClass(classID),
-  FOREIGN KEY (branchID) REFERENCES Branch(branchID)
-);
-
-CREATE TABLE Relocation
-(
-  sourceAreaID INT NOT NULL,
-  targetAreaID INT NOT NULL,
-  fee DECIMAL(10,2) NOT NULL,
-  PRIMARY KEY (sourceAreaID, targetAreaID),
-  FOREIGN KEY (sourceAreaID) REFERENCES Area(areaID),
-  FOREIGN KEY (targetAreaID) REFERENCES Area(areaID),
-  CHECK (sourceAreaID <> targetAreaID)
 );
 
 -- Marketplace + auth extension (single-city launch schema)
@@ -101,6 +46,7 @@ CREATE TABLE app_user
   languages VARCHAR(150),
   work VARCHAR(100),
   is_approved_to_drive BOOLEAN NOT NULL DEFAULT FALSE,
+  is_admin BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -119,7 +65,6 @@ CREATE TABLE vehicle_listing
   fleet_vehicle_vin CHAR(17),
   source_type listing_source_type NOT NULL,
   title VARCHAR(120) NOT NULL,
-  brand VARCHAR(80),
   make VARCHAR(80),
   model VARCHAR(80),
   year INT,
@@ -129,9 +74,14 @@ CREATE TABLE vehicle_listing
   price_per_day DECIMAL(10,2) NOT NULL CHECK (price_per_day >= 0),
   photos_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   active BOOLEAN NOT NULL DEFAULT TRUE,
+  status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
   instant_book BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT vehicle_listing_status_active_consistency CHECK (
+    (status = 'ACTIVE' AND active = TRUE)
+    OR (status = 'INACTIVE' AND active = FALSE)
+  ),
   CHECK (
     (source_type = 'OWNER' AND owner_user_id IS NOT NULL AND fleet_vehicle_vin IS NULL) OR
     (source_type = 'FLEET' AND fleet_vehicle_vin IS NOT NULL)
@@ -252,7 +202,6 @@ CREATE TABLE vehicle_asset
   model VARCHAR(80),
   model_year INT,
   branch_id INT REFERENCES branch(branchid) ON DELETE SET NULL,
-  vehicle_class_id INT REFERENCES vehicleclass(classid) ON DELETE SET NULL,
   odometer_km INT CHECK (odometer_km IS NULL OR odometer_km >= 0),
   fleet_status VARCHAR(30),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

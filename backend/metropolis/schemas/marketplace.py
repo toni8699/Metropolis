@@ -75,6 +75,7 @@ class ListingUpdateSchema(ma.Schema):
     pricePerDay = ma.Float(required=False)
     photos = ma.List(ma.String(), required=False)
     active = ma.Boolean(required=False)
+    status = ma.String(required=False, allow_none=True)
     isCompanyOwned = ma.Boolean(required=False)
     lat = ma.Float(required=False, allow_none=True)
     lng = ma.Float(required=False, allow_none=True)

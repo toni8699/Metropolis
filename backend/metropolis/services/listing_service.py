@@ -21,6 +21,23 @@ from metropolis.services.marketplace_common import (
 
 
 class ListingService:
+    @staticmethod
+    def _apply_lifecycle_compat(payload: dict) -> dict:
+        normalized = dict(payload)
+        status_input = normalized.get("status")
+        has_status = status_input is not None and str(status_input).strip() != ""
+        if has_status:
+            status = str(status_input).strip().upper()
+            if status not in {"ACTIVE", "INACTIVE"}:
+                raise ValueError("status must be ACTIVE or INACTIVE.")
+            normalized["status"] = status
+            normalized["active"] = status == "ACTIVE"
+            return normalized
+
+        if "active" in normalized:
+            normalized["status"] = "ACTIVE" if bool(normalized.get("active")) else "INACTIVE"
+        return normalized
+
     def _can_manage_listing(self, actor: dict, listing: dict) -> bool:
         return bool(actor.get("isAdmin")) or listing.get("owner_user_id") == actor["userId"]
 
@@ -50,11 +67,10 @@ class ListingService:
         source_type = "OWNER"
 
         brand = payload.get("brand")
-        make = payload.get("make")
+        make = payload.get("make") or brand
         model = payload.get("model")
         year = payload.get("year")
         mileage = payload.get("mileage")
-        vehicle_class_id = payload.get("vehicleClassId")
         transmission = payload.get("transmission")
         fuel_type = payload.get("fuelType")
         seats = payload.get("seats")
@@ -67,8 +83,6 @@ class ListingService:
         guidelines = _resolve_guidelines(payload)
         if mileage is not None:
             mileage = int(mileage)
-        if vehicle_class_id is not None:
-            vehicle_class_id = int(vehicle_class_id)
         if seats is not None:
             seats = int(seats)
         if doors is not None:
@@ -87,7 +101,7 @@ class ListingService:
             features = []
         title = payload.get("title")
         if not title:
-            parts = [p for p in [brand, make, model, str(year) if year else None] if p]
+            parts = [p for p in [make, model, str(year) if year else None] if p]
             title = " ".join(parts) if parts else "User listed car"
 
         try:
@@ -166,18 +180,6 @@ class ListingService:
                             "status": "validation_error",
                             "message": "mileage is required for company-owned listings.",
                         }
-                    if vehicle_class_id is None:
-                        return {
-                            "status": "validation_error",
-                            "message": "vehicleClassId is required for company-owned listings.",
-                        }
-                    cur.execute(
-                        "SELECT classid FROM vehicleclass WHERE classid = %s",
-                        (int(vehicle_class_id),),
-                    )
-                    if not cur.fetchone():
-                        return {"status": "validation_error", "message": "Invalid vehicleClassId."}
-
                 cur.execute(
                     """
                     INSERT INTO owner_profile (user_id, verification_status)
@@ -218,7 +220,7 @@ class ListingService:
                         owner_user_id,
                         owner_party_name,
                         asset_status,
-                        make or brand,
+                        make,
                         model,
                         year,
                     ),
@@ -229,15 +231,15 @@ class ListingService:
                     """
                     INSERT INTO vehicle_listing
                     (
-                      owner_user_id, created_by_user_id, vehicle_id, source_type, title, brand,
-                      make, model, year, mileage, vehicle_class_id,
+                      owner_user_id, created_by_user_id, vehicle_id, source_type, title, make,
+                      model, year, mileage,
                       description, guidelines, transmission, fuel_type, seats, doors,
                       features, pickup_notes_template, price_per_day, active, status,
                       is_company_owned, instant_book, location_source_type, branch_id,
                       parking_spot_id, pickup_address
                     )
                     VALUES (
-                      %s, %s, %s, %s::listing_source_type, %s, %s, %s, %s, %s, %s, %s,
+                      %s, %s, %s, %s::listing_source_type, %s, %s, %s, %s, %s,
                       %s, %s, %s, %s, %s, %s, %s::jsonb,
                       %s, %s, TRUE, 'ACTIVE',
                       %s, %s, %s, %s, %s, %s
@@ -250,12 +252,10 @@ class ListingService:
                         vehicle_id,
                         source_type,
                         title,
-                        brand,
                         make,
                         model,
                         year,
                         mileage,
-                        vehicle_class_id,
                         payload.get("description"),
                         guidelines,
                         transmission,
@@ -382,7 +382,7 @@ class ListingService:
         return {"status": "success", "listings": listings}
 
     def search_listings(self, query: dict) -> dict:
-        clauses = ["l.active = TRUE"]
+        clauses = ["COALESCE(l.status, 'ACTIVE') = 'ACTIVE'"]
         params: list = []
         if query.get("cityZone"):
             clauses.append("loc.city_zone = %s")
@@ -414,17 +414,21 @@ class ListingService:
         return {"status": "success", "listings": listings}
 
     def update_listing(self, actor: dict, listing_id: int, payload: dict) -> dict:
+        try:
+            payload = self._apply_lifecycle_compat(payload)
+        except ValueError as exc:
+            return {"status": "validation_error", "message": str(exc)}
         if "rules" in payload and "guidelines" not in payload:
             payload = {**payload, "guidelines": payload["rules"]}
+        if "make" not in payload and payload.get("brand") is not None:
+            payload = {**payload, "make": payload.get("brand")}
 
         vehicle_mapping = {
             "title": "title",
-            "brand": "brand",
             "make": "make",
             "model": "model",
             "year": "year",
             "mileage": "mileage",
-            "vehicleClassId": "vehicle_class_id",
             "description": "description",
             "guidelines": "guidelines",
             "transmission": "transmission",
@@ -436,6 +440,7 @@ class ListingService:
             "pickupAddress": "pickup_address",
             "pricePerDay": "price_per_day",
             "active": "active",
+            "status": "status",
             "isCompanyOwned": "is_company_owned",
             "instantBook": "instant_book",
         }

@@ -153,13 +153,6 @@ def _ensure_fleet_listing(host_user_id: int) -> int:
             )
             cur.execute(
                 """
-                INSERT INTO vehicleclass (classid, classname, securitydeposit)
-                VALUES (99001, 'CI Class', 0)
-                ON CONFLICT (classid) DO NOTHING
-                """
-            )
-            cur.execute(
-                """
                 INSERT INTO branch (branchid, areaid, city)
                 VALUES (99001, 99001, 'Montreal')
                 ON CONFLICT (branchid) DO NOTHING
@@ -167,22 +160,48 @@ def _ensure_fleet_listing(host_user_id: int) -> int:
             )
             cur.execute(
                 """
-                INSERT INTO vehicle (vin, classid, branchid, status, make, model)
-                VALUES (%s, 99001, 99001, 'Available', 'Fleet', 'Sedan')
-                ON CONFLICT (vin) DO NOTHING
+                INSERT INTO vehicle_asset (
+                  vin,
+                  vehicle_category,
+                  owner_type,
+                  owner_party_name,
+                  asset_status,
+                  make,
+                  model,
+                  branch_id,
+                  fleet_status
+                )
+                VALUES (
+                  %s,
+                  'STANDARD'::vehicle_category,
+                  'COMPANY'::vehicle_owner_type,
+                  'Company Fleet',
+                  'ACTIVE'::vehicle_asset_status,
+                  'Fleet',
+                  'Sedan',
+                  99001,
+                  'Available'
+                )
+                ON CONFLICT (vin) DO UPDATE
+                SET
+                  branch_id = EXCLUDED.branch_id,
+                  fleet_status = EXCLUDED.fleet_status,
+                  asset_status = EXCLUDED.asset_status
                 """,
                 (fleet_vin,),
             )
+            cur.execute("SELECT vehicle_id FROM vehicle_asset WHERE vin = %s", (fleet_vin,))
+            vehicle_id = int(cur.fetchone()[0])
             cur.execute(
                 """
                 INSERT INTO vehicle_listing (
-                  owner_user_id, source_type, fleet_vehicle_vin, title,
+                  owner_user_id, vehicle_id, source_type, fleet_vehicle_vin, title,
                   price_per_day, active, is_company_owned, instant_book
                 )
-                VALUES (%s, 'FLEET', %s, %s, 60.00, TRUE, TRUE, TRUE)
+                VALUES (%s, %s, 'FLEET', %s, %s, 60.00, TRUE, TRUE, TRUE)
                 RETURNING listing_id
                 """,
-                (host_user_id, fleet_vin, f"CI Fleet {uuid.uuid4().hex[:6]}"),
+                (host_user_id, vehicle_id, fleet_vin, f"CI Fleet {uuid.uuid4().hex[:6]}"),
             )
             listing_id = int(cur.fetchone()[0])
             cur.execute(

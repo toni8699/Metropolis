@@ -56,10 +56,7 @@ def upgrade() -> None:
 
     # Re-apply historical SQL deltas that are not fully reflected in schema.sql.
     for sql_file in (
-        "002_listing_vehicle_fields.sql",
         "003_s3_assets_and_regions.sql",
-        "004_multi_role_rbac.sql",
-        "005_simplify_rbac_to_user_admin.sql",
         "006_company_location_sources.sql",
         "007_listing_vehicle_specs.sql",
         "008_listing_rich_details.sql",
@@ -70,6 +67,40 @@ def upgrade() -> None:
         "013_listing_instant_book_pending_approval.sql",
     ):
         op.execute(_read_migration_sql(sql_file))
+
+    # Keep only simplified role and ownership columns (without legacy RBAC/org tables).
+    op.execute(
+        """
+        ALTER TABLE app_user
+          ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE
+        """
+    )
+    op.execute(
+        """
+        UPDATE app_user
+        SET is_admin = TRUE
+        WHERE role = 'ADMIN'
+        """
+    )
+    op.execute(
+        """
+        ALTER TABLE vehicle_listing
+          ADD COLUMN IF NOT EXISTS created_by_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
+          ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+          ADD COLUMN IF NOT EXISTS is_company_owned BOOLEAN NOT NULL DEFAULT FALSE
+        """
+    )
+    op.execute(
+        """
+        UPDATE vehicle_listing
+        SET
+          created_by_user_id = COALESCE(created_by_user_id, owner_user_id),
+          is_company_owned = CASE
+            WHEN source_type = 'FLEET' OR owner_user_id IS NULL THEN TRUE
+            ELSE is_company_owned
+          END
+        """
+    )
 
     # Trip chat tables.
     op.execute(
