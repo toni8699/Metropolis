@@ -15,6 +15,8 @@ class BookingPatchSchema(ma.Schema):
             "description": "CONFIRMED, CANCELLED, IN_PROGRESS, or COMPLETED.",
         },
     )
+
+
 class BookingListSchema(ma.Schema):
     scope = ma.String(
         required=True,
