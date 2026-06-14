@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { CheckCircle2, Circle, Loader2, Star } from "lucide-react";
 import AvatarCropModal from "@/shared/components/AvatarCropModal";
 import UserAvatar from "@/shared/components/UserAvatar";
+import BodyCard from "@/shared/components/BodyCard";
 import { useAuth } from "@/context/AuthContext";
 import { uploadProfilePhoto } from "@/shared/lib/uploadProfilePhoto";
 
@@ -153,7 +154,7 @@ export default function AccountSettingsPage() {
   const averageRating = user?.averageRating;
 
   return (
-    <div className="mx-auto max-w-6xl rounded-[2rem] border-4 border-black bg-[#f5f5d0] px-5 py-8 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)] md:px-7">
+    <BodyCard className="mx-auto max-w-6xl px-5 py-8 md:px-7">
       <nav aria-label="Breadcrumb" className="mb-6 text-sm text-gray-500">
         <Link to="/" className="hover:text-gray-700">
           Home
@@ -373,6 +374,6 @@ export default function AccountSettingsPage() {
         onApply={handleCropApply}
         isApplying={isUploadingPhoto}
       />
-    </div>
+    </BodyCard>
   );
 }

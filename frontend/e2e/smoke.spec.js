@@ -17,7 +17,7 @@ async function registerUser(request, prefix) {
 }
 
 async function createSmokeListing(request, hostToken) {
-  const resp = await request.post(`${apiURL}/api/owner/listings`, {
+  const resp = await request.post(`${apiURL}/api/listings`, {
     headers: { Authorization: `Bearer ${hostToken}` },
     data: {
       title: `E2E Smoke ${Date.now()}`,
@@ -65,7 +65,7 @@ test.describe("VROOM smoke", () => {
     const booking = (await bookingResp.json()).booking;
     expect(booking.status).toBe("PENDING");
 
-    const payResp = await request.post(`${apiURL}/api/bookings/${booking.bookingId}/payment-intent`, {
+    const payResp = await request.post(`${apiURL}/api/bookings/${booking.bookingId}/payments`, {
       headers: { Authorization: `Bearer ${renter.token}` },
     });
     expect(payResp.ok()).toBeTruthy();

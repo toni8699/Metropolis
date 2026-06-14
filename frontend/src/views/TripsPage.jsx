@@ -23,7 +23,7 @@ export default function TripsPage() {
     setError("");
     setIsLoading(true);
     try {
-      const data = await apiGet("/api/bookings/mine", true);
+      const data = await apiGet("/api/bookings?scope=mine", true);
       setTrips(data?.bookings || []);
     } catch (err) {
       setTrips([]);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import CarGrid from "@/shared/components/CarGrid";
 import SearchResultsView from "@/features/browse/components/SearchResultsView";
+import BodyCard from "@/shared/components/BodyCard";
 import { apiGet } from "@/shared/api/api";
 import { getUserLocation, haversineKm } from "@/shared/lib/location";
 
@@ -35,7 +36,7 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
       params.set("radius", "50");
     }
     const query = params.toString();
-    return query ? `/api/market/listings?${query}` : "/api/market/listings";
+    return query ? `/api/listings?${query}` : "/api/listings";
   }, [hasSearched, searchParams]);
 
   useEffect(() => {
@@ -143,7 +144,7 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
         isLoading={isLoading}
       />
     ) : (
-      <div className="relative space-y-5 overflow-hidden rounded-[2rem] border-2 border-black bg-[#f5f5d0] px-6 py-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+      <BodyCard className="relative space-y-5 overflow-hidden px-6 py-6">
         <div className="pointer-events-none absolute -left-12 -top-12 h-28 w-28 rounded-full bg-[#E34B31]/20" />
         <div className="pointer-events-none absolute -bottom-10 right-10 h-24 w-24 rounded-full bg-[#183B1E]/15" />
         <h2 className="relative text-2xl font-extrabold text-[#183B1E]">
@@ -162,7 +163,7 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
         ) : (
           <CarGrid cars={cars} />
         )}
-      </div>
+      </BodyCard>
     )
   );
 }
