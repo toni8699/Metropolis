@@ -186,7 +186,7 @@ def create_booking_payment(booking_id: int):
     }
 )
 def list_booking_messages(booking_id: int):
-    """List chat messages for a booking (renter or host only)."""
+    """Return the complete booking chat thread (created_at ASC, no pagination)."""
     try:
         result = message_service.list_booking_messages(
             booking_id,

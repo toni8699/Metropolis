@@ -54,12 +54,50 @@ class MessageService:
             "createdAt": row["created_at"].isoformat(),
         }
 
+    def _upsert_chat_read_state(
+        self,
+        cur,
+        booking_id: int,
+        user_id: int,
+        last_message_id: int,
+    ) -> None:
+        cur.execute(
+            """
+            INSERT INTO booking_chat_state (booking_id, user_id, last_read_message_id, last_read_at)
+            VALUES (%s, %s, %s, NOW())
+            ON CONFLICT (booking_id, user_id)
+            DO UPDATE SET
+                last_read_message_id = EXCLUDED.last_read_message_id,
+                last_read_at = NOW()
+            """,
+            (booking_id, user_id, last_message_id),
+        )
+
+    def _unread_count_sql(self) -> str:
+        return """
+            (
+              SELECT COUNT(*)::int
+              FROM booking_message um
+              WHERE um.booking_id = b.booking_id
+                AND um.sender_id != %s
+                AND (
+                  cs.last_read_message_id IS NULL
+                  OR um.message_id > cs.last_read_message_id
+                )
+            )
+        """
+
     def list_booking_messages(
         self,
         booking_id: int,
         requester_user_id: int,
         requester_is_admin: bool,
     ) -> dict:
+        """Return the full booking thread ordered by created_at ASC.
+
+        Intentionally unpaginated: marketplace trip chats stay small.
+        Uses idx_booking_message_booking_created (booking_id, created_at).
+        """
         access = self.assert_booking_participant(booking_id, requester_user_id, requester_is_admin)
         if access["status"] != "ok":
             return access
@@ -83,6 +121,15 @@ class MessageService:
                     (booking_id,),
                 )
                 rows = cur.fetchall()
+
+                if rows:
+                    self._upsert_chat_read_state(
+                        cur,
+                        booking_id,
+                        requester_user_id,
+                        rows[-1]["message_id"],
+                    )
+                conn.commit()
 
         return {
             "status": "ok",
@@ -150,10 +197,11 @@ class MessageService:
         }
 
     def list_message_threads(self, user_id: int) -> dict:
+        unread_sql = self._unread_count_sql()
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
-                    """
+                    f"""
                     SELECT
                       b.booking_id,
                       b.listing_id,
@@ -172,12 +220,15 @@ class MessageService:
                       renter.full_name AS renter_name,
                       renter.email AS renter_email,
                       lm.message_text AS latest_message_text,
-                      lm.created_at AS latest_message_at
+                      lm.created_at AS latest_message_at,
+                      {unread_sql} AS unread_count
                     FROM booking b
                     JOIN vehicle_listing l ON l.listing_id = b.listing_id
                     LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
                     LEFT JOIN app_user host ON host.user_id = l.owner_user_id
                     LEFT JOIN app_user renter ON renter.user_id = b.renter_user_id
+                    LEFT JOIN booking_chat_state cs
+                      ON cs.booking_id = b.booking_id AND cs.user_id = %s
                     INNER JOIN LATERAL (
                       SELECT message_text, created_at
                       FROM booking_message
@@ -188,7 +239,7 @@ class MessageService:
                     WHERE b.renter_user_id = %s OR l.owner_user_id = %s
                     ORDER BY lm.created_at DESC, b.booking_id DESC
                     """,
-                    (user_id, user_id),
+                    (user_id, user_id, user_id, user_id),
                 )
                 rows = cur.fetchall()
                 listing_ids = list({row["listing_id"] for row in rows})
@@ -241,6 +292,7 @@ class MessageService:
                 }
             else:
                 continue
+            thread["unreadCount"] = int(row.get("unread_count") or 0)
             threads.append(thread)
 
         return {"status": "ok", "threads": threads}

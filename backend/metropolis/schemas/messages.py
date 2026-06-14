@@ -61,6 +61,7 @@ class MessageThreadSchema(ma.Schema):
     listing = ma.Nested(ThreadListingSchema, required=True)
     pricing = ma.Nested(ThreadPricingSchema, required=True)
     latestMessage = ma.Nested(ThreadLatestMessageSchema, allow_none=True)
+    unreadCount = ma.Integer(required=True)
 
 
 class MessageThreadCollectionSchema(ma.Schema):

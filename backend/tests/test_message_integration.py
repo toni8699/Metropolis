@@ -147,3 +147,84 @@ def test_unauthenticated_cannot_read_messages():
 
     resp = _api("GET", f"/api/bookings/{booking_id}/messages")
     assert resp.status_code == 401, resp.text
+
+
+def _post_message(token: str, booking_id: int, text: str):
+    return _api(
+        "POST",
+        f"/api/bookings/{booking_id}/messages",
+        token=token,
+        json={"messageText": text},
+    )
+
+
+def _get_threads(token: str):
+    return _api("GET", "/api/messages/threads", token=token)
+
+
+def _thread_for_booking(body: dict, booking_id: int) -> dict | None:
+    for thread in body.get("threads", []):
+        if int(thread["bookingId"]) == booking_id:
+            return thread
+    return None
+
+
+def test_unread_count_before_and_after_mark_read():
+    host_token, _ = _register("msg-unread-host")
+    renter_token, _ = _register("msg-unread-renter")
+    listing_id = _create_listing(host_token)
+    booking_id = _create_paid_booking(renter_token, listing_id)
+
+    assert _post_message(renter_token, booking_id, "First unread").status_code in (200, 201)
+    assert _post_message(renter_token, booking_id, "Second unread").status_code in (200, 201)
+
+    threads_before = _get_threads(host_token)
+    assert threads_before.status_code == 200, threads_before.text
+    thread_before = _thread_for_booking(threads_before.json(), booking_id)
+    assert thread_before is not None
+    assert thread_before["unreadCount"] == 2
+
+    load = _api("GET", f"/api/bookings/{booking_id}/messages", token=host_token)
+    assert load.status_code == 200, load.text
+
+    threads_after = _get_threads(host_token)
+    assert threads_after.status_code == 200, threads_after.text
+    thread_after = _thread_for_booking(threads_after.json(), booking_id)
+    assert thread_after is not None
+    assert thread_after["unreadCount"] == 0
+
+
+def test_own_messages_are_not_counted_as_unread():
+    host_token, _ = _register("msg-own-host")
+    renter_token, _ = _register("msg-own-renter")
+    listing_id = _create_listing(host_token)
+    booking_id = _create_paid_booking(renter_token, listing_id)
+
+    assert _post_message(renter_token, booking_id, "From renter").status_code in (200, 201)
+    load = _api("GET", f"/api/bookings/{booking_id}/messages", token=renter_token)
+    assert load.status_code == 200, load.text
+
+    threads = _get_threads(renter_token)
+    assert threads.status_code == 200, threads.text
+    thread = _thread_for_booking(threads.json(), booking_id)
+    assert thread is not None
+    assert thread["unreadCount"] == 0
+
+
+def test_new_message_increments_unread_after_read():
+    host_token, _ = _register("msg-new-host")
+    renter_token, _ = _register("msg-new-renter")
+    listing_id = _create_listing(host_token)
+    booking_id = _create_paid_booking(renter_token, listing_id)
+
+    assert _post_message(renter_token, booking_id, "Initial").status_code in (200, 201)
+    load = _api("GET", f"/api/bookings/{booking_id}/messages", token=host_token)
+    assert load.status_code == 200, load.text
+
+    assert _post_message(renter_token, booking_id, "Follow-up").status_code in (200, 201)
+
+    threads = _get_threads(host_token)
+    assert threads.status_code == 200, threads.text
+    thread = _thread_for_booking(threads.json(), booking_id)
+    assert thread is not None
+    assert thread["unreadCount"] == 1

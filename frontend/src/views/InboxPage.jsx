@@ -31,6 +31,7 @@ function ConversationListItem({ thread, isActive, onSelect }) {
   const timestamp = thread.latestMessage?.createdAt
     ? formatInboxMessageTime(thread.latestMessage.createdAt)
     : "";
+  const unreadCount = Number(thread.unreadCount || 0);
 
   return (
     <button
@@ -44,7 +45,14 @@ function ConversationListItem({ thread, isActive, onSelect }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <p className="truncate font-semibold text-gray-900">{otherName}</p>
-          {timestamp && <span className="shrink-0 text-xs text-gray-500">{timestamp}</span>}
+          <div className="flex shrink-0 items-center gap-2">
+            {unreadCount > 0 && (
+              <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#E34B31] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+            {timestamp && <span className="text-xs text-gray-500">{timestamp}</span>}
+          </div>
         </div>
         <p className="mt-0.5 truncate text-sm text-gray-600">{snippet}</p>
         <p className="mt-1 truncate text-xs text-gray-500">
@@ -163,10 +171,21 @@ export default function InboxPage() {
 
   const handleThreadMessage = useCallback((message) => {
     setThreads((prev) => {
+      const msgBookingId = Number(message.bookingId);
+      const isFromMe = Number(message.senderId) === Number(user?.userId);
+      const isActiveThread = Number(selectedBookingId) === msgBookingId;
+
       const next = prev.map((thread) => {
-        if (thread.bookingId !== message.bookingId) return thread;
+        if (thread.bookingId !== msgBookingId) return thread;
+        let unreadCount = Number(thread.unreadCount || 0);
+        if (isActiveThread) {
+          unreadCount = 0;
+        } else if (!isFromMe) {
+          unreadCount += 1;
+        }
         return {
           ...thread,
+          unreadCount,
           latestMessage: {
             messageText: message.messageText,
             createdAt: message.createdAt,
@@ -179,7 +198,7 @@ export default function InboxPage() {
         return bt - at;
       });
     });
-  }, []);
+  }, [selectedBookingId, user?.userId]);
 
   const {
     messages,
@@ -195,6 +214,11 @@ export default function InboxPage() {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, selectedBookingId]);
+
+  useEffect(() => {
+    if (!selectedBookingId || isLoadingMessages) return;
+    loadThreads();
+  }, [selectedBookingId, isLoadingMessages, loadThreads]);
 
   const selectThread = (bookingId) => {
     setSearchParams({ booking: String(bookingId) });
@@ -223,7 +247,7 @@ export default function InboxPage() {
   const otherName = selectedThread?.otherParty?.name || "Guest";
 
   return (
-    <BodyCard className="grid min-h-[calc(100vh-16rem)] grid-cols-1 overflow-hidden md:grid-cols-12">
+    <BodyCard className="grid h-[calc(100dvh-16rem)] max-h-[calc(100dvh-16rem)] grid-cols-1 grid-rows-1 overflow-hidden md:grid-cols-12">
       <aside
         className={`col-span-12 flex min-h-0 flex-col border-r-2 border-black md:col-span-3 ${
           mobilePane === "chat" ? "hidden md:flex" : "flex"
