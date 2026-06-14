@@ -58,7 +58,7 @@ Service modules: `auth_service`, `marketplace_service`, `booking_service`, `paym
 
 Neon PostgreSQL. Hybrid schema: legacy fleet tables (`area`, `branch`, `vehicle`, `employee`) plus marketplace tables (`app_user`, `vehicle_listing`, `booking`, `payment`, `review`, …).
 
-Migrations are managed by **Alembic** (`backend/alembic/versions/`). The `db/migrations/` folder contains historical SQL files (read-only — do not modify).
+Migrations are managed by **Alembic** (`backend/alembic/versions/`) from a fresh single baseline (`000001_new_base`). The `db/migrations/` folder contains read-only SQL fragments consumed by that baseline revision.
 
 For details, see [architecture-diagrams.md](architecture-diagrams.md).
 

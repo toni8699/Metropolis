@@ -52,7 +52,7 @@ docker compose exec backend alembic upgrade head
 # (copy current schema.sql from db)
 ```
 
-The `db/migrations/` folder contains historical numbered SQL files — treat as read-only history. All new migrations go through `backend/alembic/versions/`.
+The `db/migrations/` folder contains read-only SQL fragments used by the fresh baseline revision (`000001_new_base`). All new migrations go through `backend/alembic/versions/`.
 
 ---
 

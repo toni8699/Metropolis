@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from alembic import op
+from sqlalchemy import text
 
 revision: str = "000001_new_base"
 down_revision: str | None = None
@@ -36,9 +37,21 @@ def _read_migration_sql(filename: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _table_exists(table_name: str) -> bool:
+    bind = op.get_bind()
+    row = bind.execute(
+        text("SELECT to_regclass(:name)"),
+        {"name": f"public.{table_name}"},
+    ).scalar()
+    return row is not None
+
+
 def upgrade() -> None:
     # Base schema snapshot (fleet + marketplace core).
-    op.execute(_read_schema_sql())
+    # In CI/hosting, some environments may already have legacy tables created
+    # outside Alembic; skip raw base bootstrap in that case to avoid duplicates.
+    if not _table_exists("area"):
+        op.execute(_read_schema_sql())
 
     # Re-apply historical SQL deltas that are not fully reflected in schema.sql.
     for sql_file in (

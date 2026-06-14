@@ -396,4 +396,4 @@ erDiagram
 | Stripe webhook | `backend/metropolis/api/webhooks.py` |
 | Base schema | `db/schema.sql` |
 | Active migrations | `backend/alembic/versions/` |
-| Historical SQL migrations | `db/migrations/` (read-only history) |
+| Baseline SQL fragments | `db/migrations/` (read-only inputs used by Alembic baseline) |

@@ -59,7 +59,7 @@ edit code  →  docker compose up  →  lint / test  →  PR  →  merge main  �
 
 - **Local:** hot reload via compose volumes. Restart backend after env or dependency changes.
 - **Prod:** push to `main` deploys backend (Render via GHCR) and frontend (Vercel). Secrets live in Render / Vercel / GitHub — not in the repo.
-- **DB:** schema change → Alembic revision → `docker compose exec backend alembic upgrade head` → update `db/schema.sql`.
+- **DB:** schema change → Alembic revision (from fresh baseline) → `docker compose exec backend alembic upgrade head` → update `db/schema.sql` when model shape changes.
 
 ### 3. Commands
 
@@ -80,6 +80,8 @@ docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 -e RATELIMIT_EN
 
 # Migrations
 docker compose exec backend alembic upgrade head
+# Optional fresh reset for mock/local DB
+docker compose exec backend alembic downgrade base && docker compose exec backend alembic upgrade head
 
 # Health
 curl http://localhost:5000/api/health

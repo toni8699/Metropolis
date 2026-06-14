@@ -1,10 +1,12 @@
-# db/migrations — Historical SQL (read-only)
+# db/migrations — Baseline SQL fragments (read-only)
 
-These numbered `.sql` files (`000_initial_clean.sql` through `014_*.sql`) are a **read-only historical record** of the schema evolution before Alembic was adopted.
+These numbered `.sql` files are read by the Alembic fresh baseline revision
+(`backend/alembic/versions/20260614_000001_new_base.py`) to reconstruct the
+current schema from scratch.
 
 **Do not add new migration files here.**
 
-All schema changes must go through **Alembic**:
+All new schema changes must go through **Alembic**:
 
 ```bash
 # Create a new revision
