@@ -1,21 +1,39 @@
-# db/migrations — Baseline SQL fragments (read-only)
+# db/migrations — archived history
 
-These numbered `.sql` files are read by the Alembic fresh baseline revision
-(`backend/alembic/versions/20260614_000001_new_base.py`) to reconstruct the
-current schema from scratch.
+Historical numbered `.sql` fragments lived here before the schema was squashed
+into a single canonical snapshot at `db/schema.sql`.
 
-**Do not add new migration files here.**
+Those files are kept under `archive/` for reference only. **Do not add new
+migration files here.**
 
-All new schema changes must go through **Alembic**:
+## How schema changes work now
+
+1. **Fresh database** — `alembic upgrade head` runs `db/schema.sql` once.
+2. **Incremental change** — add a new Alembic revision under
+   `backend/alembic/versions/`.
+3. **After applying** — update `db/schema.sql` so the snapshot matches live
+   schema.
 
 ```bash
 # Create a new revision
 docker compose exec backend alembic revision -m "describe_change"
 
-# Apply all pending migrations
+# Apply pending migrations
 docker compose exec backend alembic upgrade head
 ```
 
-Active migration files live in `backend/alembic/versions/`.
+## Existing databases (already on old path)
 
-The current full schema snapshot is in `db/schema.sql`.
+If your DB already has tables and `alembic_version = 000001_new_base`, you
+need no action — the squashed baseline is the same revision id with a simpler
+body.
+
+If you want a clean slate locally:
+
+```bash
+# destructive — drops all data
+docker compose exec backend alembic downgrade base
+docker compose exec backend alembic upgrade head
+```
+
+Or reset Neon / local Postgres and run `alembic upgrade head` only.

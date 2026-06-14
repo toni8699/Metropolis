@@ -77,7 +77,7 @@ class ListingService:
         doors = payload.get("doors")
         features = payload.get("features")
         image_urls = _listing_image_urls(payload)
-        address = payload.get("address")
+        address = payload.get("pickupAddress")
         latitude = payload.get("latitude")
         longitude = payload.get("longitude")
         guidelines = _resolve_guidelines(payload)
@@ -120,9 +120,8 @@ class ListingService:
                         location_source_type = location["locationSourceType"]
                         branch_id = location["branchId"]
                         parking_spot_id = location["parkingSpotId"]
-                        address = address or location_address
-                        latitude = latitude if latitude is not None else lat
-                        longitude = longitude if longitude is not None else lng
+                        if address is None:
+                            address = location_address
                     else:
                         lat = payload.get("lat")
                         lng = payload.get("lng")
@@ -141,7 +140,7 @@ class ListingService:
                             }
                         lat = float(lat)
                         lng = float(lng)
-                        location_address = payload.get("pickupAddress") or payload.get("rawAddress") or address
+                        location_address = payload.get("pickupAddress")
                         location_source_type = None
                         branch_id = None
                         parking_spot_id = None
@@ -160,14 +159,12 @@ class ListingService:
                             "status": "validation_error",
                             "message": "lat, lng, and cityZone required for user-owned listings.",
                         }
-                    location_address = payload.get("pickupAddress") or payload.get("rawAddress") or address
+                    location_address = payload.get("pickupAddress")
                     location_source_type = None
                     branch_id = None
                     parking_spot_id = None
-                    if latitude is None:
-                        latitude = float(lat)
-                    if longitude is None:
-                        longitude = float(lng)
+                    if address is None:
+                        address = location_address
 
                 if is_company_owned:
                     if not make or not model:
@@ -226,7 +223,7 @@ class ListingService:
                     ),
                 )
                 vehicle_id = cur.fetchone()["vehicle_id"]
-                raw_address = address or location_address
+                pickup_address = address or location_address
                 cur.execute(
                     """
                     INSERT INTO vehicle_listing
@@ -279,7 +276,7 @@ class ListingService:
                     lat=float(lat),
                     lng=float(lng),
                     city_zone=city_zone,
-                    raw_address=raw_address,
+                    pickup_address=pickup_address,
                 )
                 if image_urls:
                     _associate_listing_image_urls(cur, listing_id, image_urls, owner_user_id)
@@ -454,10 +451,8 @@ class ListingService:
             "lat",
             "lng",
             "cityZone",
-            "address",
             "latitude",
             "longitude",
-            "rawAddress",
             "pickupAddress",
         }
         has_location_update = any(key in payload for key in location_keys)
@@ -489,7 +484,7 @@ class ListingService:
                 if has_location_update:
                     cur.execute(
                         """
-                        SELECT lat, lng, city_zone, raw_address
+                        SELECT lat, lng, city_zone, pickup_address
                         FROM listing_location
                         WHERE listing_id = %s
                         """,
@@ -499,10 +494,7 @@ class ListingService:
                     lat = payload.get("lat", payload.get("latitude"))
                     lng = payload.get("lng", payload.get("longitude"))
                     city_zone = payload.get("cityZone")
-                    raw_address = payload.get(
-                        "rawAddress",
-                        payload.get("pickupAddress", payload.get("address")),
-                    )
+                    pickup_address = payload.get("pickupAddress")
 
                     if lat is None and current_location:
                         lat = current_location["lat"]
@@ -510,8 +502,8 @@ class ListingService:
                         lng = current_location["lng"]
                     if city_zone is None and current_location:
                         city_zone = current_location["city_zone"]
-                    if raw_address is None and current_location:
-                        raw_address = current_location["raw_address"]
+                    if pickup_address is None and current_location:
+                        pickup_address = current_location["pickup_address"]
 
                     if lat is None or lng is None or not city_zone:
                         return {
@@ -527,7 +519,7 @@ class ListingService:
                         lat=float(lat),
                         lng=float(lng),
                         city_zone=str(city_zone),
-                        raw_address=raw_address,
+                        pickup_address=pickup_address,
                     )
                     cur.execute(
                         "UPDATE vehicle_listing SET updated_at = %s WHERE listing_id = %s",
@@ -561,7 +553,7 @@ class ListingService:
                     lat=float(payload["lat"]),
                     lng=float(payload["lng"]),
                     city_zone=str(payload["cityZone"]),
-                    raw_address=payload.get("rawAddress", payload.get("address")),
+                    pickup_address=payload.get("pickupAddress"),
                 )
                 cur.execute(
                     "UPDATE vehicle_listing SET updated_at = %s WHERE listing_id = %s",

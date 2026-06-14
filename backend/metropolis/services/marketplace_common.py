@@ -11,7 +11,7 @@ LISTING_SELECT_SQL = """
            loc.lng,
            loc.geohash,
            loc.city_zone,
-           loc.raw_address,
+           loc.pickup_address,
            u.full_name AS owner_name,
            u.profile_photo_url AS owner_profile_photo_url
     FROM vehicle_listing l
@@ -257,12 +257,12 @@ def _upsert_listing_location(
     lat: float,
     lng: float,
     city_zone: str,
-    raw_address: str | None,
+    pickup_address: str | None,
 ) -> None:
     cur.execute(
         """
         INSERT INTO listing_location (
-            listing_id, lat, lng, geohash, city_zone, raw_address, last_parked_at
+            listing_id, lat, lng, geohash, city_zone, pickup_address, last_parked_at
         )
         VALUES (%s, %s, %s, %s, %s, %s, NOW())
         ON CONFLICT (listing_id) DO UPDATE
@@ -270,7 +270,9 @@ def _upsert_listing_location(
             lng = EXCLUDED.lng,
             geohash = EXCLUDED.geohash,
             city_zone = EXCLUDED.city_zone,
-            raw_address = COALESCE(EXCLUDED.raw_address, listing_location.raw_address),
+            pickup_address = COALESCE(
+                EXCLUDED.pickup_address, listing_location.pickup_address
+            ),
             last_parked_at = NOW()
         """,
         (
@@ -279,7 +281,7 @@ def _upsert_listing_location(
             lng,
             _simple_geohash(lat, lng),
             city_zone,
-            raw_address,
+            pickup_address,
         ),
     )
 
@@ -307,7 +309,7 @@ def _to_listing_row(
     lat = row.get("lat")
     lng = row.get("lng")
     guidelines = row.get("guidelines")
-    raw_address = row.get("raw_address")
+    pickup_address = row.get("pickup_address")
     rating_stats = ratings or {}
     average_rating = rating_stats.get("average_rating")
     if average_rating is None and row.get("average_rating") is not None:
@@ -335,7 +337,6 @@ def _to_listing_row(
         "doors": row.get("doors"),
         "features": row.get("features") or [],
         "images": urls,
-        "address": raw_address,
         "latitude": float(lat) if lat is not None else None,
         "longitude": float(lng) if lng is not None else None,
         "rules": guidelines,
@@ -353,7 +354,7 @@ def _to_listing_row(
         "lng": float(lng) if lng is not None else None,
         "cityZone": row["city_zone"],
         "geohash": row["geohash"],
-        "pickupAddress": raw_address,
+        "pickupAddress": pickup_address,
         "locationSourceType": row.get("location_source_type"),
         "branchId": row.get("branch_id"),
         "parkingSpotId": row.get("parking_spot_id"),

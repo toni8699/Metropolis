@@ -264,16 +264,16 @@ export default function BookingDetailsPage() {
           <section className="rounded-3xl border-2 border-black bg-[#FCFCE5] p-4 shadow-[6px_6px_0px_0px_rgba(24,59,30,0.35)]">
             <h2 className="text-lg font-extrabold text-[#183B1E]">Pickup & location</h2>
             <p className="mt-1 text-sm text-gray-600">
-              {location?.address || cityLabel || "Pickup location shared below"}
+              {location?.pickupAddress || cityLabel || "Pickup location shared below"}
             </p>
             <div className="mt-3">
               <PickupMap lat={location?.lat} lng={location?.lng} apiKey={apiKey} />
             </div>
-            {(cityLabel || location?.address) && (
+            {(cityLabel || location?.pickupAddress) && (
               <p className="mt-2.5 flex items-start gap-1.5 text-xs text-gray-700">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
                 <span>
-                  {[location?.address, cityLabel].filter(Boolean).join(" · ")}
+                  {[location?.pickupAddress, cityLabel].filter(Boolean).join(" · ")}
                 </span>
               </p>
             )}

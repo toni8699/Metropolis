@@ -335,7 +335,7 @@ class FleetService:
                         lat=lat,
                         lng=lng,
                         city_zone=city_zone,
-                        raw_address=f"Fleet branch area ({row['city']})",
+                        pickup_address=f"Fleet branch area ({row['city']})",
                     )
                     created += 1
                 conn.commit()

@@ -1,24 +1,33 @@
 -- Metropolis rental schema (PostgreSQL / Neon)
--- Reference snapshot of the base schema. Incremental changes: Alembic (backend/alembic).
--- When adding tables/columns via Alembic, update this file to match the final state.
+-- Canonical snapshot of the full live schema.
+-- Fresh database: `alembic upgrade head` (runs this file once when empty).
+-- After any Alembic revision, update this file to match the final state.
 
-CREATE TABLE Area
+-- ---------------------------------------------------------------------------
+-- Legacy corporate geography
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE area
 (
-  areaID INT NOT NULL PRIMARY KEY,
-  areaName VARCHAR(100) NOT NULL
+  areaid INT NOT NULL PRIMARY KEY,
+  areaname VARCHAR(100) NOT NULL
 );
 
-CREATE TABLE Branch
+CREATE TABLE branch
 (
-  branchID INT NOT NULL PRIMARY KEY,
+  branchid INT NOT NULL PRIMARY KEY,
   address VARCHAR(200),
   phone_number VARCHAR(20),
   city VARCHAR(100),
-  areaID INT NOT NULL,
-  FOREIGN KEY (areaID) REFERENCES Area(areaID)
+  areaid INT NOT NULL,
+  lat DECIMAL(9,6),
+  lng DECIMAL(9,6),
+  FOREIGN KEY (areaid) REFERENCES area(areaid)
 );
 
--- Marketplace + auth extension (single-city launch schema)
+-- ---------------------------------------------------------------------------
+-- Enums
+-- ---------------------------------------------------------------------------
 
 CREATE TYPE user_role AS ENUM ('RENTER', 'OWNER', 'ADMIN');
 CREATE TYPE listing_source_type AS ENUM ('OWNER', 'FLEET');
@@ -31,6 +40,25 @@ CREATE TYPE booking_status AS ENUM (
   'CANCELLED'
 );
 CREATE TYPE availability_status AS ENUM ('AVAILABLE', 'BLOCKED');
+CREATE TYPE review_target_type AS ENUM ('LISTING', 'RENTER');
+CREATE TYPE vehicle_category AS ENUM ('STANDARD', 'LUXURY', 'TRUCK', 'EV');
+CREATE TYPE vehicle_owner_type AS ENUM ('INDEPENDENT_HOST', 'FLEET_OWNER', 'COMPANY');
+CREATE TYPE vehicle_asset_status AS ENUM ('ONBOARDING', 'ACTIVE', 'MAINTENANCE', 'RETIRED');
+CREATE TYPE management_assignment_status AS ENUM ('PENDING', 'ACTIVE', 'TERMINATED');
+CREATE TYPE compliance_event_type AS ENUM (
+  'PHYSICAL_INSPECTION',
+  'DOCUMENT_VERIFICATION',
+  'SAFETY_RUN',
+  'WEIGHT_TOW_VERIFICATION'
+);
+CREATE TYPE compliance_result AS ENUM ('PASSED', 'FAILED');
+CREATE TYPE insurance_coverage_type AS ENUM ('HOST_PERSONAL', 'PLATFORM_FLEET', 'TRIP_COMMERCIAL');
+CREATE TYPE parking_provider_type AS ENUM ('PLATFORM_OWNED', 'PARTNER', 'HOST_PROVIDED');
+CREATE TYPE booking_access_type AS ENUM ('DAILY_RENTAL', 'MEMBERSHIP');
+
+-- ---------------------------------------------------------------------------
+-- Identity
+-- ---------------------------------------------------------------------------
 
 CREATE TABLE app_user
 (
@@ -58,124 +86,42 @@ CREATE TABLE owner_profile
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE vehicle_listing
+-- ---------------------------------------------------------------------------
+-- Media + regions
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE region
 (
-  listing_id BIGSERIAL PRIMARY KEY,
+  region_id BIGSERIAL PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  display_name VARCHAR(128) NOT NULL,
+  country_code CHAR(2) NOT NULL DEFAULT 'CA',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE file_asset
+(
+  file_id BIGSERIAL PRIMARY KEY,
   owner_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
-  fleet_vehicle_vin CHAR(17),
-  source_type listing_source_type NOT NULL,
-  title VARCHAR(120) NOT NULL,
-  make VARCHAR(80),
-  model VARCHAR(80),
-  year INT,
-  description TEXT,
-  rules TEXT,
-  pickup_notes_template TEXT,
-  price_per_day DECIMAL(10,2) NOT NULL CHECK (price_per_day >= 0),
-  photos_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-  active BOOLEAN NOT NULL DEFAULT TRUE,
-  status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
-  instant_book BOOLEAN NOT NULL DEFAULT TRUE,
+  listing_id BIGINT,
+  bucket VARCHAR(128) NOT NULL,
+  object_key TEXT NOT NULL UNIQUE,
+  file_url TEXT NOT NULL,
+  content_type VARCHAR(255),
+  size_bytes BIGINT CHECK (size_bytes IS NULL OR size_bytes >= 0),
+  scope VARCHAR(32) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT vehicle_listing_status_active_consistency CHECK (
-    (status = 'ACTIVE' AND active = TRUE)
-    OR (status = 'INACTIVE' AND active = FALSE)
-  ),
-  CHECK (
-    (source_type = 'OWNER' AND owner_user_id IS NOT NULL AND fleet_vehicle_vin IS NULL) OR
-    (source_type = 'FLEET' AND fleet_vehicle_vin IS NOT NULL)
-  )
+  CONSTRAINT file_asset_scope_check
+    CHECK (scope IN ('FLEET', 'OWNER_LISTING', 'USER_DOC', 'USER_AVATAR'))
 );
 
-CREATE TABLE listing_location
-(
-  listing_id BIGINT PRIMARY KEY REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
-  lat DECIMAL(9,6) NOT NULL,
-  lng DECIMAL(9,6) NOT NULL,
-  geohash VARCHAR(20),
-  city_zone VARCHAR(64) NOT NULL,
-  last_parked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CHECK (lat BETWEEN -90 AND 90),
-  CHECK (lng BETWEEN -180 AND 180)
-);
+CREATE INDEX idx_file_asset_listing ON file_asset(listing_id, created_at DESC);
+CREATE INDEX idx_file_asset_owner ON file_asset(owner_user_id, created_at DESC);
 
-CREATE INDEX idx_listing_location_city_zone ON listing_location(city_zone);
-CREATE INDEX idx_listing_location_geohash ON listing_location(geohash);
-
-CREATE TABLE listing_availability
-(
-  availability_id BIGSERIAL PRIMARY KEY,
-  listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
-  start_at TIMESTAMPTZ NOT NULL,
-  end_at TIMESTAMPTZ NOT NULL,
-  status availability_status NOT NULL DEFAULT 'AVAILABLE',
-  CHECK (end_at > start_at)
-);
-
-CREATE INDEX idx_listing_availability_listing_window ON listing_availability(listing_id, start_at, end_at);
-
-CREATE TABLE booking
-(
-  booking_id BIGSERIAL PRIMARY KEY,
-  listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
-  renter_user_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
-  start_at TIMESTAMPTZ NOT NULL,
-  end_at TIMESTAMPTZ NOT NULL,
-  status booking_status NOT NULL DEFAULT 'PENDING',
-  price_snapshot_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CHECK (end_at > start_at)
-);
-
-CREATE INDEX idx_booking_listing_window ON booking(listing_id, start_at, end_at);
-CREATE INDEX idx_booking_renter ON booking(renter_user_id);
-
-CREATE TABLE trip_event
-(
-  event_id BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
-  event_type VARCHAR(50) NOT NULL,
-  actor_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
-  event_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb
-);
-
-CREATE INDEX idx_trip_event_booking ON trip_event(booking_id, event_at);
-
-CREATE TABLE payment
-(
-  payment_id BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
-  amount_cents INTEGER NOT NULL,
-  currency VARCHAR(3) NOT NULL DEFAULT 'cad',
-  status VARCHAR(20) NOT NULL DEFAULT 'pending',
-  stripe_payment_intent_id VARCHAR(100),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE UNIQUE INDEX idx_payment_booking_id ON payment(booking_id);
-CREATE INDEX idx_payment_stripe_intent ON payment(stripe_payment_intent_id)
-  WHERE stripe_payment_intent_id IS NOT NULL;
-
--- Canonical vehicle asset foundation (post-baseline revamp phase 1)
-
-CREATE TYPE vehicle_category AS ENUM ('STANDARD', 'LUXURY', 'TRUCK', 'EV');
-CREATE TYPE vehicle_owner_type AS ENUM ('INDEPENDENT_HOST', 'FLEET_OWNER', 'COMPANY');
-CREATE TYPE vehicle_asset_status AS ENUM ('ONBOARDING', 'ACTIVE', 'MAINTENANCE', 'RETIRED');
-CREATE TYPE management_assignment_status AS ENUM ('PENDING', 'ACTIVE', 'TERMINATED');
-CREATE TYPE compliance_event_type AS ENUM (
-  'PHYSICAL_INSPECTION',
-  'DOCUMENT_VERIFICATION',
-  'SAFETY_RUN',
-  'WEIGHT_TOW_VERIFICATION'
-);
-CREATE TYPE compliance_result AS ENUM ('PASSED', 'FAILED');
-CREATE TYPE insurance_coverage_type AS ENUM ('HOST_PERSONAL', 'PLATFORM_FLEET', 'TRIP_COMMERCIAL');
-CREATE TYPE parking_provider_type AS ENUM ('PLATFORM_OWNED', 'PARTNER', 'HOST_PROVIDED');
-CREATE TYPE booking_access_type AS ENUM ('DAILY_RENTAL', 'MEMBERSHIP');
+-- ---------------------------------------------------------------------------
+-- Vehicle assets
+-- ---------------------------------------------------------------------------
 
 CREATE TABLE vehicle_asset
 (
@@ -206,6 +152,236 @@ CREATE TABLE vehicle_asset
 CREATE INDEX idx_vehicle_asset_owner ON vehicle_asset(owner_type, owner_party_user_id);
 CREATE INDEX idx_vehicle_asset_status ON vehicle_asset(asset_status);
 CREATE INDEX idx_vehicle_asset_fleet_branch_status ON vehicle_asset(branch_id, fleet_status);
+
+-- ---------------------------------------------------------------------------
+-- Company parking + marketplace listings
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE company_parking_spot
+(
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  area_id INT NOT NULL REFERENCES area(areaid) ON DELETE RESTRICT,
+  branch_id INT REFERENCES branch(branchid) ON DELETE SET NULL,
+  address VARCHAR(255) NOT NULL,
+  lat DECIMAL(9,6) NOT NULL CHECK (lat BETWEEN -90 AND 90),
+  lng DECIMAL(9,6) NOT NULL CHECK (lng BETWEEN -180 AND 180),
+  city_zone VARCHAR(64) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_company_parking_spot_area ON company_parking_spot(area_id);
+CREATE INDEX idx_company_parking_spot_branch ON company_parking_spot(branch_id);
+CREATE INDEX idx_company_parking_spot_city_zone ON company_parking_spot(city_zone);
+
+CREATE TABLE vehicle_listing
+(
+  listing_id BIGSERIAL PRIMARY KEY,
+  owner_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
+  created_by_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
+  vehicle_id BIGINT REFERENCES vehicle_asset(vehicle_id) ON DELETE SET NULL,
+  fleet_vehicle_vin CHAR(17),
+  source_type listing_source_type NOT NULL,
+  title VARCHAR(120) NOT NULL,
+  make VARCHAR(80),
+  model VARCHAR(80),
+  year INT,
+  mileage INT CHECK (mileage IS NULL OR mileage >= 0),
+  description TEXT,
+  guidelines TEXT,
+  transmission VARCHAR(30),
+  fuel_type VARCHAR(30),
+  seats INT CHECK (seats IS NULL OR seats > 0),
+  doors INT CHECK (doors IS NULL OR doors > 0),
+  features JSONB,
+  pickup_notes_template TEXT,
+  price_per_day DECIMAL(10,2) NOT NULL CHECK (price_per_day >= 0),
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+  instant_book BOOLEAN NOT NULL DEFAULT TRUE,
+  is_company_owned BOOLEAN NOT NULL DEFAULT FALSE,
+  location_source_type VARCHAR(20),
+  branch_id INT REFERENCES branch(branchid) ON DELETE SET NULL,
+  parking_spot_id BIGINT REFERENCES company_parking_spot(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT vehicle_listing_status_active_consistency CHECK (
+    (status = 'ACTIVE' AND active = TRUE)
+    OR (status = 'INACTIVE' AND active = FALSE)
+  ),
+  CONSTRAINT vehicle_listing_source_check CHECK (
+    (source_type = 'OWNER' AND owner_user_id IS NOT NULL AND fleet_vehicle_vin IS NULL) OR
+    (source_type = 'FLEET' AND fleet_vehicle_vin IS NOT NULL)
+  ),
+  CONSTRAINT vehicle_listing_location_source_type_check CHECK (
+    location_source_type IS NULL
+    OR location_source_type IN ('BRANCH', 'PARKING_SPOT')
+  ),
+  CONSTRAINT vehicle_listing_single_location_source_check CHECK (
+    NOT (branch_id IS NOT NULL AND parking_spot_id IS NOT NULL)
+  )
+);
+
+CREATE INDEX idx_vehicle_listing_vehicle_id ON vehicle_listing(vehicle_id);
+CREATE INDEX idx_vehicle_listing_fleet_vin ON vehicle_listing(fleet_vehicle_vin);
+CREATE INDEX idx_vehicle_listing_owner_source ON vehicle_listing(owner_user_id, source_type);
+
+ALTER TABLE file_asset
+  ADD CONSTRAINT file_asset_listing_id_fkey
+  FOREIGN KEY (listing_id) REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE;
+
+CREATE TABLE listing_location
+(
+  listing_id BIGINT PRIMARY KEY REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
+  lat DECIMAL(9,6) NOT NULL,
+  lng DECIMAL(9,6) NOT NULL,
+  geohash VARCHAR(20),
+  city_zone VARCHAR(64) NOT NULL,
+  pickup_address VARCHAR(512),
+  last_parked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (lat BETWEEN -90 AND 90),
+  CHECK (lng BETWEEN -180 AND 180)
+);
+
+CREATE INDEX idx_listing_location_city_zone ON listing_location(city_zone);
+CREATE INDEX idx_listing_location_geohash ON listing_location(geohash);
+
+CREATE TABLE listing_availability
+(
+  availability_id BIGSERIAL PRIMARY KEY,
+  listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
+  start_at TIMESTAMPTZ NOT NULL,
+  end_at TIMESTAMPTZ NOT NULL,
+  status availability_status NOT NULL DEFAULT 'AVAILABLE',
+  CHECK (end_at > start_at)
+);
+
+CREATE INDEX idx_listing_availability_listing_window
+  ON listing_availability(listing_id, start_at, end_at);
+
+CREATE TABLE listing_image
+(
+  listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
+  file_id BIGINT NOT NULL REFERENCES file_asset(file_id) ON DELETE CASCADE,
+  display_order INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (listing_id, file_id)
+);
+
+CREATE INDEX idx_listing_image_listing_order ON listing_image(listing_id, display_order);
+
+-- ---------------------------------------------------------------------------
+-- Bookings + payments + trip lifecycle
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE booking
+(
+  booking_id BIGSERIAL PRIMARY KEY,
+  listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
+  renter_user_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
+  start_at TIMESTAMPTZ NOT NULL,
+  end_at TIMESTAMPTZ NOT NULL,
+  status booking_status NOT NULL DEFAULT 'PENDING',
+  access_type booking_access_type NOT NULL DEFAULT 'DAILY_RENTAL',
+  price_snapshot_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (end_at > start_at)
+);
+
+CREATE INDEX idx_booking_listing_window ON booking(listing_id, start_at, end_at);
+CREATE INDEX idx_booking_renter ON booking(renter_user_id);
+CREATE INDEX idx_booking_status ON booking(status);
+
+CREATE TABLE payment
+(
+  payment_id BIGSERIAL PRIMARY KEY,
+  booking_id BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
+  amount_cents INTEGER NOT NULL,
+  currency VARCHAR(3) NOT NULL DEFAULT 'cad',
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  stripe_payment_intent_id VARCHAR(100),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_payment_booking_id ON payment(booking_id);
+CREATE INDEX idx_payment_stripe_intent ON payment(stripe_payment_intent_id)
+  WHERE stripe_payment_intent_id IS NOT NULL;
+
+CREATE TABLE trip_event
+(
+  event_id BIGSERIAL PRIMARY KEY,
+  booking_id BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
+  event_type VARCHAR(50) NOT NULL,
+  actor_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
+  event_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX idx_trip_event_booking ON trip_event(booking_id, event_at);
+
+CREATE TABLE booking_message
+(
+  message_id BIGSERIAL PRIMARY KEY,
+  booking_id BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
+  sender_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
+  message_text TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_booking_message_booking_created
+  ON booking_message(booking_id, created_at);
+
+CREATE TABLE booking_chat_state
+(
+  booking_id BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
+  last_read_message_id BIGINT REFERENCES booking_message(message_id) ON DELETE SET NULL,
+  last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (booking_id, user_id)
+);
+
+CREATE INDEX idx_booking_chat_state_user_booking
+  ON booking_chat_state(user_id, booking_id);
+
+-- ---------------------------------------------------------------------------
+-- Reviews
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE review
+(
+  review_id BIGSERIAL PRIMARY KEY,
+  booking_id BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
+  author_user_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
+  target_type review_target_type NOT NULL,
+  target_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
+  target_listing_id BIGINT REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
+  rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  cleanliness INT CHECK (cleanliness IS NULL OR cleanliness BETWEEN 1 AND 5),
+  accuracy INT CHECK (accuracy IS NULL OR accuracy BETWEEN 1 AND 5),
+  communication INT CHECK (communication IS NULL OR communication BETWEEN 1 AND 5),
+  comment TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT review_booking_author_target_unique
+    UNIQUE (booking_id, author_user_id, target_type),
+  CONSTRAINT review_listing_target_requires_listing CHECK (
+    target_type <> 'LISTING' OR target_listing_id IS NOT NULL
+  ),
+  CONSTRAINT review_renter_target_requires_user CHECK (
+    target_type <> 'RENTER' OR target_user_id IS NOT NULL
+  )
+);
+
+CREATE INDEX idx_review_listing_target
+  ON review(target_listing_id, target_type, created_at DESC);
+CREATE INDEX idx_review_booking ON review(booking_id);
+CREATE INDEX idx_review_target_user ON review(target_user_id, target_type);
+
+-- ---------------------------------------------------------------------------
+-- Fleet operations (future phases — schema only today)
+-- ---------------------------------------------------------------------------
 
 CREATE TABLE management_program
 (
@@ -238,7 +414,8 @@ CREATE TABLE vehicle_management_assignment
   )
 );
 
-CREATE INDEX idx_vehicle_mgmt_assignment_vehicle ON vehicle_management_assignment(vehicle_id, status);
+CREATE INDEX idx_vehicle_mgmt_assignment_vehicle
+  ON vehicle_management_assignment(vehicle_id, status);
 
 CREATE TABLE vehicle_compliance_event
 (
@@ -325,12 +502,3 @@ CREATE TABLE vehicle_membership_eligibility
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (vehicle_id, tier_id)
 );
-
-ALTER TABLE vehicle_listing
-  ADD COLUMN vehicle_id BIGINT REFERENCES vehicle_asset(vehicle_id) ON DELETE SET NULL;
-
-CREATE INDEX idx_vehicle_listing_vehicle_id ON vehicle_listing(vehicle_id);
-CREATE INDEX idx_vehicle_listing_fleet_vin ON vehicle_listing(fleet_vehicle_vin);
-
-ALTER TABLE booking
-  ADD COLUMN access_type booking_access_type NOT NULL DEFAULT 'DAILY_RENTAL';

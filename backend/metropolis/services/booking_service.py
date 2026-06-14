@@ -217,7 +217,7 @@ def _to_booking_row(row: dict, *, include_detail: bool = False) -> dict:
                 "lat": float(lat) if lat is not None else None,
                 "lng": float(lng) if lng is not None else None,
                 "cityZone": row.get("city_zone"),
-                "address": row.get("raw_address"),
+                "pickupAddress": row.get("pickup_address"),
                 "geohash": row.get("geohash"),
             },
             "host": {
@@ -591,7 +591,7 @@ class BookingService:
               loc.lat,
               loc.lng,
               loc.city_zone,
-              loc.raw_address,
+              loc.pickup_address,
               loc.geohash,
               host.user_id AS host_user_id,
               host.full_name AS host_name,

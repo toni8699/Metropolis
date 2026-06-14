@@ -226,7 +226,7 @@ export default function HostOnboardingFlow() {
           pricePerDay: Number(listingData.price),
           instantBook: Boolean(listingData.instantBook),
           isCompanyOwned: false,
-          address: listingData.address,
+          pickupAddress: listingData.address,
           latitude: lat,
           longitude: lng,
           lat,
@@ -243,7 +243,7 @@ export default function HostOnboardingFlow() {
 
       await apiPost(
         `/api/listings/${listingId}/location`,
-        { lat, lng, cityZone },
+        { lat, lng, cityZone, pickupAddress: listingData.address },
         true,
       );
 

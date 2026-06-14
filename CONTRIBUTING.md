@@ -39,20 +39,22 @@ backend/metropolis/
 
 ## Schema migrations
 
-Use **Alembic** for all schema changes:
+**Canonical snapshot:** `db/schema.sql` (full live schema).
+
+**Incremental changes:** Alembic revisions in `backend/alembic/versions/`.
 
 ```bash
 # Create a new migration
-docker compose exec backend alembic revision --autogenerate -m "describe_change"
+docker compose exec backend alembic revision -m "describe_change"
 
 # Apply migrations
 docker compose exec backend alembic upgrade head
 
-# After applying, update the snapshot
-# (copy current schema.sql from db)
+# After applying, update db/schema.sql to match the final schema
 ```
 
-The `db/migrations/` folder contains read-only SQL fragments used by the fresh baseline revision (`000001_new_base`). All new migrations go through `backend/alembic/versions/`.
+Fresh database bootstrap: `alembic upgrade head` runs `db/schema.sql` once when
+empty. Historical numbered SQL under `db/migrations/archive/` is reference only.
 
 ---
 

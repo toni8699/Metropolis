@@ -33,11 +33,6 @@ def _read_schema_sql() -> str:
     return schema_path.read_text(encoding="utf-8")
 
 
-def _read_migration_sql(filename: str) -> str:
-    path = _project_root() / "db" / "migrations" / filename
-    return path.read_text(encoding="utf-8")
-
-
 def _table_exists(table_name: str) -> bool:
     bind = op.get_bind()
     row = bind.execute(
@@ -48,110 +43,10 @@ def _table_exists(table_name: str) -> bool:
 
 
 def upgrade() -> None:
-    # Base schema snapshot (fleet + marketplace core).
-    # In CI/hosting, some environments may already have legacy tables created
-    # outside Alembic; skip raw base bootstrap in that case to avoid duplicates.
+    # Empty database: bootstrap from the canonical snapshot only.
+    # Existing databases (area already present) skip this revision body.
     if not _table_exists("area"):
         op.execute(_read_schema_sql())
-
-    # Re-apply historical SQL deltas that are not fully reflected in schema.sql.
-    for sql_file in (
-        "003_s3_assets_and_regions.sql",
-        "006_company_location_sources.sql",
-        "007_listing_vehicle_specs.sql",
-        "008_listing_rich_details.sql",
-        "009_schema_standardization.sql",
-        "010_drop_legacy_booking_tables.sql",
-        "011_reviews.sql",
-        "012_review_sub_ratings.sql",
-        "013_listing_instant_book_pending_approval.sql",
-    ):
-        op.execute(_read_migration_sql(sql_file))
-
-    # Keep only simplified role and ownership columns (without legacy RBAC/org tables).
-    op.execute(
-        """
-        ALTER TABLE app_user
-          ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE
-        """
-    )
-    op.execute(
-        """
-        UPDATE app_user
-        SET is_admin = TRUE
-        WHERE role = 'ADMIN'
-        """
-    )
-    op.execute(
-        """
-        ALTER TABLE vehicle_listing
-          ADD COLUMN IF NOT EXISTS created_by_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
-          ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
-          ADD COLUMN IF NOT EXISTS is_company_owned BOOLEAN NOT NULL DEFAULT FALSE
-        """
-    )
-    op.execute(
-        """
-        UPDATE vehicle_listing
-        SET
-          created_by_user_id = COALESCE(created_by_user_id, owner_user_id),
-          is_company_owned = CASE
-            WHEN source_type = 'FLEET' OR owner_user_id IS NULL THEN TRUE
-            ELSE is_company_owned
-          END
-        """
-    )
-
-    # Trip chat tables.
-    op.execute(
-        """
-        CREATE TABLE IF NOT EXISTS booking_message (
-            message_id BIGSERIAL PRIMARY KEY,
-            booking_id BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
-            sender_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
-            message_text TEXT NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT NOW()
-        )
-        """
-    )
-    op.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_booking_message_booking_created
-          ON booking_message (booking_id, created_at)
-        """
-    )
-    op.execute(
-        """
-        CREATE TABLE IF NOT EXISTS booking_chat_state (
-            booking_id BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
-            user_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
-            last_read_message_id BIGINT REFERENCES booking_message(message_id) ON DELETE SET NULL,
-            last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            PRIMARY KEY (booking_id, user_id)
-        )
-        """
-    )
-    op.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_booking_chat_state_user_booking
-          ON booking_chat_state (user_id, booking_id)
-        """
-    )
-
-    # Keep file upload scopes aligned with uploads_service.
-    op.execute(
-        """
-        ALTER TABLE file_asset
-        DROP CONSTRAINT IF EXISTS file_asset_scope_check
-        """
-    )
-    op.execute(
-        """
-        ALTER TABLE file_asset
-        ADD CONSTRAINT file_asset_scope_check
-        CHECK (scope IN ('FLEET', 'OWNER_LISTING', 'USER_DOC', 'USER_AVATAR'))
-        """
-    )
 
 
 def downgrade() -> None:

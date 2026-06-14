@@ -416,7 +416,7 @@ export default function HostDashboard({ mode = "admin" }) {
         guidelines: listingForm.guidelines,
         features: listingForm.features,
         images: listingForm.images,
-        address: listingForm.address || undefined,
+        pickupAddress: listingForm.address || undefined,
         latitude: listingForm.latitude ?? undefined,
         longitude: listingForm.longitude ?? undefined,
         pricePerDay: Number(listingForm.pricePerDay),
@@ -504,7 +504,7 @@ export default function HostDashboard({ mode = "admin" }) {
   };
 
   const startEditListing = (listing) => {
-    const resolvedAddress = listing.address || listing.pickupAddress || "";
+    const resolvedAddress = listing.pickupAddress || "";
     const resolvedLat = listing.latitude ?? listing.lat ?? null;
     const resolvedLng = listing.longitude ?? listing.lng ?? null;
     const nextMode = listing.locationSourceType === "BRANCH" && listing.branchId ? "hub" : "custom";
