@@ -8,17 +8,17 @@ export default function CollapsedSearchPill({
   return (
     <button
       onClick={onOpen}
-      className="mx-auto flex h-14 w-full max-w-lg cursor-pointer items-center rounded-full border border-gray-300 bg-white py-2 pl-3 pr-2 shadow-sm transition hover:shadow-md md:max-w-xl"
+      className="mx-auto flex h-16 w-full max-w-xl cursor-pointer items-center gap-2 rounded-full border-4 border-black bg-white px-4 py-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition hover:translate-y-[-1px] md:max-w-2xl"
     >
-      <div className="min-w-[120px] flex-1 px-2 text-center text-base font-bold text-gray-900 sm:min-w-[200px]">
+      <div className="min-w-[120px] flex-1 px-2 text-center text-base font-extrabold text-[#2D5A27] sm:min-w-[200px]">
         {location || "Anywhere"}
       </div>
-      <div className="mx-1.5 h-4 w-[1px] flex-shrink-0 bg-gray-300" />
-      <div className="min-w-[120px] flex-1 px-2 text-center text-sm text-gray-700 sm:min-w-[210px]">
+      <div className="mx-1.5 h-8 w-[2px] flex-shrink-0 bg-black" />
+      <div className="min-w-[120px] flex-1 px-2 text-center text-sm font-medium text-[#35593b] sm:min-w-[210px]">
         {collapsedWhenLabel}
       </div>
-      <div className="ml-1.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
-        <Search className="h-3.5 w-3.5" strokeWidth={3} />
+      <div className="ml-1.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 border-black bg-[#E34B31] text-white transition hover:scale-110">
+        <Search className="h-4 w-4" strokeWidth={3} />
       </div>
     </button>
   );

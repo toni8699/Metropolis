@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useJsApiLoader } from "@react-google-maps/api";
-import { CarFront, UploadCloud, X } from "lucide-react";
+import { UploadCloud, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import VroomLogo from "@/layout/VroomLogo";
 import { apiPost } from "@/shared/api/api";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -290,33 +291,32 @@ export default function HostOnboardingFlow() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 flex flex-col">
-      <header className="fixed top-0 left-0 right-0 h-20 flex justify-between items-center px-10 border-b bg-white z-50">
-        <div className="flex items-center gap-3 text-indigo-600">
-          <CarFront className="h-8 w-8" />
-          <span className="text-2xl font-bold">DriveBnb</span>
+    <div className="min-h-screen bg-[#D0F0C0] text-[#183B1E] flex flex-col">
+      <header className="fixed top-0 left-0 right-0 z-50 flex h-20 items-center justify-between border-b-4 border-black bg-[#FCFCE5] px-10">
+        <div className="flex items-center">
+          <VroomLogo />
         </div>
         <button
           type="button"
           onClick={() => navigate("/app")}
-          className="rounded-full px-4 py-2 text-sm font-medium hover:bg-gray-100"
+          className="rounded-full border-2 border-black border-b-4 bg-white px-4 py-2 text-sm font-bold active:border-b-0"
         >
           Exit
         </button>
       </header>
 
-      <div className="fixed top-20 left-0 h-1 bg-gray-200 w-full z-50">
+      <div className="fixed top-20 left-0 z-50 h-1 w-full bg-[#dbe8be]">
         <div
-          className="bg-gray-900 h-full transition-all duration-500"
+          className="h-full bg-[#E34B31] transition-all duration-500"
           style={{ width: `${progress}%` }}
         />
       </div>
 
       <main className="flex-grow h-[calc(100vh-176px)] mt-20 mb-24 overflow-y-auto flex">
         <div className="flex flex-col md:flex-row w-full">
-          <section className="w-full md:w-1/2 flex items-center justify-center p-10 lg:p-20 bg-gradient-to-br from-indigo-50 to-white">
+          <section className="w-full md:w-1/2 flex items-center justify-center p-10 lg:p-20 bg-gradient-to-br from-[#f5f5d0] to-[#FCFCE5]">
             <h1
-              className={`font-semibold text-4xl md:text-5xl leading-tight transition-opacity duration-500 ${
+              className={`font-extrabold text-4xl md:text-5xl leading-tight transition-opacity duration-500 ${
                 headlineVisible ? "opacity-100" : "opacity-0"
               }`}
             >
@@ -359,10 +359,10 @@ export default function HostOnboardingFlow() {
                           key={type}
                           type="button"
                           onClick={() => setListingData((prev) => ({ ...prev, type }))}
-                          className={`rounded-xl border px-4 py-4 text-left font-medium transition ${
+                      className={`rounded-2xl border-2 border-black px-4 py-4 text-left font-bold transition ${
                             active
-                              ? "border-gray-900 bg-gray-900 text-white"
-                              : "border-gray-300 hover:border-gray-900"
+                              ? "bg-[#183B1E] text-white"
+                              : "bg-white hover:bg-[#f5f5d0]"
                           }`}
                         >
                           {type}
@@ -461,7 +461,7 @@ export default function HostOnboardingFlow() {
                       e.preventDefault();
                       applyImageFiles(e.dataTransfer.files);
                     }}
-                    className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center hover:border-gray-900 cursor-pointer transition"
+                    className="flex cursor-pointer flex-col items-center justify-center rounded-[1.5rem] border-2 border-dashed border-black bg-[#FCFCE5] p-10 transition hover:bg-[#f5f5d0]"
                   >
                     <UploadCloud className="h-10 w-10 text-gray-400 mb-2" />
                     <p className="font-semibold text-gray-900">Add photos</p>
@@ -510,7 +510,7 @@ export default function HostOnboardingFlow() {
                           price: Math.max(5, Number(prev.price) - 5),
                         }))
                       }
-                      className="h-12 w-12 rounded-full border border-gray-300 text-2xl hover:bg-gray-50"
+                      className="h-12 w-12 rounded-full border-2 border-black bg-white text-2xl font-bold hover:bg-[#f5f5d0]"
                     >
                       -
                     </button>
@@ -520,14 +520,14 @@ export default function HostOnboardingFlow() {
                         setListingData((prev) => ({ ...prev, price: Number(e.target.value) || 0 }))
                       }
                       type="number"
-                      className="w-44 bg-transparent text-center font-bold text-6xl text-gray-900 outline-none"
+                      className="w-44 bg-transparent text-center font-extrabold text-6xl text-[#183B1E] outline-none"
                     />
                     <button
                       type="button"
                       onClick={() =>
                         setListingData((prev) => ({ ...prev, price: Number(prev.price) + 5 }))
                       }
-                      className="h-12 w-12 rounded-full border border-gray-300 text-2xl hover:bg-gray-50"
+                      className="h-12 w-12 rounded-full border-2 border-black bg-white text-2xl font-bold hover:bg-[#f5f5d0]"
                     >
                       +
                     </button>
@@ -551,7 +551,7 @@ export default function HostOnboardingFlow() {
         </div>
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 h-24 bg-white border-t flex justify-between items-center px-10 z-50">
+      <footer className="fixed bottom-0 left-0 right-0 z-50 flex h-24 items-center justify-between border-t-4 border-black bg-[#FCFCE5] px-10">
         <button
           type="button"
           onClick={handleBack}
@@ -563,7 +563,7 @@ export default function HostOnboardingFlow() {
           type="button"
           onClick={handleNext}
           disabled={!canProceed || isPublishing}
-          className="bg-gray-900 text-white px-8 py-3 rounded-md font-semibold disabled:opacity-40"
+          className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-8 py-3 font-extrabold text-white active:border-b-0 disabled:opacity-40"
         >
           {currentStep === TOTAL_STEPS ? (isPublishing ? "Publishing..." : "Publish Listing") : "Next"}
         </button>

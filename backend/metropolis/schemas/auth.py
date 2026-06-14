@@ -66,3 +66,10 @@ class MeUpdateSchema(ma.Schema):
     about = ma.String(required=False, allow_none=True)
     languages = ma.String(required=False, allow_none=True)
     work = ma.String(required=False, allow_none=True)
+
+
+class KycPatchSchema(ma.Schema):
+    verificationStatus = ma.String(
+        required=True,
+        metadata={"description": "VERIFIED or REJECTED."},
+    )

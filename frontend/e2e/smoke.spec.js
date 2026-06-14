@@ -35,7 +35,7 @@ async function createSmokeListing(request, hostToken) {
   return (await resp.json()).listing.listingId;
 }
 
-test.describe("Metropolis smoke", () => {
+test.describe("VROOM smoke", () => {
   test("API health responds", async ({ request }) => {
     const resp = await request.get(`${apiURL}/api/health`);
     expect(resp.ok()).toBeTruthy();

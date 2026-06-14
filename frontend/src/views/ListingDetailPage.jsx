@@ -200,7 +200,7 @@ export default function ListingDetailPage() {
   if (!listing) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-10">
-        <p className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
+        <p className="rounded-xl border-4 border-black bg-[#FCFCE5] p-4 text-sm font-semibold text-[#35593b]">
           Listing not found.
         </p>
       </div>
@@ -268,15 +268,15 @@ export default function ListingDetailPage() {
 
   return (
     <>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-10">
-      <h1 className="mb-2 text-3xl font-semibold text-gray-900">{title}</h1>
+      <div className="mx-auto max-w-7xl rounded-[2rem] border-4 border-black bg-[#f5f5d0] px-5 py-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sm:px-7 lg:px-11">
+      <h1 className="mb-2 text-5xl font-black text-[#2D5A27]">{title}</h1>
       <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
         <ListingRatingLine listing={listing} />
         <span>·</span>
         <span className="font-medium capitalize">{locationText}</span>
       </div>
 
-      <div className="group relative mt-6 grid grid-cols-1 gap-2 overflow-hidden rounded-2xl aspect-[2/1] md:aspect-[2.1] md:grid-cols-4">
+      <div className="group relative mt-6 grid aspect-[2/1] grid-cols-1 gap-2 overflow-hidden rounded-[2rem] border-4 border-black md:aspect-[2.1] md:grid-cols-4">
         {[0, 1, 2, 3, 4].map((index) => (
           <div
             key={index}
@@ -301,7 +301,7 @@ export default function ListingDetailPage() {
         <button
           type="button"
           onClick={() => setIsGalleryOpen(true)}
-          className="absolute bottom-4 right-4 flex items-center gap-2 rounded-lg border border-black bg-white px-4 py-1.5 text-sm font-semibold shadow-md transition hover:bg-gray-50"
+          className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full border-4 border-black border-b-4 border-r-4 bg-[#FCFCE5] px-4 py-2 text-sm font-extrabold text-[#2D5A27] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition active:translate-x-1 active:translate-y-1 active:border-0"
         >
           <CarFront className="h-4 w-4" />
           Show all photos
@@ -310,7 +310,7 @@ export default function ListingDetailPage() {
 
       <div className="relative mt-10 flex flex-col gap-12 md:flex-row">
         <div className="w-full space-y-6 md:w-[65%]">
-          <div className="flex items-center gap-3 border-b py-6">
+          <div className="flex items-center gap-3 border-t-4 border-black py-6">
             <UserAvatar user={hostUser} className="h-10 w-10 text-sm" />
             <div>
               <p className="text-xl font-semibold text-gray-900">
@@ -326,18 +326,18 @@ export default function ListingDetailPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 border-b py-6 sm:grid-cols-3">
-            <div className="flex items-center gap-2">
-              <CarFront className="h-5 w-5 text-gray-700" />
-              <span className="text-sm text-gray-700">5 seats</span>
+          <div className="grid gap-4 border-t-4 border-black py-6 sm:grid-cols-3">
+            <div className="flex items-center gap-2 rounded-full bg-white border-2 border-black px-4 py-2 font-bold text-[#2D5A27]">
+              <CarFront className="h-5 w-5 text-[#E34B31]" />
+              <span className="text-sm">5 seats</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-gray-700" />
-              <span className="text-sm text-gray-700">Automatic</span>
+            <div className="flex items-center gap-2 rounded-full bg-white border-2 border-black px-4 py-2 font-bold text-[#2D5A27]">
+              <Settings className="h-5 w-5 text-[#E34B31]" />
+              <span className="text-sm">Automatic</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Fuel className="h-5 w-5 text-gray-700" />
-              <span className="text-sm text-gray-700">
+            <div className="flex items-center gap-2 rounded-full bg-white border-2 border-black px-4 py-2 font-bold text-[#2D5A27]">
+              <Fuel className="h-5 w-5 text-[#E34B31]" />
+              <span className="text-sm">
                 {listing.make?.toLowerCase().includes("tesla") ? "Electric" : "Gas"}
               </span>
             </div>
@@ -349,7 +349,7 @@ export default function ListingDetailPage() {
           </p>
 
           {guidelinesText && (
-            <section className="border-t border-gray-200 py-6">
+            <section className="border-t-4 border-black py-6">
               <h2 className="mb-3 text-xl font-semibold text-gray-900">Guidelines</h2>
               <p className="whitespace-pre-wrap text-base leading-7 text-gray-700">{guidelinesText}</p>
             </section>
@@ -375,15 +375,15 @@ export default function ListingDetailPage() {
         </div>
 
         <div className="w-full md:w-[35%]">
-          <div className="sticky top-28 rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
+          <div className="sticky top-28 rounded-[2rem] border-4 border-black bg-[#FCFCE5] p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
             <div className="flex items-baseline gap-1">
-              <p className="text-2xl font-bold text-gray-900">${listing.pricePerDay}</p>
-              <p className="text-gray-600">/ day</p>
+              <p className="text-3xl font-extrabold text-black">${listing.pricePerDay}</p>
+              <p className="font-semibold text-[#35593b]">/ day</p>
             </div>
 
             <div ref={calendarRef} className="relative mt-6">
               <div
-                className="flex border border-gray-400 rounded-xl cursor-pointer relative"
+                className="relative flex cursor-pointer rounded-2xl border-4 border-black bg-white"
                 onClick={() => setIsCalendarOpen((open) => !open)}
                 role="button"
                 tabIndex={0}
@@ -400,7 +400,7 @@ export default function ListingDetailPage() {
                     {dateRange.from ? format(dateRange.from, "MM/dd/yyyy") : "Add date"}
                   </p>
                 </div>
-                <div className="w-1/2 p-3 border-l border-gray-400">
+                <div className="w-1/2 border-l-2 border-black p-3">
                   <p className="text-[10px] font-bold text-gray-800">CHECKOUT</p>
                   <p className="text-sm text-gray-500">
                     {dateRange.to ? format(dateRange.to, "MM/dd/yyyy") : "Add date"}
@@ -409,7 +409,7 @@ export default function ListingDetailPage() {
               </div>
 
               {isCalendarOpen && (
-                <div className="absolute top-[100%] right-0 mt-4 bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 z-50">
+                <div className="absolute right-0 top-[100%] z-50 mt-4 rounded-3xl border-4 border-black bg-[#FCFCE5] p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
                   <DayPicker
                     mode="range"
                     numberOfMonths={calendarMonths}
@@ -440,7 +440,7 @@ export default function ListingDetailPage() {
                         ),
                     }}
                   />
-                  <div className="flex justify-between items-center pt-4 border-t mt-4">
+                    <div className="mt-4 flex items-center justify-between border-t-4 border-black pt-4">
                     <button
                       type="button"
                       onClick={() => setDateRange(defaultDateRangeFromToday())}
@@ -451,7 +451,7 @@ export default function ListingDetailPage() {
                     <button
                       type="button"
                       onClick={() => setIsCalendarOpen(false)}
-                      className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-black"
+                      className="rounded-full border-4 border-black border-b-4 border-r-4 bg-[#2D5A27] px-4 py-2 text-sm font-bold text-white active:translate-x-1 active:translate-y-1 active:border-0"
                     >
                       Close
                     </button>
@@ -463,7 +463,7 @@ export default function ListingDetailPage() {
             <button
               onClick={handleReserveClick}
               disabled={reserveButtonDisabled}
-              className="mt-4 w-full rounded-lg bg-indigo-600 py-3 font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="mt-4 w-full rounded-full border-4 border-black border-b-4 border-r-4 bg-[#E34B31] py-3 font-black text-white transition active:translate-x-1 active:translate-y-1 active:border-0 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Reserve
             </button>
@@ -476,7 +476,7 @@ export default function ListingDetailPage() {
               </div>
             )}
             {hasCompleteRange ? (
-              <div className="mt-5 space-y-3 border-t border-gray-200 pt-4 text-sm text-gray-700">
+              <div className="mt-5 space-y-3 border-t-4 border-black pt-4 text-sm text-[#35593b]">
                 <div className="flex items-center justify-between">
                   <p className="underline">
                     ${listing.pricePerDay} x {nights} nights
@@ -491,7 +491,7 @@ export default function ListingDetailPage() {
                   <p className="underline">Cleaning fee</p>
                   <p>${cleaningFee.toFixed(2)}</p>
                 </div>
-                <div className="flex items-center justify-between border-t border-gray-200 pt-3 text-base font-semibold text-gray-900">
+                <div className="flex items-center justify-between border-t-4 border-black pt-3 text-base font-semibold text-black">
                   <p>Total before taxes</p>
                   <p>${totalPrice.toFixed(2)}</p>
                 </div>
@@ -504,8 +504,8 @@ export default function ListingDetailPage() {
       </div>
       </div>
       {isGalleryOpen && (
-        <div className="fixed inset-0 z-[100] bg-white overflow-y-auto">
-          <div className="sticky top-0 bg-white py-4 px-6 flex items-center border-b z-10">
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#FCFCE5]">
+          <div className="sticky top-0 z-10 flex items-center border-b-4 border-black bg-[#FCFCE5] px-6 py-4">
             <button
               type="button"
               onClick={() => setIsGalleryOpen(false)}

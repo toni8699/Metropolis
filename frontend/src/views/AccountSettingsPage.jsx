@@ -7,9 +7,9 @@ import { useAuth } from "@/context/AuthContext";
 import { uploadProfilePhoto } from "@/shared/lib/uploadProfilePhoto";
 
 const fieldLabelClass =
-  "mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-400";
+  "mb-2 block text-xs font-extrabold uppercase tracking-wider text-[#35593b]";
 const fieldInputClass =
-  "w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-indigo-600";
+  "w-full rounded-xl border-4 border-black bg-white px-4 py-3 text-sm text-[#2D5A27] outline-none transition";
 
 function firstName(fullName) {
   const trimmed = String(fullName || "").trim();
@@ -24,7 +24,7 @@ function VerifiedRow({ label, verified, action }) {
         {!verified && action}
       </div>
       {verified ? (
-        <CheckCircle2 className="h-5 w-5 shrink-0 text-indigo-600" aria-hidden="true" />
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-[#E34B31]" aria-hidden="true" />
       ) : (
         <Circle className="h-5 w-5 shrink-0 text-gray-300" aria-hidden="true" />
       )}
@@ -153,7 +153,7 @@ export default function AccountSettingsPage() {
   const averageRating = user?.averageRating;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+    <div className="mx-auto max-w-6xl rounded-[2rem] border-4 border-black bg-[#f5f5d0] px-5 py-8 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)] md:px-7">
       <nav aria-label="Breadcrumb" className="mb-6 text-sm text-gray-500">
         <Link to="/" className="hover:text-gray-700">
           Home
@@ -176,7 +176,7 @@ export default function AccountSettingsPage() {
               type="button"
               disabled={isUploadingPhoto || isCropModalOpen}
               onClick={() => photoInputRef.current?.click()}
-              className="rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-5 py-2.5 text-sm font-extrabold text-white transition active:border-b-0 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Change profile photo
             </button>
@@ -185,7 +185,7 @@ export default function AccountSettingsPage() {
               beginning of a trip.
             </p>
 
-            <h1 className="mb-4 mt-6 text-3xl font-bold text-gray-900">{displayName}</h1>
+            <h1 className="mb-4 mt-6 text-4xl font-extrabold text-[#2D5A27]">{displayName}</h1>
 
             <div className="mb-6">
               <label htmlFor="lives" className={fieldLabelClass}>
@@ -208,12 +208,12 @@ export default function AccountSettingsPage() {
 
             <div className="mt-8">
               <p className={fieldLabelClass}>Verified info</p>
-              <div className="rounded-xl border border-gray-200 bg-white px-4">
+              <div className="rounded-2xl border-2 border-black bg-[#FCFCE5] px-4">
                 <VerifiedRow
                   label="Approved to drive"
                   verified={Boolean(user?.isApprovedToDrive)}
                   action={
-                    <p className="mt-1 text-xs text-indigo-600">
+                    <p className="mt-1 text-xs text-[#E34B31]">
                       Complete verification to unlock trips.
                     </p>
                   }
@@ -230,7 +230,7 @@ export default function AccountSettingsPage() {
                     <button
                       type="button"
                       onClick={() => phoneInputRef.current?.focus()}
-                      className="mt-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                      className="mt-1 text-xs font-bold text-[#E34B31] hover:underline"
                     >
                       Add phone number
                     </button>
@@ -280,7 +280,7 @@ export default function AccountSettingsPage() {
           <div className="md:col-span-7">
             <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
               <div className="relative mb-6">
-                <UserAvatar user={user} className="h-32 w-32 text-3xl" />
+                <UserAvatar user={user} className="h-36 w-36 border-4 border-[#E34B31] text-3xl" />
                 {isUploadingPhoto && (
                   <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
                     <Loader2 className="h-8 w-8 animate-spin text-white" aria-hidden="true" />
@@ -358,7 +358,7 @@ export default function AccountSettingsPage() {
             <button
               type="submit"
               disabled={!hasChanges || isSaving}
-              className="rounded-full bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-6 py-2.5 text-sm font-extrabold text-white transition active:border-b-0 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isSaving ? "Saving..." : "Save profile"}
             </button>

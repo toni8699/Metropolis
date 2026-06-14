@@ -93,22 +93,22 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4"
       onClick={() => onClose?.()}>
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="relative w-full max-w-md overflow-hidden rounded-[2rem] border-4 border-black bg-[#FCFCE5] shadow-[10px_10px_0px_0px_rgba(0,0,0,1)]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="relative border-b pb-4 pt-4">
+        <div className="relative border-b-2 border-black pb-4 pt-4">
           <button
             onClick={() => onClose?.()}
-            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full p-2 hover:bg-gray-100"
+            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full border-2 border-black bg-white p-2 hover:scale-105"
             aria-label="Close auth modal"
           >
             <X className="h-4 w-4" />
           </button>
-          <p className="text-center text-sm font-bold">Log in or sign up</p>
+          <p className="text-center text-sm font-extrabold text-[#183B1E]">Log in or sign up</p>
         </div>
 
         <div className="px-6 pb-6">
-          <h2 className="mb-6 mt-4 text-2xl font-semibold">Welcome to DriveBnb</h2>
+          <h2 className="mb-6 mt-4 text-3xl font-extrabold text-[#183B1E]">Welcome to VROOM</h2>
           <form className="space-y-3" onSubmit={handleSubmit}>
             {error && (
               <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
@@ -123,7 +123,7 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
                 setForm((current) => ({ ...current, email: event.target.value }))
               }
               placeholder="Email"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+              className="w-full rounded-2xl border-2 border-black bg-white px-4 py-3 outline-none"
             />
             <input
               type="password"
@@ -133,12 +133,12 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
                 setForm((current) => ({ ...current, password: event.target.value }))
               }
               placeholder="Password"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+              className="w-full rounded-2xl border-2 border-black bg-white px-4 py-3 outline-none"
             />
             <button
               type="submit"
               disabled={isLoading}
-              className="mt-4 w-full rounded-lg bg-indigo-600 py-3 font-bold text-white disabled:opacity-40"
+              className="mt-4 w-full rounded-full border-2 border-black border-b-4 bg-[#E34B31] py-3 font-extrabold text-white active:border-b-0 disabled:opacity-40"
             >
               {isLoading
                 ? authMode === "login"
@@ -159,12 +159,12 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
           </div>
 
           <p className="mt-4 text-center text-sm text-gray-600">
-            {authMode === "login" ? "New to DriveBnb?" : "Already have an account?"}{" "}
+            {authMode === "login" ? "New to VROOM?" : "Already have an account?"}{" "}
             <button
               onClick={() =>
                 setAuthMode((current) => (current === "login" ? "signup" : "login"))
               }
-              className="font-medium text-indigo-600 hover:underline"
+              className="font-extrabold text-[#E34B31] hover:underline"
             >
               {authMode === "login" ? "Sign up" : "Log in"}
             </button>

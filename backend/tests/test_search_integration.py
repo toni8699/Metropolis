@@ -1,5 +1,5 @@
 """
-Integration tests for date-aware listing search (GET /api/market/listings).
+Integration tests for date-aware listing search (GET /api/listings).
 
 Requires a running backend and DATABASE_URL (same Neon DB as the API).
 
@@ -96,7 +96,7 @@ def _register_user(prefix: str) -> str:
 def _create_instant_book_listing(host_token: str) -> int:
     resp = _api(
         "POST",
-        "/api/owner/listings",
+        "/api/listings",
         token=host_token,
         json={
             "title": f"Search Test {uuid.uuid4().hex[:8]}",
@@ -177,7 +177,7 @@ def listing_with_confirmed_booking():
     assert resp.status_code == 201, _error_message(resp)
     booking_id = int(resp.json()["booking"]["bookingId"])
     assert resp.json()["booking"]["status"] == "PENDING"
-    pay_resp = _api("POST", f"/api/bookings/{booking_id}/payment-intent", token=renter_token)
+    pay_resp = _api("POST", f"/api/bookings/{booking_id}/payments", token=renter_token)
     assert pay_resp.status_code == 200, _error_message(pay_resp)
     yield listing_id, booking_id
     _delete_booking(booking_id)
@@ -186,7 +186,7 @@ def listing_with_confirmed_booking():
 
 
 def test_search_no_dates_returns_listings():
-    resp = _api("GET", "/api/market/listings")
+    resp = _api("GET", "/api/listings")
     assert resp.status_code == 200, _error_message(resp)
     listings = resp.json().get("listings") or []
     assert listings, "Expected at least one active listing without date filters"
@@ -196,7 +196,7 @@ def test_search_hides_listing_during_confirmed_booking(listing_with_confirmed_bo
     listing_id, _booking_id = listing_with_confirmed_booking
     resp = _api(
         "GET",
-        "/api/market/listings",
+        "/api/listings",
         params={
             "start_at": _iso_z(OVERLAP_SEARCH_START),
             "end_at": _iso_z(OVERLAP_SEARCH_END),
@@ -210,7 +210,7 @@ def test_search_shows_listing_outside_booking_window(listing_with_confirmed_book
     listing_id, _booking_id = listing_with_confirmed_booking
     resp = _api(
         "GET",
-        "/api/market/listings",
+        "/api/listings",
         params={
             "start_at": _iso_z(NON_OVERLAP_SEARCH_START),
             "end_at": _iso_z(NON_OVERLAP_SEARCH_END),
@@ -224,7 +224,7 @@ def test_search_legacy_start_end_aliases_hide_overlapping(listing_with_confirmed
     listing_id, _booking_id = listing_with_confirmed_booking
     resp = _api(
         "GET",
-        "/api/market/listings",
+        "/api/listings",
         params={
             "start": _iso_z(OVERLAP_SEARCH_START),
             "end": _iso_z(OVERLAP_SEARCH_END),
@@ -237,7 +237,7 @@ def test_search_legacy_start_end_aliases_hide_overlapping(listing_with_confirmed
 def test_search_validation_requires_both_dates():
     resp = _api(
         "GET",
-        "/api/market/listings",
+        "/api/listings",
         params={"start_at": _iso_z(BOOKING_START)},
     )
     assert resp.status_code == 400, resp.text
@@ -262,7 +262,7 @@ def test_search_hides_listing_during_blocked_availability_window():
     try:
         resp = _api(
             "GET",
-            "/api/market/listings",
+            "/api/listings",
             params={
                 "start_at": _iso_z(blocked_start + timedelta(days=1)),
                 "end_at": _iso_z(blocked_start + timedelta(days=3)),
@@ -285,7 +285,7 @@ def test_search_hides_listing_during_blocked_availability_window():
 def test_search_validation_end_must_be_after_start():
     resp = _api(
         "GET",
-        "/api/market/listings",
+        "/api/listings",
         params={
             "start_at": _iso_z(BOOKING_END),
             "end_at": _iso_z(BOOKING_START),

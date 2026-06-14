@@ -1,6 +1,7 @@
 from marshmallow import EXCLUDE, pre_load
 
 from metropolis.extensions import ma
+from metropolis.schemas.common import LinkSchema
 
 
 class ListingCreateSchema(ma.Schema):
@@ -131,6 +132,15 @@ class ListingSearchSchema(ma.Schema):
         return cleaned
 
 
+class ListingListSchema(ListingSearchSchema):
+    scope = ma.String(
+        required=False,
+        metadata={
+            "description": "mine (owner), fleet (admin), or host (admin). Omit for public search.",
+        },
+    )
+
+
 class ListingSchema(ma.Schema):
     listingId = ma.Integer(required=True)
     sourceType = ma.String(required=True)
@@ -177,16 +187,20 @@ class ListingSchema(ma.Schema):
     averageRating = ma.Float(allow_none=True)
     reviewCount = ma.Integer(required=True)
     instantBook = ma.Boolean(required=True)
+    _links = ma.Dict(keys=ma.String(), values=ma.Nested(LinkSchema), required=False)
 
 
 class ListingCollectionSchema(ma.Schema):
     status = ma.String(required=True)
+    scope = ma.String(required=False)
     listings = ma.List(ma.Nested(ListingSchema))
+    _links = ma.Dict(keys=ma.String(), values=ma.Nested(LinkSchema), required=False)
 
 
 class ListingItemSchema(ma.Schema):
     status = ma.String(required=True)
     listing = ma.Nested(ListingSchema)
+    _links = ma.Dict(keys=ma.String(), values=ma.Nested(LinkSchema), required=False)
 
 
 class BookedRangeSchema(ma.Schema):

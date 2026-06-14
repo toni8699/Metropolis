@@ -146,7 +146,7 @@ export default function BookingCheckoutPage() {
     <div className="mx-auto max-w-6xl px-4 pb-12 pt-24 sm:px-6 lg:px-10">
       <Link
         to={`/app/listings/${id}`}
-        className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:underline"
+        className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-[#FCFCE5] px-4 py-2 text-sm font-semibold text-[#183B1E] shadow-[4px_4px_0px_0px_rgba(24,59,30,0.45)] hover:underline"
       >
         <ChevronLeft className="h-4 w-4" />
         back to listing
@@ -154,18 +154,18 @@ export default function BookingCheckoutPage() {
 
       <div className="relative mt-6 flex flex-col-reverse gap-12 md:flex-row">
         <section className="w-full md:w-[55%]">
-          <h1 className="mb-8 text-3xl font-semibold text-gray-900">Confirm and pay</h1>
+          <h1 className="mb-8 text-4xl font-extrabold text-[#183B1E]">Confirm and pay</h1>
 
           <div className="pb-6">
-            <h2 className="mb-4 text-xl font-semibold text-gray-900">Your trip</h2>
+            <h2 className="mb-4 text-2xl font-extrabold text-[#183B1E]">Your trip</h2>
             <div className="flex items-center justify-between">
               <p className="font-medium text-gray-900">Dates</p>
               <p className="text-sm text-gray-700">{formattedDateRange}</p>
             </div>
           </div>
 
-          <div className="border-t py-6">
-            <h2 className="mb-4 text-xl font-semibold text-gray-900">Pay with</h2>
+          <div className="border-t-2 border-black py-6">
+            <h2 className="mb-4 text-2xl font-extrabold text-[#183B1E]">Pay with</h2>
             {clientSecret && stripePromise ? (
               <Elements stripe={stripePromise} options={{ clientSecret }}>
                 <StripePaymentForm
@@ -182,10 +182,10 @@ export default function BookingCheckoutPage() {
             )}
           </div>
 
-          <div className="border-t py-6">
+          <div className="border-t-2 border-black py-6">
             <p className="text-sm leading-6 text-gray-600">
               By selecting the button below, I agree to the Host&apos;s House Rules,
-              Ground rules for guests, and DriveBnb&apos;s policies.
+              Ground rules for guests, and VROOM&apos;s policies.
             </p>
 
             {submitError && (
@@ -198,7 +198,7 @@ export default function BookingCheckoutPage() {
               <button
                 onClick={handleRequestBooking}
                 disabled={isSubmitting}
-                className="mt-6 w-full rounded-xl bg-indigo-600 px-8 py-4 text-lg font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto"
+                className="mt-6 w-full rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-8 py-4 text-lg font-extrabold text-white transition hover:translate-y-[-1px] active:translate-y-1 active:border-b-0 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto"
               >
                 {isSubmitting ? "Confirming..." : "Confirm and pay"}
               </button>
@@ -207,7 +207,7 @@ export default function BookingCheckoutPage() {
         </section>
 
         <aside className="w-full md:w-[45%]">
-          <div className="sticky top-28 h-fit rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
+          <div className="sticky top-28 h-fit rounded-[2rem] border-2 border-black bg-[#FCFCE5] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.5)]">
             <div className="flex gap-4">
               <img
                 src={listing.photos?.[0] || "https://placehold.co/240x180?text=Car"}
@@ -215,7 +215,7 @@ export default function BookingCheckoutPage() {
                 className="h-20 w-24 rounded-lg object-cover"
               />
               <div className="min-w-0">
-                <p className="truncate font-semibold text-gray-900">
+                <p className="truncate font-extrabold text-black">
                   {listing.make || listing.brand} {listing.model} {listing.year || ""}
                 </p>
                 <p className="truncate text-sm text-gray-500">
@@ -227,7 +227,7 @@ export default function BookingCheckoutPage() {
               </div>
             </div>
 
-            <div className="my-6 border-b" />
+            <div className="my-6 border-b-2 border-black" />
 
             <div className="space-y-3 text-sm text-gray-800">
               <div className="flex items-center justify-between">
@@ -241,12 +241,12 @@ export default function BookingCheckoutPage() {
                 <p>${cleaningFee.toFixed(2)}</p>
               </div>
               <div className="flex items-center justify-between">
-                <p>DriveBnb service fee</p>
+                <p>VROOM service fee</p>
                 <p>${serviceFee.toFixed(2)}</p>
               </div>
             </div>
 
-            <div className="my-4 border-b" />
+            <div className="my-4 border-b-2 border-black" />
 
             <div className="flex items-center justify-between text-lg font-bold text-gray-900">
               <p>Total (CAD)</p>

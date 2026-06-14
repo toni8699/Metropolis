@@ -813,10 +813,10 @@ export default function HostDashboard({ mode = "admin" }) {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 flex">
-        <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 border-b border-gray-200">
-          <p className="text-xl font-bold text-gray-900">{isAdmin ? "DriveBnb Admin" : "DriveBnb Host"}</p>
+      <div className="min-h-screen bg-[#D0F0C0] flex">
+        <aside className="w-64 border-r-4 border-black bg-[#f5f5d0] flex flex-col">
+        <div className="p-6 border-b-2 border-black">
+          <p className="text-2xl font-extrabold text-[#183B1E]">{isAdmin ? "VROOM Admin" : "VROOM Host"}</p>
         </div>
         <nav className="flex-1 py-6 space-y-2">
           {navItems.map((item) => {
@@ -828,8 +828,8 @@ export default function HostDashboard({ mode = "admin" }) {
                 onClick={() => setActiveTab(item.id)}
                 className={`w-[calc(100%-2rem)] mx-4 px-4 py-2 rounded-lg flex items-center gap-3 text-sm transition ${
                   isActive
-                    ? "bg-gray-100 text-gray-900 font-semibold"
-                    : "text-gray-600 hover:bg-gray-50"
+                    ? "border-2 border-black bg-[#dbe8be] text-[#183B1E] font-extrabold shadow-[3px_3px_0px_0px_rgba(24,59,30,0.35)]"
+                    : "text-[#35593b] hover:bg-[#f5f5d0]"
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -841,13 +841,13 @@ export default function HostDashboard({ mode = "admin" }) {
         </aside>
 
         <div className="flex-1 flex flex-col h-screen overflow-y-auto">
-          <header className="h-20 bg-white border-b border-gray-200 px-10 flex items-center justify-between sticky top-0 z-10">
-            <h1 className="text-2xl font-semibold text-gray-900">{activePageTitle}</h1>
+          <header className="h-20 bg-[#f5f5d0] border-b-4 border-black px-11 flex items-center justify-between sticky top-0 z-10">
+            <h1 className="text-3xl font-extrabold text-[#183B1E]">{activePageTitle}</h1>
             {isAdmin && (
               <button
                 onClick={syncFleet}
                 disabled={isSyncingFleet}
-                className="bg-gray-900 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-black transition disabled:opacity-50"
+                className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-2 font-extrabold text-white flex items-center gap-2 transition active:border-b-0 disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 ${isSyncingFleet ? "animate-spin" : ""}`} />
                 {isSyncingFleet ? "Syncing..." : "Sync Fleet Now"}
@@ -857,19 +857,19 @@ export default function HostDashboard({ mode = "admin" }) {
 
           <main className="pb-10">
           {error && (
-            <div className="mx-10 mt-6 rounded-md bg-red-50 p-3 text-sm text-red-600">
+            <div className="mx-11 mt-6 rounded-xl border-2 border-black bg-[#ffd8cf] p-3 text-sm font-semibold text-[#7a2215]">
               {error}
             </div>
           )}
           {success && (
-            <div className="mx-10 mt-6 rounded-md bg-emerald-50 p-3 text-sm text-emerald-700">
+            <div className="mx-11 mt-6 rounded-xl border-2 border-black bg-[#dbe8be] p-3 text-sm font-semibold text-[#183B1E]">
               {success}
             </div>
           )}
 
           {activeTab === "overview" && (
             <>
-              <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 p-10">
+              <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 p-11">
                 <AnalyticsCard label="Total Listings" value={analytics?.listingCount ?? 0} />
                 <AnalyticsCard label="Total Bookings" value={analytics?.bookingCount ?? 0} />
                 <AnalyticsCard
@@ -886,8 +886,8 @@ export default function HostDashboard({ mode = "admin" }) {
                 />
               </section>
 
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-10 mt-2">
-                <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
+              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-11 mt-2">
+                <div className="lg:col-span-2 bg-[#f5f5d0] border border-gray-200 rounded-2xl shadow-sm p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue (Past 30 Days)</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={revenueSeries}>
@@ -913,7 +913,7 @@ export default function HostDashboard({ mode = "admin" }) {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
+                <div className="bg-[#f5f5d0] border border-gray-200 rounded-2xl shadow-sm p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Bookings by Location</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
@@ -935,7 +935,7 @@ export default function HostDashboard({ mode = "admin" }) {
                 </div>
               </section>
 
-              <section className="mx-10 mt-6 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+              <section className="mx-11 mt-6 bg-[#f5f5d0] border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">Recent Bookings</h3>
                 </div>
@@ -982,7 +982,7 @@ export default function HostDashboard({ mode = "admin" }) {
 
           {activeTab === "create_listing" && (
             <section className="pb-10">
-              <div className="px-10 pt-10">
+              <div className="px-11 pt-11">
                 <h2 className="text-2xl font-semibold text-gray-900">
                   {editingListingId
                     ? `Edit Listing #${editingListingId}`
@@ -991,7 +991,7 @@ export default function HostDashboard({ mode = "admin" }) {
                       : "Create Listing"}
                 </h2>
               </div>
-              <div className="max-w-4xl mx-auto mt-6 bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
+              <div className="max-w-4xl mx-auto mt-6 bg-[#f5f5d0] border border-gray-200 rounded-2xl p-8 shadow-sm">
                 <form className="space-y-6" onSubmit={createListing}>
                   <section className="space-y-4">
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Basic Info</h3>
@@ -1462,7 +1462,7 @@ export default function HostDashboard({ mode = "admin" }) {
           )}
 
           {isAdmin && activeTab === "kyc" && (
-            <section className="mx-10 mt-6 mb-10 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <section className="mx-11 mt-6 mb-11 rounded-2xl border border-gray-200 bg-[#f5f5d0] p-6 shadow-sm">
               <h3 className="mb-4 text-lg font-semibold text-gray-900">Host identity review</h3>
               {kycQueue.length === 0 ? (
                 <p className="text-sm text-gray-600">No pending verifications.</p>
@@ -1507,7 +1507,7 @@ export default function HostDashboard({ mode = "admin" }) {
           )}
 
           {isAdmin && activeTab === "users" && (
-            <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden mx-10 mt-6 mb-10 shadow-sm">
+            <section className="bg-[#f5f5d0] border border-gray-200 rounded-2xl overflow-hidden mx-11 mt-6 mb-11 shadow-sm">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
@@ -1538,7 +1538,7 @@ export default function HostDashboard({ mode = "admin" }) {
           )}
 
           {activeTab === "bookings" && (
-            <div className="mx-10 mt-6 mb-10 space-y-6">
+            <div className="mx-11 mt-6 mb-11 space-y-6">
               {!isAdmin && pendingApprovalBookings.length > 0 && (
                 <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -1594,7 +1594,7 @@ export default function HostDashboard({ mode = "admin" }) {
                 </section>
               )}
 
-              <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <section className="overflow-hidden rounded-2xl border border-gray-200 bg-[#f5f5d0] shadow-sm">
                 <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -1688,7 +1688,7 @@ export default function HostDashboard({ mode = "admin" }) {
 
           {isMapModalOpen && (
             <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden relative">
+              <div className="bg-[#f5f5d0] rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden relative">
                 <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Drag the pin to your exact location</h3>
@@ -1742,7 +1742,7 @@ export default function HostDashboard({ mode = "admin" }) {
           )}
 
           {isLoading && (
-            <div className="mx-10 rounded-md bg-gray-100 p-3 text-sm text-gray-600">
+            <div className="mx-11 rounded-md bg-gray-100 p-3 text-sm text-gray-600">
               Loading dashboard data...
             </div>
           )}
@@ -1764,7 +1764,7 @@ function ListingsTableSection({
   onDelete,
 }) {
   return (
-    <section className="mx-10 mt-6 mb-10">
+    <section className="mx-11 mt-6 mb-11">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
         {showAddButton && (
@@ -1777,7 +1777,7 @@ function ListingsTableSection({
           </button>
         )}
       </div>
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-[#f5f5d0] border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
@@ -1922,11 +1922,11 @@ function formatBookingWindow(startAt, endAt) {
 
 function AnalyticsCard({ label, value }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col gap-2">
-      <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">{label}</p>
+    <div className="bg-[#FCFCE5] border-2 border-black rounded-[1.5rem] p-6 shadow-[6px_6px_0px_0px_rgba(24,59,30,0.35)] flex flex-col gap-2">
+      <p className="text-sm font-bold text-[#35593b] uppercase tracking-wider">{label}</p>
       <div className="flex items-center gap-2">
-        <BarChart3 className="h-4 w-4 text-gray-400" />
-        <p className="text-4xl font-bold text-gray-900">{value}</p>
+        <BarChart3 className="h-5 w-5 text-[#E34B31]" />
+        <p className="text-4xl font-extrabold text-[#183B1E]">{value}</p>
       </div>
     </div>
   );
@@ -1935,14 +1935,14 @@ function AnalyticsCard({ label, value }) {
 function LabeledInput({ label, value, onChange, type = "text", placeholder, required = false }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-gray-700">{label}</span>
+      <span className="mb-2 block text-sm font-bold text-[#35593b]">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition"
+        className="w-full border-2 border-black rounded-2xl bg-white px-4 py-3 text-[#183B1E] outline-none transition"
       />
     </label>
   );
@@ -1951,12 +1951,12 @@ function LabeledInput({ label, value, onChange, type = "text", placeholder, requ
 function LabeledTextarea({ label, value, onChange, placeholder }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-gray-700">{label}</span>
+      <span className="mb-2 block text-sm font-bold text-[#35593b]">{label}</span>
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full min-h-28 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition resize-y"
+        className="w-full min-h-28 border-2 border-black rounded-2xl bg-white px-4 py-3 text-[#183B1E] outline-none transition resize-y"
       />
     </label>
   );
@@ -1965,12 +1965,12 @@ function LabeledTextarea({ label, value, onChange, placeholder }) {
 function LabeledSelect({ label, value, onChange, options, required = false }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-gray-700">{label}</span>
+      <span className="mb-2 block text-sm font-bold text-[#35593b]">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required={required}
-        className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition bg-white"
+        className="w-full border-2 border-black rounded-2xl bg-white px-4 py-3 text-[#183B1E] outline-none transition"
       >
         <option value="">Select option</option>
         {options.map((option) => (
@@ -1986,15 +1986,15 @@ function LabeledSelect({ label, value, onChange, options, required = false }) {
 function LabeledPriceInput({ label, value, onChange }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-gray-700">{label}</span>
+      <span className="mb-2 block text-sm font-bold text-[#35593b]">{label}</span>
       <div className="relative">
-        <DollarSign className="h-4 w-4 text-gray-500 absolute left-4 top-1/2 -translate-y-1/2" />
+        <DollarSign className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#E34B31]" />
         <input
           type="number"
           value={value}
           onChange={(event) => onChange(event.target.value)}
           required
-          className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-3 text-gray-900 focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition"
+          className="w-full border-2 border-black rounded-2xl bg-white py-3 pl-10 pr-4 text-[#183B1E] outline-none transition"
         />
       </div>
     </label>

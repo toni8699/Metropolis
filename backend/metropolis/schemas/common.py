@@ -13,3 +13,8 @@ class ErrorSchema(ma.Schema):
 
 class StatusSchema(ma.Schema):
     status = ma.String(required=True)
+
+
+class LinkSchema(ma.Schema):
+    href = ma.String(required=True)
+    method = ma.String(required=True)

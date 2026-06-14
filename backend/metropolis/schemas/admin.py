@@ -75,3 +75,14 @@ class AdminKycUpdateSchema(ma.Schema):
     status = ma.String(required=True)
     userId = ma.Integer(required=True)
     verificationStatus = ma.String(required=True)
+
+
+class AnalyticsScopeSchema(ma.Schema):
+    scope = ma.String(
+        required=True,
+        metadata={"description": "owner (host) or fleet (admin)."},
+    )
+
+
+class KycQueueQuerySchema(ma.Schema):
+    status = ma.String(required=False, metadata={"description": "pending (default)."})

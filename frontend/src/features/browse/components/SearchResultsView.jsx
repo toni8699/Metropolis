@@ -57,8 +57,8 @@ function PriceMarker({ car, isActive, onClick }) {
           }}
           onMouseDown={(event) => event.stopPropagation()}
           onTouchStart={(event) => event.stopPropagation()}
-          className={`cursor-pointer whitespace-nowrap rounded-full border border-gray-200 px-3 py-1.5 text-sm font-bold shadow-md transition-transform hover:scale-105 ${
-            isActive ? "bg-gray-900 text-white" : "bg-white text-gray-900"
+          className={`cursor-pointer whitespace-nowrap rounded-full border-2 border-black px-3 py-1.5 text-sm font-extrabold shadow-[4px_4px_0px_0px_rgba(24,59,30,0.6)] transition-transform hover:scale-105 ${
+            isActive ? "bg-[#183B1E] text-white" : "bg-[#FCFCE5] text-black"
           }`}
         >
           ${priceLabel}
@@ -96,12 +96,12 @@ function MapPopupCard({ car }) {
       href={listingUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block w-[280px] cursor-pointer overflow-hidden rounded-2xl bg-white shadow-2xl"
+      className="group block w-[280px] cursor-pointer overflow-hidden rounded-[1.8rem] border-2 border-black bg-[#FCFCE5] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.55)]"
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       onTouchStart={(event) => event.stopPropagation()}
     >
-      <div className="relative h-[180px] w-full overflow-hidden bg-gray-100">
+      <div className="relative h-[180px] w-full overflow-hidden rounded-b-[1.2rem] bg-[#dbe8be]">
         {currentImage ? (
           <img
             src={currentImage}
@@ -118,14 +118,14 @@ function MapPopupCard({ car }) {
           <>
             <button
               onClick={handlePrevImage}
-              className="absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 opacity-0 shadow-sm transition hover:scale-110 hover:bg-white group-hover:opacity-100"
+              className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-[#FCFCE5] text-black opacity-0 shadow-sm transition hover:scale-110 group-hover:opacity-100"
               aria-label="Previous image"
             >
               <ChevronLeft size={16} />
             </button>
             <button
               onClick={handleNextImage}
-              className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 opacity-0 shadow-sm transition hover:scale-110 hover:bg-white group-hover:opacity-100"
+              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-[#FCFCE5] text-black opacity-0 shadow-sm transition hover:scale-110 group-hover:opacity-100"
               aria-label="Next image"
             >
               <ChevronRight size={16} />
@@ -145,19 +145,19 @@ function MapPopupCard({ car }) {
         )}
       </div>
 
-      <div className="flex flex-col gap-1 p-4">
+      <div className="flex flex-col gap-1.5 p-4">
         <div className="flex w-full items-center gap-3">
-          <p className="min-w-0 flex-1 truncate font-semibold text-gray-900">
+          <p className="min-w-0 flex-1 truncate text-lg font-extrabold text-black">
             {title || car.title || "Vehicle"}
           </p>
           <ListingRatingLine listing={car} />
         </div>
-        <p className="truncate text-sm text-gray-500">
+        <p className="truncate text-sm font-semibold text-[#35593b]">
           {car.details || car.sourceType || "Automatic"}
         </p>
-        <p className="mt-1 text-gray-900">
-          <span className="font-bold">${formatPricePerDay(car.pricePerDay) ?? "—"}</span>
-          <span className="font-normal"> / day</span>
+        <p className="mt-1 text-black">
+          <span className="font-extrabold">${formatPricePerDay(car.pricePerDay) ?? "—"}</span>
+          <span className="font-semibold"> / day</span>
         </p>
       </div>
     </a>
@@ -278,19 +278,19 @@ export default function SearchResultsView({
     <div className="w-full">
       <div className="flex w-full flex-col md:flex-row">
         <section
-          className={`w-full px-2 py-3 sm:px-3 lg:px-4 transition-all duration-300 ${
+          className={`w-full rounded-[2rem] border-4 border-black bg-[#f5f5d0] px-3 py-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sm:px-4 lg:px-5 transition-all duration-300 ${
             isMapFullscreen ? "hidden" : "md:w-[55%] xl:w-[60%]"
           }`}
         >
-          <h2 className="mb-3 text-base font-semibold">
+          <h2 className="mb-4 text-xl font-extrabold text-[#183B1E]">
             {isLoading ? "Loading cars..." : `${cars.length} cars in ${cityLabel}`}
           </h2>
           <div className="mb-4 md:hidden">
             <button
               onClick={() => setIsMapFullscreen(true)}
-              className="mx-auto flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium shadow-sm"
+              className="mx-auto flex items-center gap-1.5 rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-2 text-sm font-extrabold text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)] active:border-b-0"
             >
-              <MapIcon className="h-3.5 w-3.5" />
+              <MapIcon className="h-4 w-4" />
               Show map
             </button>
           </div>
@@ -305,9 +305,9 @@ export default function SearchResultsView({
               ))}
             </div>
           ) : cars.length === 0 ? (
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-center">
-              <p className="text-sm font-medium text-gray-900">No cars near {cityLabel}</p>
-              <p className="mt-2 text-sm text-gray-600">
+            <div className="rounded-3xl border-2 border-black bg-[#FCFCE5] p-6 text-center shadow-[6px_6px_0px_0px_rgba(24,59,30,0.5)]">
+              <p className="text-base font-extrabold text-[#183B1E]">No cars near {cityLabel}</p>
+              <p className="mt-2 text-sm text-[#35593b]">
                 Try another city or widen your search. Listings only show within 50 km of your
                 picked location.
               </p>
@@ -341,7 +341,7 @@ export default function SearchResultsView({
               <div className="relative h-full w-full">
                 <button
                   onClick={() => setIsMapFullscreen((v) => !v)}
-                  className="absolute left-1/2 top-2.5 z-10 -translate-x-1/2 rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium shadow-md"
+                  className="absolute left-1/2 top-2.5 z-10 -translate-x-1/2 rounded-full border-2 border-black border-b-4 bg-[#FCFCE5] px-3 py-1.5 text-xs font-extrabold text-[#183B1E] shadow-md active:border-b-0"
                 >
                   {isMapFullscreen ? (
                     <span className="flex items-center gap-2">
