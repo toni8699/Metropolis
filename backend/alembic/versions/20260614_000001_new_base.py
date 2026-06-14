@@ -10,8 +10,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from alembic import op
 from sqlalchemy import text
+
+from alembic import op
 
 revision: str = "000001_new_base"
 down_revision: str | None = None
