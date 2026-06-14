@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import CarGrid from "@/shared/components/CarGrid";
 import ListingRatingLine from "@/features/listings/components/ListingRatingLine";
+import BodyCard from "@/shared/components/BodyCard";
 import { formatPricePerDay } from "@/shared/lib/formatPrice";
 import { spreadOverlappingMarkers } from "@/shared/lib/mapMarkers";
 
@@ -276,9 +277,9 @@ export default function SearchResultsView({
 
   return (
     <div className="w-full">
-      <div className="flex w-full flex-col md:flex-row">
-        <section
-          className={`w-full rounded-[2rem] border-4 border-black bg-[#f5f5d0] px-3 py-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sm:px-4 lg:px-5 transition-all duration-300 ${
+      <div className="flex w-full flex-col gap-4 md:flex-row md:gap-5">
+        <BodyCard
+          className={`w-full px-3 py-4 sm:px-4 lg:px-5 transition-all duration-300 ${
             isMapFullscreen ? "hidden" : "md:w-[55%] xl:w-[60%]"
           }`}
         >
@@ -319,7 +320,7 @@ export default function SearchResultsView({
               distanceById={Object.fromEntries(cars.map((c) => [c.id, c.distanceKm]))}
             />
           )}
-        </section>
+        </BodyCard>
 
         <aside
           className={`${
@@ -328,17 +329,17 @@ export default function SearchResultsView({
               : "hidden md:block md:w-[45%] xl:w-[40%]"
           } transition-all duration-300`}
         >
-          <div className="sticky top-[64px] h-[calc(100vh-64px)] overflow-hidden">
+          <div className="sticky top-[64px] h-[calc(100vh-64px)] p-4">
             {!apiKey ? (
-              <div className="m-4 rounded-xl border border-slate-300 bg-white p-4 text-sm text-slate-700">
+              <div className="rounded-2xl border border-slate-300 bg-white p-4 text-sm text-slate-700">
                 Add `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env.local` to show map.
               </div>
             ) : !isLoaded ? (
-              <div className="m-4 rounded-xl border border-slate-300 bg-white p-4 text-sm text-slate-700">
+              <div className="rounded-2xl border border-slate-300 bg-white p-4 text-sm text-slate-700">
                 Loading map...
               </div>
             ) : (
-              <div className="relative h-full w-full">
+              <div className="relative h-full w-full overflow-hidden rounded-2xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(24,59,30,0.45)]">
                 <button
                   onClick={() => setIsMapFullscreen((v) => !v)}
                   className="absolute left-1/2 top-2.5 z-10 -translate-x-1/2 rounded-full border-2 border-black border-b-4 bg-[#FCFCE5] px-3 py-1.5 text-xs font-extrabold text-[#183B1E] shadow-md active:border-b-0"

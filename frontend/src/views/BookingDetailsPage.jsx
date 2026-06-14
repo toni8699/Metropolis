@@ -12,7 +12,7 @@ import {
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import BookingChat from "@/features/bookings/components/BookingChat";
 import { useAuth } from "@/context/AuthContext";
-import { apiGet, apiPost } from "@/shared/api/api";
+import { apiGet, apiPatch } from "@/shared/api/api";
 import {
   bookingStatusBadgeClass,
   buildTripTimeline,
@@ -117,11 +117,11 @@ export default function BookingDetailsPage() {
   const host = booking?.host;
   const renter = booking?.renter;
 
-  const runAction = async (path, body = {}) => {
+  const runAction = async (body = {}) => {
     setActionError("");
     setIsActing(true);
     try {
-      await apiPost(path, body, true);
+      await apiPatch(`/api/bookings/${bookingId}`, body, true);
       await load();
     } catch (err) {
       setActionError(err?.message || "Action failed.");
@@ -133,7 +133,7 @@ export default function BookingDetailsPage() {
   const sendInstruction = async () => {
     const message = instructionDraft.trim();
     if (!message) return;
-    await runAction(`/api/bookings/${bookingId}/instructions`, { message });
+    await runAction({ instructions: message });
     setInstructionDraft("");
   };
 
@@ -351,7 +351,7 @@ export default function BookingDetailsPage() {
                 <button
                   type="button"
                   disabled={isActing}
-                  onClick={() => runAction(`/api/bookings/${bookingId}/approve`)}
+                  onClick={() => runAction({ status: "CONFIRMED" })}
                   className="rounded-full border-2 border-black border-b-4 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white active:border-b-0 disabled:opacity-50"
                 >
                   Approve booking
@@ -361,7 +361,7 @@ export default function BookingDetailsPage() {
                 <button
                   type="button"
                   disabled={isActing}
-                  onClick={() => runAction(`/api/bookings/${bookingId}/reject`)}
+                  onClick={() => runAction({ status: "CANCELLED" })}
                   className="rounded-full border-2 border-black border-b-4 bg-[#ffd8cf] px-3 py-1.5 text-xs font-bold text-[#7a2215] active:border-b-0 disabled:opacity-50"
                 >
                   Reject booking
@@ -397,7 +397,7 @@ export default function BookingDetailsPage() {
                 <button
                   type="button"
                   disabled={isActing}
-                  onClick={() => runAction(`/api/bookings/${bookingId}/cancel`)}
+                  onClick={() => runAction({ status: "CANCELLED" })}
                   className="rounded-full border-2 border-black border-b-4 bg-[#ffd8cf] px-3 py-1.5 text-xs font-bold text-[#7a2215] active:border-b-0 disabled:opacity-50"
                 >
                   Cancel booking
@@ -407,7 +407,7 @@ export default function BookingDetailsPage() {
                 <button
                   type="button"
                   disabled={isActing}
-                  onClick={() => runAction(`/api/bookings/${bookingId}/confirm-pickup`)}
+                  onClick={() => runAction({ status: "IN_PROGRESS" })}
                   className="rounded-full border-2 border-black border-b-4 bg-[#183B1E] px-3 py-1.5 text-xs font-bold text-white active:border-b-0 disabled:opacity-50"
                 >
                   Confirm pickup
@@ -417,7 +417,7 @@ export default function BookingDetailsPage() {
                 <button
                   type="button"
                   disabled={isActing}
-                  onClick={() => runAction(`/api/bookings/${bookingId}/complete`)}
+                  onClick={() => runAction({ status: "COMPLETED" })}
                   className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-3 py-1.5 text-xs font-extrabold text-white active:border-b-0 disabled:opacity-50"
                 >
                   Complete trip

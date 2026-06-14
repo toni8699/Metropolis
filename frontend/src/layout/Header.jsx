@@ -240,7 +240,7 @@ export default function Header({ onSearch, onHome }) {
     "h-full flex flex-col justify-center rounded-full px-5 transition font-semibold";
   const getSectionClass = (section) =>
     activeSection === section
-      ? `${sectionBaseClass} bg-[#FCFCE5] shadow-[4px_4px_0px_0px_rgba(24,59,30,0.75)]`
+      ? `${sectionBaseClass} bg-[#FCFCE5] shadow-[4px_4px_0px_0px_rgba(24,59,30,0.45)]`
       : `${sectionBaseClass} hover:bg-[#dbe8be]`;
 
   const openAuthModal = (mode = "login") => {
@@ -289,8 +289,8 @@ export default function Header({ onSearch, onHome }) {
         />
       )}
 
-      <header className="fixed inset-x-0 top-0 z-50 w-full border-b-4 border-black bg-[#D0F0C0] transition-all">
-        <div className="flex flex-col gap-3 px-3 py-2.5 sm:px-4 md:flex-row md:items-center md:justify-between md:px-5 md:py-3 lg:px-6 xl:px-8">
+      <header className="fixed inset-x-0 top-0 z-50 w-full border-b-4 border-black bg-[#FFFEF0] shadow-md transition-all">
+        <div className="flex flex-col gap-4 px-4 py-3 sm:px-5 md:flex-row md:items-center md:justify-between md:px-6 md:py-3.5 lg:px-7 xl:px-8">
           <div className="flex items-center justify-between md:w-auto">
             <Link
               to="/"
@@ -372,7 +372,7 @@ export default function Header({ onSearch, onHome }) {
                 }}
               />
             ) : (
-              <div className="relative mx-auto flex h-[4.6rem] w-full max-w-2xl items-center rounded-full border-4 border-black bg-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+              <div className="relative mx-auto flex h-[4.6rem] w-full max-w-2xl items-center rounded-full border-4 border-black bg-white shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
                 <button
                   onClick={() => setActiveSection("where")}
                   className={getSectionClass("where")}

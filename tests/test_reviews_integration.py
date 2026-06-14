@@ -83,7 +83,7 @@ def _login_or_register() -> str:
 def _pick_listing_id() -> int:
     if INTEGRATION_LISTING_ID:
         return int(INTEGRATION_LISTING_ID)
-    resp = _api("GET", "/api/market/listings")
+    resp = _api("GET", "/api/listings")
     assert resp.status_code == 200, _error_message(resp)
     listings = resp.json().get("listings") or []
     assert listings, "No listings in database — need at least one active listing"
@@ -91,7 +91,7 @@ def _pick_listing_id() -> int:
 
 
 def _get_listing_stats(listing_id: int) -> tuple[int | None, int]:
-    resp = _api("GET", f"/api/market/listings/{listing_id}")
+    resp = _api("GET", f"/api/listings/{listing_id}")
     assert resp.status_code == 200, _error_message(resp)
     listing = resp.json()["listing"]
     avg = listing.get("averageRating")

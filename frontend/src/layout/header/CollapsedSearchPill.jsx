@@ -8,7 +8,7 @@ export default function CollapsedSearchPill({
   return (
     <button
       onClick={onOpen}
-      className="mx-auto flex h-16 w-full max-w-xl cursor-pointer items-center gap-2 rounded-full border-4 border-black bg-white px-4 py-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition hover:translate-y-[-1px] md:max-w-2xl"
+      className="mx-auto flex h-16 w-full max-w-xl cursor-pointer items-center gap-2 rounded-full border-4 border-black bg-white px-4 py-3 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)] transition hover:translate-y-[-1px] md:max-w-2xl"
     >
       <div className="min-w-[120px] flex-1 px-2 text-center text-base font-extrabold text-[#2D5A27] sm:min-w-[200px]">
         {location || "Anywhere"}

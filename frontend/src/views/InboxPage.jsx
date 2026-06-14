@@ -5,6 +5,7 @@ import ChatMessageList from "@/features/chat/components/ChatMessageList";
 import { useAuth } from "@/context/AuthContext";
 import { useBookingChat } from "@/shared/hooks/useBookingChat";
 import { avatarColorClass, avatarInitials } from "@/shared/lib/avatar";
+import BodyCard from "@/shared/components/BodyCard";
 import {
   formatInboxMessageTime,
   formatThreadContextSubtitle,
@@ -222,7 +223,7 @@ export default function InboxPage() {
   const otherName = selectedThread?.otherParty?.name || "Guest";
 
   return (
-    <div className="grid min-h-[calc(100vh-16rem)] grid-cols-1 overflow-hidden rounded-[2rem] border-4 border-black bg-[#FCFCE5] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] md:grid-cols-12">
+    <BodyCard className="grid min-h-[calc(100vh-16rem)] grid-cols-1 overflow-hidden md:grid-cols-12">
       <aside
         className={`col-span-12 flex min-h-0 flex-col border-r-2 border-black md:col-span-3 ${
           mobilePane === "chat" ? "hidden md:flex" : "flex"
@@ -351,6 +352,6 @@ export default function InboxPage() {
       <aside className="hidden min-h-0 overflow-y-auto overscroll-contain border-l-2 border-black lg:col-span-3 lg:block">
         <ReservationSidebar thread={selectedThread} />
       </aside>
-    </div>
+    </BodyCard>
   );
 }

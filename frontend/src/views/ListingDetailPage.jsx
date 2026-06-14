@@ -9,6 +9,7 @@ import AuthModal from "@/shared/components/AuthModal";
 import { useNavigate, useParams } from "react-router-dom";
 import ListingReviewsSection from "@/features/listings/components/ListingReviewsSection";
 import ListingRatingLine from "@/features/listings/components/ListingRatingLine";
+import BodyCard from "@/shared/components/BodyCard";
 import { apiGet } from "@/shared/api/api";
 import { dateRangeOverlapsBooked } from "@/shared/lib/bookingDates";
 import {
@@ -41,7 +42,7 @@ export default function ListingDetailPage() {
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
-    apiGet(`/api/market/listings/${listingId}`)
+    apiGet(`/api/listings/${listingId}`)
       .then((data) => {
         if (!cancelled) {
           setListing(data?.listing || null);
@@ -65,7 +66,7 @@ export default function ListingDetailPage() {
   useEffect(() => {
     let cancelled = false;
     setReviewsLoading(true);
-    apiGet(`/api/market/listings/${listingId}/reviews`)
+    apiGet(`/api/listings/${listingId}/reviews`)
       .then((data) => {
         if (!cancelled) {
           setReviews(data?.reviews || []);
@@ -88,7 +89,7 @@ export default function ListingDetailPage() {
 
   useEffect(() => {
     let cancelled = false;
-    apiGet(`/api/market/listings/${listingId}/booked-ranges`)
+    apiGet(`/api/listings/${listingId}/booked-ranges`)
       .then((data) => {
         if (!cancelled) {
           setBookedRanges(data?.ranges || []);
@@ -268,7 +269,7 @@ export default function ListingDetailPage() {
 
   return (
     <>
-      <div className="mx-auto max-w-7xl rounded-[2rem] border-4 border-black bg-[#f5f5d0] px-5 py-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sm:px-7 lg:px-11">
+      <BodyCard className="mx-auto max-w-7xl px-5 py-8 sm:px-7 lg:px-11">
       <h1 className="mb-2 text-5xl font-black text-[#2D5A27]">{title}</h1>
       <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
         <ListingRatingLine listing={listing} />
@@ -502,7 +503,7 @@ export default function ListingDetailPage() {
           </div>
         </div>
       </div>
-      </div>
+      </BodyCard>
       {isGalleryOpen && (
         <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#FCFCE5]">
           <div className="sticky top-0 z-10 flex items-center border-b-4 border-black bg-[#FCFCE5] px-6 py-4">

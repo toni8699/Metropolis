@@ -217,7 +217,7 @@ export default function HostOnboardingFlow() {
       const cityZone = "toronto-core";
       const title = `${listingData.make} ${listingData.model}`.trim();
       const response = await apiPost(
-        "/api/owner/listings",
+        "/api/listings",
         {
           title: title || "My listing",
           make: listingData.make,
@@ -242,7 +242,7 @@ export default function HostOnboardingFlow() {
       }
 
       await apiPost(
-        `/api/owner/listings/${listingId}/location`,
+        `/api/listings/${listingId}/location`,
         { lat, lng, cityZone },
         true,
       );

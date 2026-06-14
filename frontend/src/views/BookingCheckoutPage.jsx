@@ -53,7 +53,7 @@ export default function BookingCheckoutPage() {
 
     let cancelled = false;
     setIsLoading(true);
-    apiGet(`/api/market/listings/${id}`)
+    apiGet(`/api/listings/${id}`)
       .then((data) => {
         if (!cancelled) setListing(data?.listing || null);
       })
@@ -100,7 +100,7 @@ export default function BookingCheckoutPage() {
       if (!bookingId) {
         throw new Error("Booking was not created.");
       }
-      const intent = await apiPost(`/api/bookings/${bookingId}/payment-intent`, {}, true);
+      const intent = await apiPost(`/api/bookings/${bookingId}/payments`, {}, true);
       if (intent?.mock || !intent?.clientSecret) {
         navigate("/app/trips");
         return;

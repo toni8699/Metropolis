@@ -306,13 +306,13 @@ export default function HostDashboard({ mode = "admin" }) {
       if (isAdmin) {
         const [analyticsRes, bookingsRes, listingsRes, hostListingsRes, usersRes, locationsRes, kycRes] =
           await Promise.all([
-            apiGet("/api/admin/analytics", true),
-            apiGet("/api/admin/bookings", true),
-            apiGet("/api/admin/listings", true),
-            apiGet("/api/admin/host-listings", true),
-            apiGet("/api/admin/users", true),
-            apiGet("/api/admin/company-locations", true),
-            apiGet("/api/admin/kyc-queue", true),
+            apiGet("/api/analytics?scope=fleet", true),
+            apiGet("/api/bookings?scope=fleet", true),
+            apiGet("/api/listings?scope=fleet", true),
+            apiGet("/api/listings?scope=host", true),
+            apiGet("/api/users", true),
+            apiGet("/api/company-locations", true),
+            apiGet("/api/users/kyc?status=pending", true),
           ]);
         setAnalytics(analyticsRes?.analytics || null);
         setBookings(bookingsRes?.bookings || []);
@@ -337,10 +337,10 @@ export default function HostDashboard({ mode = "admin" }) {
         }
       } else {
         const [listingsRes, bookingsRes, analyticsRes, vehicleClassesRes] = await Promise.all([
-          apiGet("/api/owner/listings", true),
-          apiGet("/api/owner/bookings", true).catch(() => ({ bookings: [] })),
-          apiGet("/api/owner/analytics", true).catch(() => ({ analytics: null })),
-          apiGet("/api/owner/vehicle-classes", true).catch(() => ({ vehicleClasses: [] })),
+          apiGet("/api/listings?scope=mine", true),
+          apiGet("/api/bookings?scope=owner", true).catch(() => ({ bookings: [] })),
+          apiGet("/api/analytics?scope=owner", true).catch(() => ({ analytics: null })),
+          apiGet("/api/vehicle-classes", true).catch(() => ({ vehicleClasses: [] })),
         ]);
         const ownerListings = listingsRes?.listings || [];
         const ownerBookings = bookingsRes?.bookings || [];
@@ -441,10 +441,10 @@ export default function HostDashboard({ mode = "admin" }) {
 
       let targetListingId = null;
       if (editingListingId) {
-        await apiPatch(`/api/owner/listings/${editingListingId}`, payload, true);
+        await apiPatch(`/api/listings/${editingListingId}`, payload, true);
         targetListingId = Number(editingListingId);
       } else {
-        const response = await apiPost("/api/owner/listings", payload, true);
+        const response = await apiPost("/api/listings", payload, true);
         targetListingId = response?.listing?.listingId || null;
       }
 
@@ -458,7 +458,7 @@ export default function HostDashboard({ mode = "admin" }) {
         locationZone
       ) {
         await apiPost(
-          `/api/owner/listings/${targetListingId}/location`,
+          `/api/listings/${targetListingId}/location`,
           {
             lat: locationLat,
             lng: locationLng,
@@ -556,8 +556,9 @@ export default function HostDashboard({ mode = "admin" }) {
     setError("");
     setSuccess("");
     setBookingActionId(bookingId);
+    const status = action === "approve" ? "CONFIRMED" : "CANCELLED";
     try {
-      await apiPost(`/api/bookings/${bookingId}/${action}`, {}, true);
+      await apiPatch(`/api/bookings/${bookingId}`, { status }, true);
       setSuccess(action === "approve" ? "Booking approved." : "Booking rejected.");
       await loadAll();
     } catch (err) {
@@ -571,7 +572,7 @@ export default function HostDashboard({ mode = "admin" }) {
     setError("");
     setSuccess("");
     try {
-      await apiDelete(`/api/owner/listings/${listingId}`, true);
+      await apiDelete(`/api/listings/${listingId}`, true);
       setSuccess("Listing deleted.");
       await loadAll();
     } catch (err) {
@@ -584,7 +585,7 @@ export default function HostDashboard({ mode = "admin" }) {
     setSuccess("");
     setIsSyncingFleet(true);
     try {
-      await apiPost("/api/admin/fleet/sync-listings", {}, true);
+      await apiPost("/api/fleet/sync", {}, true);
       setSuccess("Fleet synchronized.");
       await loadAll();
     } catch (err) {
@@ -813,8 +814,8 @@ export default function HostDashboard({ mode = "admin" }) {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-[#D0F0C0] flex">
-        <aside className="w-64 border-r-4 border-black bg-[#f5f5d0] flex flex-col">
+      <div className="fixed inset-x-0 top-28 md:top-[104px] bottom-0 z-0 flex border-t-4 border-black bg-[#D0F0C0] overflow-hidden">
+        <aside className="w-64 shrink-0 border-r-4 border-black bg-[#f5f5d0] flex flex-col overflow-y-auto">
         <div className="p-6 border-b-2 border-black">
           <p className="text-2xl font-extrabold text-[#183B1E]">{isAdmin ? "VROOM Admin" : "VROOM Host"}</p>
         </div>
@@ -840,8 +841,8 @@ export default function HostDashboard({ mode = "admin" }) {
         </nav>
         </aside>
 
-        <div className="flex-1 flex flex-col h-screen overflow-y-auto">
-          <header className="h-20 bg-[#f5f5d0] border-b-4 border-black px-11 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <header className="sticky top-0 z-10 flex h-20 shrink-0 items-center justify-between border-b-4 border-black bg-[#f5f5d0] px-11">
             <h1 className="text-3xl font-extrabold text-[#183B1E]">{activePageTitle}</h1>
             {isAdmin && (
               <button
@@ -887,7 +888,7 @@ export default function HostDashboard({ mode = "admin" }) {
               </section>
 
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-11 mt-2">
-                <div className="lg:col-span-2 bg-[#f5f5d0] border border-gray-200 rounded-2xl shadow-sm p-6">
+                <div className="lg:col-span-2 rounded-2xl border-4 border-black bg-[#f5f5d0] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue (Past 30 Days)</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={revenueSeries}>
@@ -913,7 +914,7 @@ export default function HostDashboard({ mode = "admin" }) {
                   </ResponsiveContainer>
                 </div>
 
-                <div className="bg-[#f5f5d0] border border-gray-200 rounded-2xl shadow-sm p-6">
+                <div className="rounded-2xl border-4 border-black bg-[#f5f5d0] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Bookings by Location</h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
@@ -935,7 +936,7 @@ export default function HostDashboard({ mode = "admin" }) {
                 </div>
               </section>
 
-              <section className="mx-11 mt-6 bg-[#f5f5d0] border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+              <section className="mx-11 mt-6 overflow-hidden rounded-2xl border-4 border-black bg-[#f5f5d0] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">Recent Bookings</h3>
                 </div>
@@ -991,7 +992,7 @@ export default function HostDashboard({ mode = "admin" }) {
                       : "Create Listing"}
                 </h2>
               </div>
-              <div className="max-w-4xl mx-auto mt-6 bg-[#f5f5d0] border border-gray-200 rounded-2xl p-8 shadow-sm">
+              <div className="max-w-4xl mx-auto mt-6 rounded-2xl border-4 border-black bg-[#f5f5d0] p-8 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
                 <form className="space-y-6" onSubmit={createListing}>
                   <section className="space-y-4">
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Basic Info</h3>
@@ -1462,7 +1463,7 @@ export default function HostDashboard({ mode = "admin" }) {
           )}
 
           {isAdmin && activeTab === "kyc" && (
-            <section className="mx-11 mt-6 mb-11 rounded-2xl border border-gray-200 bg-[#f5f5d0] p-6 shadow-sm">
+            <section className="mx-11 mt-6 mb-11 rounded-2xl border-4 border-black bg-[#f5f5d0] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
               <h3 className="mb-4 text-lg font-semibold text-gray-900">Host identity review</h3>
               {kycQueue.length === 0 ? (
                 <p className="text-sm text-gray-600">No pending verifications.</p>
@@ -1481,7 +1482,7 @@ export default function HostDashboard({ mode = "admin" }) {
                         <button
                           type="button"
                           onClick={async () => {
-                            await apiPost(`/api/admin/kyc/${item.userId}/approve`, {}, true);
+                            await apiPatch(`/api/users/${item.userId}/kyc`, { verificationStatus: "VERIFIED" }, true);
                             await loadAll();
                           }}
                           className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
@@ -1491,7 +1492,7 @@ export default function HostDashboard({ mode = "admin" }) {
                         <button
                           type="button"
                           onClick={async () => {
-                            await apiPost(`/api/admin/kyc/${item.userId}/reject`, {}, true);
+                            await apiPatch(`/api/users/${item.userId}/kyc`, { verificationStatus: "REJECTED" }, true);
                             await loadAll();
                           }}
                           className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -1507,7 +1508,7 @@ export default function HostDashboard({ mode = "admin" }) {
           )}
 
           {isAdmin && activeTab === "users" && (
-            <section className="bg-[#f5f5d0] border border-gray-200 rounded-2xl overflow-hidden mx-11 mt-6 mb-11 shadow-sm">
+            <section className="mx-11 mt-6 mb-11 overflow-hidden rounded-2xl border-4 border-black bg-[#f5f5d0] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
@@ -1594,7 +1595,7 @@ export default function HostDashboard({ mode = "admin" }) {
                 </section>
               )}
 
-              <section className="overflow-hidden rounded-2xl border border-gray-200 bg-[#f5f5d0] shadow-sm">
+              <section className="overflow-hidden rounded-2xl border-4 border-black bg-[#f5f5d0] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
                 <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -1688,7 +1689,7 @@ export default function HostDashboard({ mode = "admin" }) {
 
           {isMapModalOpen && (
             <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
-              <div className="bg-[#f5f5d0] rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden relative">
+              <div className="relative flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border-4 border-black bg-[#f5f5d0] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
                 <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Drag the pin to your exact location</h3>
@@ -1777,7 +1778,7 @@ function ListingsTableSection({
           </button>
         )}
       </div>
-      <div className="bg-[#f5f5d0] border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="overflow-hidden rounded-2xl border-4 border-black bg-[#f5f5d0] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
@@ -1922,7 +1923,7 @@ function formatBookingWindow(startAt, endAt) {
 
 function AnalyticsCard({ label, value }) {
   return (
-    <div className="bg-[#FCFCE5] border-2 border-black rounded-[1.5rem] p-6 shadow-[6px_6px_0px_0px_rgba(24,59,30,0.35)] flex flex-col gap-2">
+    <div className="bg-[#f5f5d0] border-4 border-black rounded-[1.5rem] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)] flex flex-col gap-2">
       <p className="text-sm font-bold text-[#35593b] uppercase tracking-wider">{label}</p>
       <div className="flex items-center gap-2">
         <BarChart3 className="h-5 w-5 text-[#E34B31]" />
