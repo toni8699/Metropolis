@@ -47,10 +47,16 @@ ALTER TABLE vehicle_listing
     NOT (branch_id IS NOT NULL AND parking_spot_id IS NOT NULL)
   );
 
-UPDATE vehicle_listing l
-SET
-  branch_id = v.branchid,
-  location_source_type = COALESCE(l.location_source_type, 'BRANCH')
-FROM vehicle v
-WHERE l.fleet_vehicle_vin = v.vin
-  AND l.branch_id IS NULL;
+DO $$
+BEGIN
+  IF to_regclass('public.vehicle') IS NOT NULL THEN
+    UPDATE vehicle_listing l
+    SET
+      branch_id = v.branchid,
+      location_source_type = COALESCE(l.location_source_type, 'BRANCH')
+    FROM vehicle v
+    WHERE l.fleet_vehicle_vin = v.vin
+      AND l.branch_id IS NULL;
+  END IF;
+END
+$$;

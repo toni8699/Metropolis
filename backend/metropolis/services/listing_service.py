@@ -452,6 +452,7 @@ class ListingService:
                 vehicle_params.append(Json(payload[key]) if key == "features" else payload[key])
 
         image_urls = _listing_image_urls(payload)
+        has_pickup_address_update = "pickupAddress" in payload
         location_keys = {
             "lat",
             "lng",
@@ -487,6 +488,15 @@ class ListingService:
                     )
                     if not cur.fetchone():
                         return {"status": "not_found", "message": "Listing not found for actor."}
+                    if has_pickup_address_update:
+                        cur.execute(
+                            """
+                            UPDATE listing_location
+                            SET raw_address = COALESCE(%s, raw_address)
+                            WHERE listing_id = %s
+                            """,
+                            (payload.get("pickupAddress"), listing_id),
+                        )
 
                 if has_location_update:
                     cur.execute(

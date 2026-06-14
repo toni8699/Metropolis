@@ -165,7 +165,6 @@ CREATE INDEX idx_payment_stripe_intent ON payment(stripe_payment_intent_id)
 CREATE TYPE vehicle_category AS ENUM ('STANDARD', 'LUXURY', 'TRUCK', 'EV');
 CREATE TYPE vehicle_owner_type AS ENUM ('INDEPENDENT_HOST', 'FLEET_OWNER', 'COMPANY');
 CREATE TYPE vehicle_asset_status AS ENUM ('ONBOARDING', 'ACTIVE', 'MAINTENANCE', 'RETIRED');
-CREATE TYPE listing_visibility_status AS ENUM ('DRAFT', 'PUBLISHED', 'HIDDEN');
 CREATE TYPE management_assignment_status AS ENUM ('PENDING', 'ACTIVE', 'TERMINATED');
 CREATE TYPE compliance_event_type AS ENUM (
   'PHYSICAL_INSPECTION',
@@ -328,8 +327,7 @@ CREATE TABLE vehicle_membership_eligibility
 );
 
 ALTER TABLE vehicle_listing
-  ADD COLUMN vehicle_id BIGINT REFERENCES vehicle_asset(vehicle_id) ON DELETE SET NULL,
-  ADD COLUMN visibility_status listing_visibility_status NOT NULL DEFAULT 'PUBLISHED';
+  ADD COLUMN vehicle_id BIGINT REFERENCES vehicle_asset(vehicle_id) ON DELETE SET NULL;
 
 CREATE INDEX idx_vehicle_listing_vehicle_id ON vehicle_listing(vehicle_id);
 CREATE INDEX idx_vehicle_listing_fleet_vin ON vehicle_listing(fleet_vehicle_vin);

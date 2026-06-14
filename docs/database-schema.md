@@ -54,7 +54,6 @@ erDiagram
         bigint vehicle_id FK
         bigint owner_user_id FK
         listing_source_type source_type
-        listing_visibility_status visibility_status
         boolean active
         decimal price_per_day
     }
