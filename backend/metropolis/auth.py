@@ -101,6 +101,24 @@ def require_auth():
     return decorator
 
 
+def optional_auth():
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            g.current_user = None
+            header = request.headers.get("Authorization", "")
+            if header.startswith("Bearer "):
+                try:
+                    g.current_user = _resolve_request_user()
+                except Unauthorized:
+                    g.current_user = None
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 def require_admin():
     def decorator(fn):
         @wraps(fn)

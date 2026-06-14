@@ -45,6 +45,15 @@ def _api(method: str, path: str, *, token: str | None = None, json: dict | None 
     return requests.request(method, f"{API_URL}{path}", headers=headers, json=json, timeout=30)
 
 
+def _patch_booking_status(booking_id: int, token: str, status: str):
+    return _api(
+        "PATCH",
+        f"/api/bookings/{booking_id}",
+        token=token,
+        json={"status": status},
+    )
+
+
 def _error_message(resp: requests.Response) -> str:
     try:
         body = resp.json()
@@ -74,7 +83,7 @@ def _create_owner_listing(host_token: str, *, instant_book: bool = True) -> int:
     title = f"Approval Test {uuid.uuid4().hex[:8]}"
     resp = _api(
         "POST",
-        "/api/owner/listings",
+        "/api/listings",
         token=host_token,
         json={
             "title": title,
@@ -118,7 +127,7 @@ def _create_booking(renter_token: str, listing_id: int) -> dict:
 
 
 def _pay_for_booking(renter_token: str, booking_id: int) -> dict:
-    resp = _api("POST", f"/api/bookings/{booking_id}/payment-intent", token=renter_token)
+    resp = _api("POST", f"/api/bookings/{booking_id}/payments", token=renter_token)
     assert resp.status_code == 200, _error_message(resp)
     return resp.json()
 
@@ -250,12 +259,12 @@ def test_host_approves_pending_booking():
     booking_id = int(booking["bookingId"])
     assert booking["status"] == "PENDING_APPROVAL"
 
-    approve_resp = _api("POST", f"/api/bookings/{booking_id}/approve", token=host_token)
+    approve_resp = _patch_booking_status(booking_id, host_token, "CONFIRMED")
     assert approve_resp.status_code == 200, _error_message(approve_resp)
     assert approve_resp.json()["booking"]["status"] == "CONFIRMED"
 
     other_token, _ = _register_user("approve-intruder")
-    forbidden = _api("POST", f"/api/bookings/{booking_id}/approve", token=other_token)
+    forbidden = _patch_booking_status(booking_id, other_token, "CONFIRMED")
     assert forbidden.status_code == 403
 
 
@@ -275,7 +284,7 @@ def test_approve_fails_when_confirmed_conflict_exists():
         end_at=BOOKING_END - timedelta(days=1),
     )
 
-    approve_resp = _api("POST", f"/api/bookings/{booking_id}/approve", token=host_token)
+    approve_resp = _patch_booking_status(booking_id, host_token, "CONFIRMED")
     assert approve_resp.status_code == 400, approve_resp.text
     assert "overlap" in _error_message(approve_resp).lower()
 
@@ -293,7 +302,7 @@ def test_renter_cancel_before_start():
     booking_id = int(booking["bookingId"])
     assert booking["status"] == "CONFIRMED"
 
-    cancel_resp = _api("POST", f"/api/bookings/{booking_id}/cancel", token=renter_token)
+    cancel_resp = _patch_booking_status(booking_id, renter_token, "CANCELLED")
     assert cancel_resp.status_code == 200, _error_message(cancel_resp)
     assert cancel_resp.json()["booking"]["status"] == "CANCELLED"
 
@@ -341,6 +350,6 @@ def test_host_rejects_pending_booking():
     booking = _create_paid_booking(renter_token, listing_id)
     booking_id = int(booking["bookingId"])
 
-    reject_resp = _api("POST", f"/api/bookings/{booking_id}/reject", token=host_token)
+    reject_resp = _patch_booking_status(booking_id, host_token, "CANCELLED")
     assert reject_resp.status_code == 200, _error_message(reject_resp)
     assert reject_resp.json()["booking"]["status"] == "CANCELLED"

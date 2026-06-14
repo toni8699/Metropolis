@@ -1,4 +1,5 @@
 from metropolis.extensions import ma
+from metropolis.schemas.common import LinkSchema
 
 
 class BookingCreateSchema(ma.Schema):
@@ -11,8 +12,23 @@ class BookingInstructionCreateSchema(ma.Schema):
     message = ma.String(required=True)
 
 
-class BookingStatusTransitionSchema(ma.Schema):
-    status = ma.String(required=False)
+class BookingPatchSchema(ma.Schema):
+    status = ma.String(
+        required=False,
+        metadata={
+            "description": "CONFIRMED, CANCELLED, IN_PROGRESS, or COMPLETED.",
+        },
+    )
+    instructions = ma.String(required=False)
+
+
+class BookingListSchema(ma.Schema):
+    scope = ma.String(
+        required=True,
+        metadata={
+            "description": "mine (renter), owner (host), or fleet (admin).",
+        },
+    )
 
 
 class BookingInstructionSchema(ma.Schema):
@@ -104,13 +120,17 @@ class BookingSchema(ma.Schema):
     canApprove = ma.Boolean(allow_none=True)
     canReject = ma.Boolean(allow_none=True)
     canSendInstructions = ma.Boolean(allow_none=True)
+    _links = ma.Dict(keys=ma.String(), values=ma.Nested(LinkSchema), required=False)
 
 
 class BookingCollectionSchema(ma.Schema):
     status = ma.String(required=True)
+    scope = ma.String(required=False)
     bookings = ma.List(ma.Nested(BookingSchema))
+    _links = ma.Dict(keys=ma.String(), values=ma.Nested(LinkSchema), required=False)
 
 
 class BookingItemSchema(ma.Schema):
     status = ma.String(required=True)
     booking = ma.Nested(BookingSchema)
+    _links = ma.Dict(keys=ma.String(), values=ma.Nested(LinkSchema), required=False)

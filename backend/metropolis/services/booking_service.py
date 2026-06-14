@@ -794,6 +794,71 @@ class BookingService:
                 conn.commit()
         return self.get_booking(booking_id, actor_user_id, actor_is_admin)
 
+    def patch_booking(
+        self,
+        booking_id: int,
+        actor_user_id: int,
+        actor_is_admin: bool,
+        payload: dict,
+    ) -> dict:
+        instructions = (payload.get("instructions") or "").strip()
+        status = (payload.get("status") or "").strip().upper()
+
+        if instructions:
+            instruction_result = self.send_instruction(booking_id, actor_user_id, instructions)
+            if instruction_result["status"] != "success":
+                return {
+                    "status": instruction_result["status"],
+                    "message": instruction_result.get("message", "Could not send instructions."),
+                }
+            return self.get_booking(booking_id, actor_user_id, actor_is_admin)
+
+        if not status:
+            return {
+                "status": "validation_error",
+                "message": "Provide status or instructions to update booking.",
+            }
+
+        if status == "CONFIRMED":
+            return self.approve_booking(booking_id, actor_user_id)
+
+        if status == "CANCELLED":
+            with get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(
+                        """
+                        SELECT b.status, b.renter_user_id, l.owner_user_id
+                        FROM booking b
+                        JOIN vehicle_listing l ON l.listing_id = b.listing_id
+                        WHERE b.booking_id = %s
+                        """,
+                        (booking_id,),
+                    )
+                    row = cur.fetchone()
+            if not row:
+                return {"status": "not_found", "message": "Booking not found."}
+            if row["owner_user_id"] == actor_user_id and row["status"] == "PENDING_APPROVAL":
+                return self.reject_booking(booking_id, actor_user_id)
+            if row["renter_user_id"] == actor_user_id:
+                return self.cancel_booking(booking_id, actor_user_id)
+            return {
+                "status": "forbidden",
+                "message": "You cannot cancel this booking.",
+            }
+
+        if status in {"IN_PROGRESS", "COMPLETED"}:
+            return self.transition_booking_status(
+                booking_id,
+                actor_user_id,
+                actor_is_admin,
+                status,
+            )
+
+        return {
+            "status": "validation_error",
+            "message": f"Unsupported booking status: {status}.",
+        }
+
     def owner_bookings(self, owner_user_id: int) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:

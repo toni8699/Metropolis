@@ -10,8 +10,8 @@ from metropolis.schemas.bookings import (
     BookingInstructionCreateSchema,
     BookingInstructionSchema,
     BookingItemSchema,
+    BookingPatchSchema,
     BookingSchema,
-    BookingStatusTransitionSchema,
 )
 from metropolis.schemas.common import ErrorSchema, HealthSchema
 from metropolis.schemas.marketplace import (
@@ -34,7 +34,7 @@ __all__ = [
     "BookingInstructionSchema",
     "BookingItemSchema",
     "BookingSchema",
-    "BookingStatusTransitionSchema",
+    "BookingPatchSchema",
     "ErrorSchema",
     "FleetSyncSchema",
     "HealthSchema",

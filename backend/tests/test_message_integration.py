@@ -55,7 +55,7 @@ def _register(prefix: str) -> tuple[str, int]:
 def _create_listing(host_token: str) -> int:
     resp = _api(
         "POST",
-        "/api/owner/listings",
+        "/api/listings",
         token=host_token,
         json={
             "title": f"Msg test car {uuid.uuid4().hex[:6]}",
@@ -82,7 +82,7 @@ def _create_paid_booking(renter_token: str, listing_id: int) -> int:
     )
     assert resp.status_code == 201, resp.text
     booking_id = int(resp.json()["booking"]["bookingId"])
-    pay = _api("POST", f"/api/bookings/{booking_id}/payment-intent", token=renter_token)
+    pay = _api("POST", f"/api/bookings/{booking_id}/payments", token=renter_token)
     assert pay.ok, pay.text
     return booking_id
 

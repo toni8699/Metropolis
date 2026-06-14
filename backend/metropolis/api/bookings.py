@@ -1,14 +1,16 @@
-from apifairy import body, other_responses, response
+from apifairy import arguments, body, other_responses, response
 from flask import Blueprint, g
 from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotFound
 
 from metropolis.auth import require_auth
 from metropolis.extensions import limiter, rate_limit_user_or_ip
+from metropolis.hateoas import with_booking_links
 from metropolis.schemas.bookings import (
     BookingCollectionSchema,
     BookingCreateSchema,
-    BookingInstructionCreateSchema,
     BookingItemSchema,
+    BookingListSchema,
+    BookingPatchSchema,
 )
 from metropolis.schemas.common import ErrorSchema
 from metropolis.schemas.messages import (
@@ -29,14 +31,35 @@ from metropolis.sockets import emit_booking_message
 bp = Blueprint("bookings", __name__, url_prefix="/api/bookings")
 
 
-@bp.get("/mine")
+@bp.get("")
 @require_auth()
+@arguments(BookingListSchema)
 @response(BookingCollectionSchema)
-@other_responses({500: (ErrorSchema, "Server error.")})
-def list_my_bookings():
-    """List bookings for the authenticated renter (includes needsReview)."""
+@other_responses(
+    {
+        400: (ErrorSchema, "Validation error."),
+        403: (ErrorSchema, "Forbidden."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
+def list_bookings(query):
+    """List bookings for renter (mine), host (owner), or admin fleet (fleet)."""
+    scope = (query.get("scope") or "").strip().lower()
     try:
-        return marketplace_service.list_renter_bookings(int(g.current_user["userId"]))
+        if scope == "mine":
+            result = marketplace_service.list_renter_bookings(int(g.current_user["userId"]))
+        elif scope == "owner":
+            result = marketplace_service.owner_bookings(g.current_user["userId"])
+        elif scope == "fleet":
+            if not g.current_user.get("isAdmin"):
+                raise Forbidden(description="Admin access required.")
+            result = marketplace_service.admin_bookings()
+        else:
+            raise BadRequest(description="Unsupported scope. Use mine, owner, or fleet.")
+        result["scope"] = scope
+        return with_booking_links(result)
+    except (BadRequest, Forbidden):
+        raise
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
@@ -63,33 +86,7 @@ def create_booking(payload):
         raise BadRequest(description=result["message"])
     if result["status"] == "not_found":
         raise NotFound(description=result["message"])
-    return result
-
-
-@bp.post("/<int:booking_id>/payment-intent")
-@require_auth()
-@response(PaymentIntentResponseSchema)
-@other_responses(
-    {
-        400: (ErrorSchema, "Validation error."),
-        403: (ErrorSchema, "Forbidden."),
-        404: (ErrorSchema, "Not found."),
-        500: (ErrorSchema, "Server error."),
-    }
-)
-def create_booking_payment_intent(booking_id: int):
-    """Create Stripe PaymentIntent for a pending booking (dev auto-completes without keys)."""
-    try:
-        result = payment_service.create_payment_intent(booking_id, int(g.current_user["sub"]))
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    return result
+    return with_booking_links(result)
 
 
 @bp.get("/<int:booking_id>")
@@ -117,6 +114,64 @@ def get_booking(booking_id: int):
         raise NotFound(description=result["message"])
     if result["status"] == "forbidden":
         raise Forbidden(description=result["message"])
+    return with_booking_links(result)
+
+
+@bp.patch("/<int:booking_id>")
+@require_auth()
+@body(BookingPatchSchema)
+@response(BookingItemSchema)
+@other_responses(
+    {
+        400: (ErrorSchema, "Validation error."),
+        403: (ErrorSchema, "Forbidden."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
+def patch_booking(payload, booking_id: int):
+    """Update booking status or send host instructions."""
+    try:
+        result = marketplace_service.patch_booking(
+            booking_id,
+            int(g.current_user["sub"]),
+            g.current_user["isAdmin"],
+            payload,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+    if result["status"] == "validation_error":
+        raise BadRequest(description=result["message"])
+    if result["status"] == "not_found":
+        raise NotFound(description=result["message"])
+    if result["status"] == "forbidden":
+        raise Forbidden(description=result["message"])
+    return with_booking_links(result)
+
+
+@bp.post("/<int:booking_id>/payments")
+@require_auth()
+@response(PaymentIntentResponseSchema)
+@other_responses(
+    {
+        400: (ErrorSchema, "Validation error."),
+        403: (ErrorSchema, "Forbidden."),
+        404: (ErrorSchema, "Not found."),
+        500: (ErrorSchema, "Server error."),
+    }
+)
+def create_booking_payment(booking_id: int):
+    """Create Stripe PaymentIntent for a pending booking (dev auto-completes without keys)."""
+    try:
+        result = payment_service.create_payment_intent(booking_id, int(g.current_user["sub"]))
+    except Exception as exc:  # noqa: BLE001
+        raise InternalServerError(description=str(exc)) from exc
+    if result["status"] == "validation_error":
+        raise BadRequest(description=result["message"])
+    if result["status"] == "forbidden":
+        raise Forbidden(description=result["message"])
+    if result["status"] == "not_found":
+        raise NotFound(description=result["message"])
     return result
 
 
@@ -182,171 +237,6 @@ def create_booking_message(payload, booking_id: int):
     message = result["message"]
     emit_booking_message(booking_id, message)
     return {"message": message}
-
-
-@bp.post("/<int:booking_id>/instructions")
-@require_auth()
-@body(BookingInstructionCreateSchema)
-@response(BookingItemSchema)
-@other_responses({404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
-def send_instruction(payload, booking_id: int):
-    """Owner sends pickup/retrieval instructions."""
-    try:
-        instruction = marketplace_service.send_instruction(
-            booking_id,
-            int(g.current_user["sub"]),
-            payload["message"],
-        )
-        if instruction["status"] == "not_found":
-            raise NotFound(description=instruction["message"])
-        result = marketplace_service.get_booking(
-            booking_id,
-            int(g.current_user["sub"]),
-            g.current_user["isAdmin"],
-        )
-    except Exception as exc:  # noqa: BLE001
-        if isinstance(exc, NotFound):
-            raise
-        raise InternalServerError(description=str(exc)) from exc
-    return result
-
-
-@bp.post("/<int:booking_id>/approve")
-@require_auth()
-@response(BookingItemSchema)
-@other_responses(
-    {
-        400: (ErrorSchema, "Validation error."),
-        403: (ErrorSchema, "Forbidden."),
-        404: (ErrorSchema, "Not found."),
-        500: (ErrorSchema, "Server error."),
-    }
-)
-def approve_booking(booking_id: int):
-    """Host approves a pending booking (listing owner only)."""
-    try:
-        result = marketplace_service.approve_booking(booking_id, int(g.current_user["sub"]))
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
-    return result
-
-
-@bp.post("/<int:booking_id>/cancel")
-@require_auth()
-@response(BookingItemSchema)
-@other_responses(
-    {
-        400: (ErrorSchema, "Validation error."),
-        403: (ErrorSchema, "Forbidden."),
-        404: (ErrorSchema, "Not found."),
-        500: (ErrorSchema, "Server error."),
-    }
-)
-def cancel_booking(booking_id: int):
-    """Renter cancels a booking before the trip starts."""
-    try:
-        result = marketplace_service.cancel_booking(booking_id, int(g.current_user["sub"]))
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
-    return result
-
-
-@bp.post("/<int:booking_id>/reject")
-@require_auth()
-@response(BookingItemSchema)
-@other_responses(
-    {
-        400: (ErrorSchema, "Validation error."),
-        403: (ErrorSchema, "Forbidden."),
-        404: (ErrorSchema, "Not found."),
-        500: (ErrorSchema, "Server error."),
-    }
-)
-def reject_booking(booking_id: int):
-    """Host rejects a pending booking (listing owner only)."""
-    try:
-        result = marketplace_service.reject_booking(booking_id, int(g.current_user["sub"]))
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
-    return result
-
-
-@bp.post("/<int:booking_id>/confirm-pickup")
-@require_auth()
-@response(BookingItemSchema)
-@other_responses(
-    {
-        400: (ErrorSchema, "Validation error."),
-        404: (ErrorSchema, "Not found."),
-        500: (ErrorSchema, "Server error."),
-    }
-)
-def confirm_pickup(booking_id: int):
-    """Transition booking to IN_PROGRESS."""
-    try:
-        result = marketplace_service.transition_booking_status(
-            booking_id,
-            int(g.current_user["sub"]),
-            g.current_user["isAdmin"],
-            "IN_PROGRESS",
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
-    return result
-
-
-@bp.post("/<int:booking_id>/complete")
-@require_auth()
-@response(BookingItemSchema)
-@other_responses(
-    {
-        400: (ErrorSchema, "Validation error."),
-        404: (ErrorSchema, "Not found."),
-        500: (ErrorSchema, "Server error."),
-    }
-)
-def complete_booking(booking_id: int):
-    """Transition booking to COMPLETED."""
-    try:
-        result = marketplace_service.transition_booking_status(
-            booking_id,
-            int(g.current_user["sub"]),
-            g.current_user["isAdmin"],
-            "COMPLETED",
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
-    return result
 
 
 @bp.post("/<int:booking_id>/reviews")
