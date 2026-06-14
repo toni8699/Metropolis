@@ -7,8 +7,6 @@ from metropolis.schemas.auth import (
 )
 from metropolis.schemas.bookings import (
     BookingCreateSchema,
-    BookingInstructionCreateSchema,
-    BookingInstructionSchema,
     BookingItemSchema,
     BookingPatchSchema,
     BookingSchema,
@@ -30,8 +28,6 @@ __all__ = [
     "AuthRegisterSchema",
     "AuthTokenSchema",
     "BookingCreateSchema",
-    "BookingInstructionCreateSchema",
-    "BookingInstructionSchema",
     "BookingItemSchema",
     "BookingSchema",
     "BookingPatchSchema",

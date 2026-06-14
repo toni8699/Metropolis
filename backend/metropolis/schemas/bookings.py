@@ -8,10 +8,6 @@ class BookingCreateSchema(ma.Schema):
     endAt = ma.DateTime(required=True)
 
 
-class BookingInstructionCreateSchema(ma.Schema):
-    message = ma.String(required=True)
-
-
 class BookingPatchSchema(ma.Schema):
     status = ma.String(
         required=False,
@@ -19,9 +15,6 @@ class BookingPatchSchema(ma.Schema):
             "description": "CONFIRMED, CANCELLED, IN_PROGRESS, or COMPLETED.",
         },
     )
-    instructions = ma.String(required=False)
-
-
 class BookingListSchema(ma.Schema):
     scope = ma.String(
         required=True,
@@ -29,14 +22,6 @@ class BookingListSchema(ma.Schema):
             "description": "mine (renter), owner (host), or fleet (admin).",
         },
     )
-
-
-class BookingInstructionSchema(ma.Schema):
-    instructionId = ma.Integer(required=True)
-    ownerUserId = ma.Integer(required=True)
-    message = ma.String(required=True)
-    sentAt = ma.String(required=True)
-    readAt = ma.String(allow_none=True)
 
 
 class ListingLocationSchema(ma.Schema):
@@ -103,7 +88,6 @@ class BookingSchema(ma.Schema):
     priceSnapshot = ma.Raw(required=True)
     createdAt = ma.String(required=True)
     updatedAt = ma.String(required=True)
-    instructions = ma.List(ma.Nested(BookingInstructionSchema))
     needsReview = ma.Boolean(required=True)
     listingPhoto = ma.String(allow_none=True)
     pickupNotes = ma.String(allow_none=True)
@@ -119,7 +103,6 @@ class BookingSchema(ma.Schema):
     canCompleteTrip = ma.Boolean(allow_none=True)
     canApprove = ma.Boolean(allow_none=True)
     canReject = ma.Boolean(allow_none=True)
-    canSendInstructions = ma.Boolean(allow_none=True)
     _links = ma.Dict(keys=ma.String(), values=ma.Nested(LinkSchema), required=False)
 
 

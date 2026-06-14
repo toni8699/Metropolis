@@ -132,16 +132,6 @@ CREATE TABLE booking
 CREATE INDEX idx_booking_listing_window ON booking(listing_id, start_at, end_at);
 CREATE INDEX idx_booking_renter ON booking(renter_user_id);
 
-CREATE TABLE booking_instruction
-(
-  instruction_id BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
-  owner_user_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
-  message TEXT NOT NULL,
-  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  read_at TIMESTAMPTZ
-);
-
 CREATE TABLE trip_event
 (
   event_id BIGSERIAL PRIMARY KEY,

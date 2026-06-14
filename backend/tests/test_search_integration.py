@@ -141,7 +141,6 @@ def _delete_booking(booking_id: int) -> None:
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM trip_event WHERE booking_id = %s", (booking_id,))
-            cur.execute("DELETE FROM booking_instruction WHERE booking_id = %s", (booking_id,))
             cur.execute("DELETE FROM review WHERE booking_id = %s", (booking_id,))
             cur.execute("DELETE FROM booking WHERE booking_id = %s", (booking_id,))
         conn.commit()

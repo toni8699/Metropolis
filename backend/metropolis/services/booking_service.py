@@ -186,7 +186,7 @@ def _fetch_trip_events(cur, booking_id: int) -> list[dict]:
     ]
 
 
-def _to_booking_row(row: dict, instructions: list[dict], *, include_detail: bool = False) -> dict:
+def _to_booking_row(row: dict, *, include_detail: bool = False) -> dict:
     payload = {
         "bookingId": row["booking_id"],
         "listingId": row["listing_id"],
@@ -202,7 +202,6 @@ def _to_booking_row(row: dict, instructions: list[dict], *, include_detail: bool
         "priceSnapshot": row["price_snapshot_json"],
         "createdAt": row["created_at"].isoformat(),
         "updatedAt": row["updated_at"].isoformat(),
-        "instructions": instructions,
         "needsReview": bool(row.get("needs_review")),
     }
     if not include_detail:
@@ -493,7 +492,6 @@ class BookingService:
                     return {"status": "forbidden", "message": "No access to this booking."}
                 images_by_listing = _fetch_listing_images_map(cur, [row["listing_id"]])
                 row["listing_image_urls"] = images_by_listing.get(row["listing_id"], [])
-                instructions = self._fetch_booking_instructions(cur, booking_id)
                 trip_events = _fetch_trip_events(cur, booking_id)
                 now = _utcnow()
                 row["trip_events"] = trip_events
@@ -505,7 +503,7 @@ class BookingService:
                 )
                 row["can_complete_trip"] = is_renter and _renter_can_complete_trip(row["status"])
                 conn.commit()
-        booking = _to_booking_row(row, instructions, include_detail=True)
+        booking = _to_booking_row(row, include_detail=True)
         if is_renter:
             booking["userRole"] = "renter"
         elif is_owner:
@@ -521,7 +519,6 @@ class BookingService:
             status = row["status"]
             booking["canApprove"] = status == "PENDING_APPROVAL"
             booking["canReject"] = status == "PENDING_APPROVAL"
-            booking["canSendInstructions"] = status in {"CONFIRMED", "IN_PROGRESS"}
             if booking.get("pricing"):
                 booking["earnings"] = _build_host_earnings(booking["pricing"])
         return {
@@ -615,27 +612,6 @@ class BookingService:
         )
         return cur.fetchone()
 
-    def _fetch_booking_instructions(self, cur, booking_id: int) -> list[dict]:
-        cur.execute(
-            """
-            SELECT instruction_id, owner_user_id, message, sent_at, read_at
-            FROM booking_instruction
-            WHERE booking_id = %s
-            ORDER BY sent_at ASC
-            """,
-            (booking_id,),
-        )
-        return [
-            {
-                "instructionId": r["instruction_id"],
-                "ownerUserId": r["owner_user_id"],
-                "message": r["message"],
-                "sentAt": r["sent_at"].isoformat(),
-                "readAt": r["read_at"].isoformat() if r["read_at"] else None,
-            }
-            for r in cur.fetchall()
-        ]
-
     def list_renter_bookings(self, renter_user_id: int) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -672,53 +648,7 @@ class BookingService:
                 rows = cur.fetchall()
         return {
             "status": "success",
-            "bookings": [_to_booking_row(row, []) for row in rows],
-        }
-
-    def send_instruction(self, booking_id: int, owner_user_id: int, message: str) -> dict:
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    """
-                    SELECT b.booking_id
-                    FROM booking b
-                    JOIN vehicle_listing l ON l.listing_id = b.listing_id
-                    WHERE b.booking_id = %s AND l.owner_user_id = %s
-                    """,
-                    (booking_id, owner_user_id),
-                )
-                if not cur.fetchone():
-                    return {"status": "not_found", "message": "Booking not found for owner."}
-                cur.execute(
-                    """
-                    INSERT INTO booking_instruction (booking_id, owner_user_id, message)
-                    VALUES (%s, %s, %s)
-                    RETURNING instruction_id, sent_at
-                    """,
-                    (booking_id, owner_user_id, message),
-                )
-                instruction = cur.fetchone()
-                cur.execute(
-                    """
-                    INSERT INTO trip_event (booking_id, event_type, actor_user_id, metadata_json)
-                    VALUES (%s, 'INSTRUCTION_SENT', %s, %s::jsonb)
-                    """,
-                    (
-                        booking_id,
-                        owner_user_id,
-                        Json({"instructionId": instruction["instruction_id"]}),
-                    ),
-                )
-                conn.commit()
-        return {
-            "status": "success",
-            "instruction": {
-                "instructionId": instruction["instruction_id"],
-                "ownerUserId": owner_user_id,
-                "message": message,
-                "sentAt": instruction["sent_at"].isoformat(),
-                "readAt": None,
-            },
+            "bookings": [_to_booking_row(row) for row in rows],
         }
 
     def transition_booking_status(
@@ -801,22 +731,12 @@ class BookingService:
         actor_is_admin: bool,
         payload: dict,
     ) -> dict:
-        instructions = (payload.get("instructions") or "").strip()
         status = (payload.get("status") or "").strip().upper()
-
-        if instructions:
-            instruction_result = self.send_instruction(booking_id, actor_user_id, instructions)
-            if instruction_result["status"] != "success":
-                return {
-                    "status": instruction_result["status"],
-                    "message": instruction_result.get("message", "Could not send instructions."),
-                }
-            return self.get_booking(booking_id, actor_user_id, actor_is_admin)
 
         if not status:
             return {
                 "status": "validation_error",
-                "message": "Provide status or instructions to update booking.",
+                "message": "Provide status to update booking.",
             }
 
         if status == "CONFIRMED":
@@ -873,7 +793,7 @@ class BookingService:
                     (owner_user_id,),
                 )
                 rows = cur.fetchall()
-        return {"status": "success", "bookings": [_to_booking_row(row, []) for row in rows]}
+        return {"status": "success", "bookings": [_to_booking_row(row) for row in rows]}
 
 
 booking_service = BookingService()

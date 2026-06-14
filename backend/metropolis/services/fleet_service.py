@@ -226,7 +226,7 @@ class FleetService:
                     """
                 )
                 rows = cur.fetchall()
-        return {"status": "success", "bookings": [_to_booking_row(row, []) for row in rows]}
+        return {"status": "success", "bookings": [_to_booking_row(row) for row in rows]}
 
     def admin_analytics(self) -> dict:
         with get_connection() as conn:

@@ -30,8 +30,6 @@ def booking_links(booking: dict[str, Any]) -> dict[str, dict[str, str]]:
         links["confirmPickup"] = _link(f"/api/bookings/{booking_id}", "PATCH")
     if booking.get("canCompleteTrip"):
         links["complete"] = _link(f"/api/bookings/{booking_id}", "PATCH")
-    if booking.get("canSendInstructions"):
-        links["instructions"] = _link(f"/api/bookings/{booking_id}", "PATCH")
     if booking.get("status") == "PENDING":
         links["payment"] = _link(f"/api/bookings/{booking_id}/payments", "POST")
     if booking.get("status") == "COMPLETED" and booking.get("needsReview"):

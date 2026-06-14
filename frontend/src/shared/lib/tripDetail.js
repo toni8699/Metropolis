@@ -28,7 +28,7 @@ export function formatEventLabel(eventType) {
   const labels = {
     BOOKING_CREATED: "Trip created",
     BOOKING_CANCELLED: "Booking cancelled",
-    INSTRUCTION_SENT: "Pickup instruction added",
+    INSTRUCTION_SENT: "Host shared pickup note",
     STATUS_IN_PROGRESS: "Trip started",
     STATUS_COMPLETED: "Trip completed",
     TRIP_COMPLETED: "Trip completed",
@@ -41,22 +41,18 @@ export function buildTripTimeline(booking) {
   const items = [];
 
   (booking?.tripEvents || []).forEach((event) => {
+    const eventType = String(event?.eventType || "").toUpperCase();
+    const metadata = event?.metadata || {};
+    const body =
+      eventType === "INSTRUCTION_SENT" && typeof metadata.message === "string"
+        ? metadata.message
+        : null;
     items.push({
       id: `event-${event.eventId}`,
       at: event.eventAt,
       title: formatEventLabel(event.eventType),
-      body: null,
-      kind: "system",
-    });
-  });
-
-  (booking?.instructions || []).forEach((instruction) => {
-    items.push({
-      id: `instruction-${instruction.instructionId}`,
-      at: instruction.sentAt,
-      title: "Pickup instruction",
-      body: instruction.message,
-      kind: "instruction",
+      body,
+      kind: eventType === "INSTRUCTION_SENT" ? "instruction" : "system",
     });
   });
 

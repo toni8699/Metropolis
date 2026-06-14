@@ -130,7 +130,7 @@ def get_booking(booking_id: int):
     }
 )
 def patch_booking(payload, booking_id: int):
-    """Update booking status or send host instructions."""
+    """Update booking status."""
     try:
         result = marketplace_service.patch_booking(
             booking_id,

@@ -86,7 +86,6 @@ export default function BookingDetailsPage() {
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [isActing, setIsActing] = useState(false);
-  const [instructionDraft, setInstructionDraft] = useState("");
 
   const load = useCallback(async () => {
     setError("");
@@ -130,16 +129,8 @@ export default function BookingDetailsPage() {
     }
   };
 
-  const sendInstruction = async () => {
-    const message = instructionDraft.trim();
-    if (!message) return;
-    await runAction({ instructions: message });
-    setInstructionDraft("");
-  };
-
   const hasHostActions =
-    isHost &&
-    (booking?.canApprove || booking?.canReject || booking?.canSendInstructions);
+    isHost && (booking?.canApprove || booking?.canReject);
   const hasRenterActions =
     isRenter &&
     (booking?.canCancel || booking?.canConfirmPickup || booking?.canCompleteTrip);
@@ -366,32 +357,6 @@ export default function BookingDetailsPage() {
                 >
                   Reject booking
                 </button>
-              )}
-              {isHost && booking.canSendInstructions && (
-                <div className="space-y-2 rounded-2xl border-2 border-black bg-[#f5f5d0] p-3">
-                  <label
-                    htmlFor={`pickup-instruction-${bookingId}`}
-                    className="text-xs font-semibold text-gray-900"
-                  >
-                    Owner pickup instructions
-                  </label>
-                  <textarea
-                    id={`pickup-instruction-${bookingId}`}
-                    rows={3}
-                    value={instructionDraft}
-                    onChange={(e) => setInstructionDraft(e.target.value)}
-                    placeholder="Share pickup location details, lockbox code, etc."
-                    className="w-full rounded-2xl border-2 border-black bg-white px-3 py-2 text-xs text-[#183B1E] placeholder:text-[#46634b] focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    disabled={isActing || !instructionDraft.trim()}
-                    onClick={sendInstruction}
-                    className="w-full rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-3 py-1.5 text-xs font-extrabold text-white active:border-b-0 disabled:opacity-50"
-                  >
-                    Send instruction
-                  </button>
-                </div>
               )}
               {isRenter && booking.canCancel && (
                 <button
