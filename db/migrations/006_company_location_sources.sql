@@ -25,8 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_company_parking_spot_city_zone ON company_parking
 ALTER TABLE vehicle_listing
   ADD COLUMN IF NOT EXISTS location_source_type VARCHAR(20),
   ADD COLUMN IF NOT EXISTS branch_id INT REFERENCES branch(branchid) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS parking_spot_id BIGINT REFERENCES company_parking_spot(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS pickup_address VARCHAR(255);
+  ADD COLUMN IF NOT EXISTS parking_spot_id BIGINT REFERENCES company_parking_spot(id) ON DELETE SET NULL;
 
 ALTER TABLE vehicle_listing
   DROP CONSTRAINT IF EXISTS vehicle_listing_location_source_type_check;

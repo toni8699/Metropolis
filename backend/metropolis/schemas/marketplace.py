@@ -74,6 +74,8 @@ class ListingUpdateSchema(ma.Schema):
     longitude = ma.Float(required=False, allow_none=True)
     rules = ma.String(required=False, allow_none=True)
     pickupNotesTemplate = ma.String(required=False, allow_none=True)
+    pickupAddress = ma.String(required=False, allow_none=True)
+    rawAddress = ma.String(required=False, allow_none=True)
     pricePerDay = ma.Float(required=False)
     photos = ma.List(ma.String(), required=False)
     active = ma.Boolean(required=False)

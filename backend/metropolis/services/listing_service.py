@@ -116,11 +116,11 @@ class ListingService:
                         lat = location["lat"]
                         lng = location["lng"]
                         city_zone = location["cityZone"]
-                        pickup_address = location["pickupAddress"]
+                        location_address = location["pickupAddress"]
                         location_source_type = location["locationSourceType"]
                         branch_id = location["branchId"]
                         parking_spot_id = location["parkingSpotId"]
-                        address = address or pickup_address
+                        address = address or location_address
                         latitude = latitude if latitude is not None else lat
                         longitude = longitude if longitude is not None else lng
                     else:
@@ -141,12 +141,12 @@ class ListingService:
                             }
                         lat = float(lat)
                         lng = float(lng)
-                        pickup_address = payload.get("pickupAddress") or address
+                        location_address = payload.get("pickupAddress") or payload.get("rawAddress") or address
                         location_source_type = None
                         branch_id = None
                         parking_spot_id = None
                         if address is None:
-                            address = pickup_address
+                            address = location_address
                         if latitude is None:
                             latitude = lat
                         if longitude is None:
@@ -160,7 +160,7 @@ class ListingService:
                             "status": "validation_error",
                             "message": "lat, lng, and cityZone required for user-owned listings.",
                         }
-                    pickup_address = payload.get("pickupAddress") or address
+                    location_address = payload.get("pickupAddress") or payload.get("rawAddress") or address
                     location_source_type = None
                     branch_id = None
                     parking_spot_id = None
@@ -226,7 +226,7 @@ class ListingService:
                     ),
                 )
                 vehicle_id = cur.fetchone()["vehicle_id"]
-                raw_address = address or pickup_address
+                raw_address = address or location_address
                 cur.execute(
                     """
                     INSERT INTO vehicle_listing
@@ -236,13 +236,13 @@ class ListingService:
                       description, guidelines, transmission, fuel_type, seats, doors,
                       features, pickup_notes_template, price_per_day, active, status,
                       is_company_owned, instant_book, location_source_type, branch_id,
-                      parking_spot_id, pickup_address
+                      parking_spot_id
                     )
                     VALUES (
                       %s, %s, %s, %s::listing_source_type, %s, %s, %s, %s, %s,
                       %s, %s, %s, %s, %s, %s, %s::jsonb,
                       %s, %s, TRUE, 'ACTIVE',
-                      %s, %s, %s, %s, %s, %s
+                      %s, %s, %s, %s, %s
                     )
                     RETURNING listing_id
                     """,
@@ -270,7 +270,6 @@ class ListingService:
                         location_source_type,
                         branch_id,
                         parking_spot_id,
-                        pickup_address,
                     ),
                 )
                 listing_id = cur.fetchone()["listing_id"]
@@ -437,7 +436,6 @@ class ListingService:
             "doors": "doors",
             "features": "features",
             "pickupNotesTemplate": "pickup_notes_template",
-            "pickupAddress": "pickup_address",
             "pricePerDay": "price_per_day",
             "active": "active",
             "status": "status",
@@ -452,7 +450,6 @@ class ListingService:
                 vehicle_params.append(Json(payload[key]) if key == "features" else payload[key])
 
         image_urls = _listing_image_urls(payload)
-        has_pickup_address_update = "pickupAddress" in payload
         location_keys = {
             "lat",
             "lng",
@@ -461,6 +458,7 @@ class ListingService:
             "latitude",
             "longitude",
             "rawAddress",
+            "pickupAddress",
         }
         has_location_update = any(key in payload for key in location_keys)
 
@@ -488,16 +486,6 @@ class ListingService:
                     )
                     if not cur.fetchone():
                         return {"status": "not_found", "message": "Listing not found for actor."}
-                    if has_pickup_address_update:
-                        cur.execute(
-                            """
-                            UPDATE listing_location
-                            SET raw_address = COALESCE(%s, raw_address)
-                            WHERE listing_id = %s
-                            """,
-                            (payload.get("pickupAddress"), listing_id),
-                        )
-
                 if has_location_update:
                     cur.execute(
                         """
@@ -511,7 +499,10 @@ class ListingService:
                     lat = payload.get("lat", payload.get("latitude"))
                     lng = payload.get("lng", payload.get("longitude"))
                     city_zone = payload.get("cityZone")
-                    raw_address = payload.get("rawAddress", payload.get("address"))
+                    raw_address = payload.get(
+                        "rawAddress",
+                        payload.get("pickupAddress", payload.get("address")),
+                    )
 
                     if lat is None and current_location:
                         lat = current_location["lat"]

@@ -308,7 +308,6 @@ def _to_listing_row(
     lng = row.get("lng")
     guidelines = row.get("guidelines")
     raw_address = row.get("raw_address")
-    pickup_address = row.get("pickup_address")
     rating_stats = ratings or {}
     average_rating = rating_stats.get("average_rating")
     if average_rating is None and row.get("average_rating") is not None:
@@ -336,7 +335,7 @@ def _to_listing_row(
         "doors": row.get("doors"),
         "features": row.get("features") or [],
         "images": urls,
-        "address": raw_address or pickup_address,
+        "address": raw_address,
         "latitude": float(lat) if lat is not None else None,
         "longitude": float(lng) if lng is not None else None,
         "rules": guidelines,
@@ -354,7 +353,7 @@ def _to_listing_row(
         "lng": float(lng) if lng is not None else None,
         "cityZone": row["city_zone"],
         "geohash": row["geohash"],
-        "pickupAddress": pickup_address,
+        "pickupAddress": raw_address,
         "locationSourceType": row.get("location_source_type"),
         "branchId": row.get("branch_id"),
         "parkingSpotId": row.get("parking_spot_id"),

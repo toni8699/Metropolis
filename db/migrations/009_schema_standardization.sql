@@ -53,13 +53,16 @@ BEGIN
     SET raw_address = COALESCE(
       NULLIF(trim(ll.raw_address), ''),
       NULLIF(trim(vl.address), ''),
-      NULLIF(trim(vl.pickup_address), '')
+      NULLIF(trim(to_jsonb(vl)->>'pickup_address'), '')
     )
     FROM vehicle_listing vl
     WHERE ll.listing_id = vl.listing_id
       AND (
         (vl.address IS NOT NULL AND trim(vl.address) <> '')
-        OR (vl.pickup_address IS NOT NULL AND trim(vl.pickup_address) <> '')
+        OR (
+          to_jsonb(vl)->>'pickup_address' IS NOT NULL
+          AND trim(to_jsonb(vl)->>'pickup_address') <> ''
+        )
       );
   END IF;
 END $$;
@@ -67,7 +70,8 @@ END $$;
 ALTER TABLE vehicle_listing
   DROP COLUMN IF EXISTS address,
   DROP COLUMN IF EXISTS latitude,
-  DROP COLUMN IF EXISTS longitude;
+  DROP COLUMN IF EXISTS longitude,
+  DROP COLUMN IF EXISTS pickup_address;
 
 -- ---------------------------------------------------------------------------
 -- 3. Resolve media redundancies (file_asset + listing_image)
