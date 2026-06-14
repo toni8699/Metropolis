@@ -160,7 +160,7 @@ class ListingService:
                             "status": "validation_error",
                             "message": "lat, lng, and cityZone required for user-owned listings.",
                         }
-                    pickup_address = None
+                    pickup_address = payload.get("pickupAddress") or address
                     location_source_type = None
                     branch_id = None
                     parking_spot_id = None

@@ -30,6 +30,8 @@ class ListingCreateSchema(ma.Schema):
     lat = ma.Float(required=False, allow_none=True)
     lng = ma.Float(required=False, allow_none=True)
     cityZone = ma.String(required=False, allow_none=True)
+    pickupAddress = ma.String(required=False, allow_none=True)
+    rawAddress = ma.String(required=False, allow_none=True)
     isCompanyOwned = ma.Boolean(required=False)
     areaId = ma.Integer(required=False, allow_none=True)
     locationSourceType = ma.String(required=False, allow_none=True)

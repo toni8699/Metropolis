@@ -36,6 +36,36 @@ def upgrade() -> None:
     op.execute("DROP TABLE IF EXISTS roles")
 
     # Drop legacy operational tables no longer used by runtime services.
+    op.execute(
+        """
+        ALTER TABLE vehicle_listing
+        DROP CONSTRAINT IF EXISTS vehicle_listing_vehicle_class_id_fkey
+        """
+    )
+    op.execute(
+        """
+        ALTER TABLE vehicle_listing
+        DROP CONSTRAINT IF EXISTS vehicle_listing_legacy_vehicle_class_id_fkey
+        """
+    )
+    op.execute("ALTER TABLE vehicle_listing DROP COLUMN IF EXISTS vehicle_class_id")
+    op.execute("ALTER TABLE vehicle_listing DROP COLUMN IF EXISTS legacy_vehicle_class_id")
+
+    op.execute(
+        """
+        ALTER TABLE vehicle_asset
+        DROP CONSTRAINT IF EXISTS vehicle_asset_vehicle_class_id_fkey
+        """
+    )
+    op.execute(
+        """
+        ALTER TABLE vehicle_asset
+        DROP CONSTRAINT IF EXISTS vehicle_asset_legacy_vehicle_class_id_fkey
+        """
+    )
+    op.execute("ALTER TABLE vehicle_asset DROP COLUMN IF EXISTS vehicle_class_id")
+    op.execute("ALTER TABLE vehicle_asset DROP COLUMN IF EXISTS legacy_vehicle_class_id")
+
     op.execute("ALTER TABLE branch DROP CONSTRAINT IF EXISTS fk_branch_manager")
     op.execute("ALTER TABLE branch DROP COLUMN IF EXISTS managerid")
     op.execute("DROP TABLE IF EXISTS branchmanager")
