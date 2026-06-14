@@ -65,9 +65,36 @@ def _seed_fleet_vehicle(vin: str) -> None:
             )
             cur.execute(
                 """
-                INSERT INTO vehicle (vin, classid, branchid, status, make, model)
-                VALUES (%s, 98001, 98001, 'Available', 'SyncMake', 'SyncModel')
-                ON CONFLICT (vin) DO NOTHING
+                INSERT INTO vehicle_asset (
+                  vin,
+                  vehicle_category,
+                  owner_type,
+                  owner_party_name,
+                  asset_status,
+                  make,
+                  model,
+                  branch_id,
+                  vehicle_class_id,
+                  fleet_status
+                )
+                VALUES (
+                  %s,
+                  'STANDARD'::vehicle_category,
+                  'COMPANY'::vehicle_owner_type,
+                  'Company Fleet',
+                  'ACTIVE'::vehicle_asset_status,
+                  'SyncMake',
+                  'SyncModel',
+                  98001,
+                  98001,
+                  'Available'
+                )
+                ON CONFLICT (vin) DO UPDATE
+                SET
+                  branch_id = EXCLUDED.branch_id,
+                  vehicle_class_id = EXCLUDED.vehicle_class_id,
+                  fleet_status = EXCLUDED.fleet_status,
+                  asset_status = EXCLUDED.asset_status
                 """,
                 (vin,),
             )

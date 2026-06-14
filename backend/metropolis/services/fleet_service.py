@@ -255,11 +255,21 @@ class FleetService:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     """
-                    SELECT v.vin, v.make, v.model, v.status, b.city, a.areaName
-                    FROM Vehicle v
-                    JOIN Branch b ON b.branchID = v.branchID
+                    SELECT
+                      va.vin,
+                      va.make,
+                      va.model,
+                      COALESCE(va.fleet_status, 'Available') AS status,
+                      b.city,
+                      a.areaName,
+                      va.branch_id,
+                      va.vehicle_class_id
+                    FROM vehicle_asset va
+                    JOIN Branch b ON b.branchID = va.branch_id
                     JOIN Area a ON a.areaID = b.areaID
-                    WHERE v.status = 'Available'
+                    WHERE va.owner_type = 'COMPANY'::vehicle_owner_type
+                      AND va.vin IS NOT NULL
+                      AND COALESCE(va.fleet_status, 'Available') = 'Available'
                     LIMIT 500
                     """
                 )
@@ -267,7 +277,16 @@ class FleetService:
                 for row in fleet_rows:
                     cur.execute(
                         """
-                        SELECT listing_id
+                        SELECT vehicle_id
+                        FROM vehicle_asset
+                        WHERE vin = %s
+                        """,
+                        (row["vin"],),
+                    )
+                    vehicle_id = cur.fetchone()["vehicle_id"]
+                    cur.execute(
+                        """
+                        SELECT listing_id, vehicle_id
                         FROM vehicle_listing
                         WHERE source_type = 'FLEET' AND fleet_vehicle_vin = %s
                         """,
@@ -278,6 +297,15 @@ class FleetService:
                     city_zone = row["areaname"].lower().replace(" ", "-")
                     if hit:
                         existing += 1
+                        if hit.get("vehicle_id") is None:
+                            cur.execute(
+                                """
+                                UPDATE vehicle_listing
+                                SET vehicle_id = %s, updated_at = NOW()
+                                WHERE listing_id = %s
+                                """,
+                                (vehicle_id, hit["listing_id"]),
+                            )
                         cur.execute(
                             """
                             UPDATE listing_location
@@ -295,15 +323,16 @@ class FleetService:
                         """
                         INSERT INTO vehicle_listing
                         (
-                          source_type, fleet_vehicle_vin, title, brand, make, model, year,
+                          source_type, fleet_vehicle_vin, vehicle_id, title, brand, make, model, year,
                           description, guidelines, pickup_notes_template, price_per_day, active,
                           is_company_owned
                         )
-                        VALUES ('FLEET', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE)
+                        VALUES ('FLEET', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, TRUE)
                         RETURNING listing_id
                         """,
                         (
                             row["vin"],
+                            vehicle_id,
                             f"{row['make']} {row['model']} (Fleet)",
                             row["make"],
                             row["make"],

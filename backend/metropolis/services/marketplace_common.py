@@ -317,6 +317,7 @@ def _to_listing_row(
 
     return {
         "listingId": row["listing_id"],
+        "vehicleId": row.get("vehicle_id"),
         "sourceType": row["source_type"],
         "title": row["title"],
         "brand": row.get("brand"),

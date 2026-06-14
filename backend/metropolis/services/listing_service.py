@@ -186,12 +186,50 @@ class ListingService:
                     """,
                     (owner_user_id,),
                 )
+                owner_type = "COMPANY" if is_company_owned else "INDEPENDENT_HOST"
+                owner_party_name = "Company Managed" if is_company_owned else None
+                asset_status = "ACTIVE"
+                cur.execute(
+                    """
+                    INSERT INTO vehicle_asset (
+                      vehicle_category,
+                      owner_type,
+                      owner_party_user_id,
+                      owner_party_name,
+                      asset_status,
+                      make,
+                      model,
+                      model_year
+                    )
+                    VALUES (
+                      'STANDARD'::vehicle_category,
+                      %s::vehicle_owner_type,
+                      %s,
+                      %s,
+                      %s::vehicle_asset_status,
+                      %s,
+                      %s,
+                      %s
+                    )
+                    RETURNING vehicle_id
+                    """,
+                    (
+                        owner_type,
+                        owner_user_id,
+                        owner_party_name,
+                        asset_status,
+                        make or brand,
+                        model,
+                        year,
+                    ),
+                )
+                vehicle_id = cur.fetchone()["vehicle_id"]
                 raw_address = address or pickup_address
                 cur.execute(
                     """
                     INSERT INTO vehicle_listing
                     (
-                      owner_user_id, created_by_user_id, source_type, title, brand,
+                      owner_user_id, created_by_user_id, vehicle_id, source_type, title, brand,
                       make, model, year, mileage, vehicle_class_id,
                       description, guidelines, transmission, fuel_type, seats, doors,
                       features, pickup_notes_template, price_per_day, active, status,
@@ -199,7 +237,7 @@ class ListingService:
                       parking_spot_id, pickup_address
                     )
                     VALUES (
-                      %s, %s, %s::listing_source_type, %s, %s, %s, %s, %s, %s, %s,
+                      %s, %s, %s, %s::listing_source_type, %s, %s, %s, %s, %s, %s, %s,
                       %s, %s, %s, %s, %s, %s, %s::jsonb,
                       %s, %s, TRUE, 'ACTIVE',
                       %s, %s, %s, %s, %s, %s
@@ -209,6 +247,7 @@ class ListingService:
                     (
                         owner_user_id,
                         actor["userId"],
+                        vehicle_id,
                         source_type,
                         title,
                         brand,

@@ -116,7 +116,7 @@ CREATE TABLE vehicle_listing
 (
   listing_id BIGSERIAL PRIMARY KEY,
   owner_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
-  fleet_vehicle_vin CHAR(17) REFERENCES Vehicle(vin) ON DELETE SET NULL,
+  fleet_vehicle_vin CHAR(17),
   source_type listing_source_type NOT NULL,
   title VARCHAR(120) NOT NULL,
   brand VARCHAR(80),
@@ -251,6 +251,10 @@ CREATE TABLE vehicle_asset
   make VARCHAR(80),
   model VARCHAR(80),
   model_year INT,
+  branch_id INT REFERENCES branch(branchid) ON DELETE SET NULL,
+  vehicle_class_id INT REFERENCES vehicleclass(classid) ON DELETE SET NULL,
+  odometer_km INT CHECK (odometer_km IS NULL OR odometer_km >= 0),
+  fleet_status VARCHAR(30),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT vehicle_asset_owner_identity_check CHECK (
@@ -263,6 +267,7 @@ CREATE TABLE vehicle_asset
 
 CREATE INDEX idx_vehicle_asset_owner ON vehicle_asset(owner_type, owner_party_user_id);
 CREATE INDEX idx_vehicle_asset_status ON vehicle_asset(asset_status);
+CREATE INDEX idx_vehicle_asset_fleet_branch_status ON vehicle_asset(branch_id, fleet_status);
 
 CREATE TABLE management_program
 (
@@ -388,6 +393,7 @@ ALTER TABLE vehicle_listing
   ADD COLUMN visibility_status listing_visibility_status NOT NULL DEFAULT 'PUBLISHED';
 
 CREATE INDEX idx_vehicle_listing_vehicle_id ON vehicle_listing(vehicle_id);
+CREATE INDEX idx_vehicle_listing_fleet_vin ON vehicle_listing(fleet_vehicle_vin);
 
 ALTER TABLE booking
   ADD COLUMN access_type booking_access_type NOT NULL DEFAULT 'DAILY_RENTAL';

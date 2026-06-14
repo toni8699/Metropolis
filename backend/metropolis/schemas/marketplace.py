@@ -143,6 +143,7 @@ class ListingListSchema(ListingSearchSchema):
 
 class ListingSchema(ma.Schema):
     listingId = ma.Integer(required=True)
+    vehicleId = ma.Integer(allow_none=True)
     sourceType = ma.String(required=True)
     title = ma.String(required=True)
     brand = ma.String(allow_none=True)

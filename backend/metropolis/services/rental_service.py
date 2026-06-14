@@ -19,16 +19,16 @@ BETA = 10.0
 
 BRANCH_STATS_SQL = """
 SELECT b.branchid, b.city, b.areaid,
-       COUNT(DISTINCT v.vin) AS fleet_size,
+       COUNT(DISTINCT va.vehicle_id) AS fleet_size,
        COUNT(DISTINCT bk.booking_id) AS active_reservations,
        SUM(
          CASE
-           WHEN v.status = 'Available'
+           WHEN COALESCE(va.fleet_status, 'Available') = 'Available'
             AND NOT EXISTS (
               SELECT 1
               FROM vehicle_listing vl
               JOIN booking b_now ON b_now.listing_id = vl.listing_id
-              WHERE vl.fleet_vehicle_vin = v.vin
+              WHERE vl.fleet_vehicle_vin = va.vin
                 AND vl.source_type = 'FLEET'
                 AND b_now.status IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS')
                 AND b_now.start_at <= NOW()
@@ -39,9 +39,12 @@ SELECT b.branchid, b.city, b.areaid,
          END
        ) AS available_vehicles
 FROM branch b
-JOIN vehicle v ON v.branchid = b.branchid
+JOIN vehicle_asset va
+  ON va.branch_id = b.branchid
+ AND va.owner_type = 'COMPANY'::vehicle_owner_type
+ AND va.vin IS NOT NULL
 LEFT JOIN vehicle_listing vl
-  ON vl.fleet_vehicle_vin = v.vin
+  ON vl.fleet_vehicle_vin = va.vin
  AND vl.source_type = 'FLEET'
 LEFT JOIN booking bk
   ON bk.listing_id = vl.listing_id
