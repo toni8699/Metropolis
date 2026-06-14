@@ -96,7 +96,12 @@ def _normalize_profile_photo_url(value: str | None) -> str | None | bool:
         prefix = f"https://{bucket}.s3.{region}.amazonaws.com/user/"
         if not url.startswith(prefix) or "/avatar/" not in url:
             return False
-    elif not url.startswith("https://"):
+    elif not (
+        url.startswith("https://")
+        and ".s3." in url
+        and ".amazonaws.com/user/" in url
+        and "/avatar/" in url
+    ):
         return False
     if len(url) > 2048:
         return False
