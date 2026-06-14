@@ -8,6 +8,8 @@ import {
 } from "@/shared/lib/socket";
 import { apiGet, apiPost } from "@/shared/api/api";
 
+const messageCacheByBooking = new Map();
+
 export function useBookingChat(bookingId, currentUserId, { onMessage } = {}) {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,23 +22,41 @@ export function useBookingChat(bookingId, currentUserId, { onMessage } = {}) {
   const appendMessage = useCallback((raw) => {
     const message = normalizeMessage(raw);
     if (!message) return;
-    setMessages((prev) => mergeMessages(prev, [message]));
+    setMessages((prev) => {
+      const next = mergeMessages(prev, [message]);
+      const cacheKey = Number(message.bookingId);
+      if (cacheKey) messageCacheByBooking.set(cacheKey, next);
+      return next;
+    });
     onMessage?.(message);
   }, [onMessage]);
 
   useEffect(() => {
     if (!bookingId) {
       setMessages([]);
+      setIsLoading(false);
       return undefined;
     }
 
     let cancelled = false;
-    setIsLoading(true);
-    setLoadError("");
+    const activeBookingId = Number(bookingId);
+    const cached = messageCacheByBooking.get(activeBookingId);
 
-    apiGet(`/api/bookings/${bookingId}/messages`, true)
+    setLoadError("");
+    if (cached) {
+      setMessages(cached);
+      setIsLoading(false);
+    } else {
+      setMessages([]);
+      setIsLoading(true);
+    }
+
+    apiGet(`/api/bookings/${activeBookingId}/messages`, true)
       .then((data) => {
-        if (!cancelled) setMessages(mergeMessages([], extractMessages(data)));
+        if (cancelled) return;
+        const next = mergeMessages([], extractMessages(data));
+        messageCacheByBooking.set(activeBookingId, next);
+        setMessages(next);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(err?.message || "Could not load messages.");

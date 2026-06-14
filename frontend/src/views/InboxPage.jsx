@@ -150,17 +150,21 @@ export default function InboxPage() {
     }
   }, [selectedBookingId, threads, isLoadingThreads, setSearchParams]);
 
-  const loadThreads = useCallback(async () => {
-    setThreadsError("");
-    setIsLoadingThreads(true);
+  const loadThreads = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setThreadsError("");
+      setIsLoadingThreads(true);
+    }
     try {
       const data = await apiGet("/api/messages/threads", true);
       setThreads(data?.threads || []);
     } catch (err) {
-      setThreads([]);
-      setThreadsError(err?.message || "Could not load conversations.");
+      if (!silent) {
+        setThreads([]);
+        setThreadsError(err?.message || "Could not load conversations.");
+      }
     } finally {
-      setIsLoadingThreads(false);
+      if (!silent) setIsLoadingThreads(false);
     }
   }, []);
 
@@ -217,13 +221,18 @@ export default function InboxPage() {
 
   useEffect(() => {
     if (!selectedBookingId || isLoadingMessages) return;
-    loadThreads();
+    loadThreads({ silent: true });
   }, [selectedBookingId, isLoadingMessages, loadThreads]);
 
   const selectThread = (bookingId) => {
     setSearchParams({ booking: String(bookingId) });
     setMobilePane("chat");
     setDraft("");
+    setThreads((prev) =>
+      prev.map((thread) =>
+        thread.bookingId === bookingId ? { ...thread, unreadCount: 0 } : thread,
+      ),
+    );
   };
 
   const handleSend = async (event) => {
