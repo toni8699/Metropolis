@@ -1,6 +1,7 @@
 Alembic migrations for Metropolis Nexus.
 
 Run from `backend/` with `DATABASE_URL` in the project `.env`.
+Current chain starts from a single fresh baseline revision: `000001_new_base`.
 
 ```bash
 alembic upgrade head          # apply pending revisions

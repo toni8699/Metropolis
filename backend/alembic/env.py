@@ -11,9 +11,9 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
-# Project root .env (backend/../.env)
+# Project root .env (../.env from backend/)
 _ROOT = Path(__file__).resolve().parents[2]
-load_dotenv(_ROOT.parent / ".env")
+load_dotenv(_ROOT / ".env")
 
 config = context.config
 
