@@ -10,7 +10,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from psycopg2.extras import RealDictCursor
 from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotFound
 
-from metropolis.config import Config
+from metropolis.core.config import settings
 from metropolis.db import get_connection
 
 ALLOWED_SCOPES = {"FLEET", "OWNER_LISTING", "USER_DOC", "USER_AVATAR"}
@@ -37,9 +37,9 @@ def object_key_from_file_url(bucket: str, region: str, file_url: str) -> str | N
 
 class UploadsService:
     def __init__(self) -> None:
-        self.bucket = Config.S3_BUCKET_NAME
-        self.region = Config.AWS_REGION
-        self.expires_in = Config.S3_PRESIGN_TTL_SECONDS
+        self.bucket = settings.s3_bucket_name
+        self.region = settings.aws_region
+        self.expires_in = settings.s3_presign_ttl_seconds
         if self.bucket and self.region:
             self.client = boto3.client("s3", region_name=self.region)
         else:

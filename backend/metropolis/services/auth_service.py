@@ -9,7 +9,7 @@ import urllib.request
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from metropolis.config import Config
+from metropolis.core.config import settings
 from metropolis.db import get_connection
 from metropolis.dependencies.auth import create_access_token
 from metropolis.text_sanitize import sanitize_display_text
@@ -90,8 +90,8 @@ def _normalize_profile_photo_url(value: str | None) -> str | None | bool:
     url = value.strip()
     if not url:
         return None
-    bucket = Config.S3_BUCKET_NAME
-    region = Config.AWS_REGION
+    bucket = settings.s3_bucket_name
+    region = settings.aws_region
     if bucket and region:
         prefix = f"https://{bucket}.s3.{region}.amazonaws.com/user/"
         if not url.startswith(prefix) or "/avatar/" not in url:
