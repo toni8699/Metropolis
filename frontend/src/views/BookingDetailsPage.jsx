@@ -12,7 +12,7 @@ import {
 import { GoogleMap, Marker } from "@react-google-maps/api";
 import BookingChat from "@/features/bookings/components/BookingChat";
 import { useAuth } from "@/context/AuthContext";
-import { useGoogleMaps } from "@/shared/context/GoogleMapsProvider";
+import { useGoogleMaps } from "@/context/GoogleMapsProvider";
 import { apiGet, apiPatch } from "@/shared/api/api";
 import {
   bookingStatusBadgeClass,

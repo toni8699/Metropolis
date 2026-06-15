@@ -31,28 +31,19 @@ function HostEntry() {
   return <HostOnboardingFlow />;
 }
 
-function browseRoutes(hasSearched, searchParams) {
+function appRoutes(hasSearched, searchParams) {
   return (
     <>
       <Route
-        path="/"
+        index
         element={<MapBrowsePage hasSearched={hasSearched} searchParams={searchParams} />}
       />
-      <Route
-        path="/app"
-        element={<MapBrowsePage hasSearched={hasSearched} searchParams={searchParams} />}
-      />
-      <Route path="/listings/:listingId" element={<ListingDetailPage />} />
-      <Route path="/app/listings/:listingId" element={<ListingDetailPage />} />
-      <Route path="/book/:id" element={<BookingCheckoutPage />} />
-      <Route path="/app/book/:id" element={<BookingCheckoutPage />} />
-      <Route path="/bookings/:bookingId" element={<BookingDetailsPage />} />
-      <Route path="/app/bookings/:bookingId" element={<BookingDetailsPage />} />
-      <Route path="/trips" element={<TripsPage />} />
-      <Route path="/app/trips" element={<TripsPage />} />
-      <Route path="/messages" element={<InboxPage />} />
-      <Route path="/app/messages" element={<InboxPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="listings/:listingId" element={<ListingDetailPage />} />
+      <Route path="book/:id" element={<BookingCheckoutPage />} />
+      <Route path="bookings/:bookingId" element={<BookingDetailsPage />} />
+      <Route path="trips" element={<TripsPage />} />
+      <Route path="messages" element={<InboxPage />} />
+      <Route path="*" element={<Navigate to="/app" replace />} />
     </>
   );
 }
@@ -76,7 +67,7 @@ export default function App() {
 
   const mainAppShell = (
     <AppShell onSearch={handleSearch} onHome={handleGoHome}>
-      <Routes>{browseRoutes(hasSearched, searchParams)}</Routes>
+      <Routes>{appRoutes(hasSearched, searchParams)}</Routes>
     </AppShell>
   );
 
@@ -88,7 +79,6 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={mainAppShell} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/app/account" element={accountAppShell} />
       <Route path="/app/*" element={mainAppShell} />
@@ -101,6 +91,7 @@ export default function App() {
         </Route>
       </Route>
 
+      <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="/trips" element={<Navigate to="/app/trips" replace />} />
       <Route path="/messages" element={<Navigate to="/app/messages" replace />} />
       <Route path="/account" element={<Navigate to="/app/account" replace />} />

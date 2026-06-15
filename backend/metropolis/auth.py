@@ -11,52 +11,33 @@ from werkzeug.exceptions import Forbidden, Unauthorized
 from metropolis.db import get_connection
 
 
-def _load_user_context(user_id: int) -> dict:
-    with get_connection() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
-                SELECT user_id, email, full_name, phone, created_at, is_admin
-                FROM app_user
-                WHERE user_id = %s
-                """,
-                (user_id,),
-            )
-            user = cur.fetchone()
-            if not user:
-                raise Unauthorized(description="User not found.")
-            cur.execute(
-                """
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM vehicle_listing
-                    WHERE owner_user_id = %s
-                ) AS has_listings
-                """,
-                (user_id,),
-            )
-            has_listings = bool(cur.fetchone()["has_listings"])
-
+def _user_context_from_jwt(payload: dict) -> dict:
+    user_id = int(payload["sub"])
+    is_admin = bool(payload.get("isAdmin"))
     return {
-        "userId": user["user_id"],
-        "sub": str(user["user_id"]),
-        "email": user["email"],
-        "fullName": user.get("full_name"),
-        "phone": user.get("phone"),
-        "createdAt": user["created_at"].isoformat() if user.get("created_at") else None,
-        "role": "admin" if user.get("is_admin") else "user",
-        "isAdmin": bool(user.get("is_admin")),
-        "hasListings": has_listings,
+        "userId": user_id,
+        "sub": str(user_id),
+        "email": payload.get("email"),
+        "role": "admin" if is_admin else "user",
+        "isAdmin": is_admin,
+        "hasListings": bool(payload.get("hasListings")),
     }
 
 
-def create_access_token(user_id: int, email: str, is_admin: bool) -> str:
+def create_access_token(
+    user_id: int,
+    email: str,
+    is_admin: bool,
+    *,
+    has_listings: bool = False,
+) -> str:
     expires_hours = int(current_app.config.get("JWT_EXPIRES_HOURS", 24))
     payload = {
         "sub": str(user_id),
         "email": email,
         "role": "admin" if is_admin else "user",
         "isAdmin": bool(is_admin),
+        "hasListings": bool(has_listings),
         "exp": datetime.now(UTC) + timedelta(hours=expires_hours),
     }
     return jwt.encode(payload, current_app.config["JWT_SECRET"], algorithm="HS256")
@@ -86,7 +67,7 @@ def _resolve_request_user() -> dict:
     except jwt.InvalidTokenError as exc:
         raise Unauthorized(description="Invalid token.") from exc
 
-    return _load_user_context(int(payload["sub"]))
+    return _user_context_from_jwt(payload)
 
 
 def current_user_id() -> int:

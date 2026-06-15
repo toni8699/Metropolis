@@ -3,12 +3,11 @@ import { UploadCloud, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import VroomLogo from "@/layout/VroomLogo";
 import { apiPost } from "@/shared/api/api";
+import { uploadPresignedFile } from "@/shared/lib/uploadPresigned";
 import { useAuth } from "@/context/AuthContext";
-import { useGoogleMaps } from "@/shared/context/GoogleMapsProvider";
-import {
-  fetchPlacePredictions,
-  resolvePredictionCoordinates,
-} from "@/shared/lib/placesAutocomplete";
+import { useGoogleMaps } from "@/context/GoogleMapsProvider";
+import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
+import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
 import InstantBookToggle from "@/features/host/components/InstantBookToggle";
 
@@ -32,67 +31,33 @@ export default function HostOnboardingFlow() {
     instantBook: true,
     images: [],
   });
-  const [placePredictions, setPlacePredictions] = useState([]);
-  const [isPlacesLoading, setIsPlacesLoading] = useState(false);
-  const [placesError, setPlacesError] = useState("");
-  const [isPublishing, setIsPublishing] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState([]);
   const [imageError, setImageError] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const fileInputRef = useRef(null);
-  const { loadError: placesLoadError } = useGoogleMaps();
+  const { isLoaded: mapsReady, loadError: placesLoadError } = useGoogleMaps();
+  const {
+    predictions: placePredictions,
+    isLoading: isPlacesLoading,
+    placesError,
+    setPlacesError,
+    setPredictions: setPlacePredictions,
+  } = usePlacesAutocomplete(listingData.address, {
+    enabled: currentStep === 2,
+    debounceMs: 250,
+    country: "ca",
+    mapsReady,
+    placesLoadError,
+  });
 
   useEffect(() => {
     setHeadlineVisible(false);
     const timer = window.setTimeout(() => setHeadlineVisible(true), 60);
     return () => window.clearTimeout(timer);
   }, [currentStep]);
-
-  useEffect(() => {
-    if (currentStep !== 2) return;
-    if (!listingData.address.trim() || !window.google?.maps?.places) {
-      setPlacePredictions([]);
-      setIsPlacesLoading(false);
-      setPlacesError("");
-      return;
-    }
-    if (placesLoadError) {
-      setPlacesError("Google Maps failed to load.");
-      setPlacePredictions([]);
-      return;
-    }
-
-    let cancelled = false;
-    const timeoutId = window.setTimeout(async () => {
-      setIsPlacesLoading(true);
-      try {
-        const predictions = await fetchPlacePredictions(listingData.address, {
-          types: ["geocode"],
-          country: "ca",
-        });
-        if (!cancelled) {
-          setPlacePredictions(predictions);
-          setPlacesError("");
-        }
-      } catch {
-        if (!cancelled) {
-          setPlacePredictions([]);
-          setPlacesError("Could not fetch location suggestions.");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsPlacesLoading(false);
-        }
-      }
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [currentStep, listingData.address, placesLoadError]);
 
   useEffect(() => {
     const urls = imageFiles.map((file) => URL.createObjectURL(file));
@@ -164,37 +129,18 @@ export default function HostOnboardingFlow() {
 
   const uploadListingPhotos = async (listingId, files) => {
     for (const file of files) {
-      const presign = await apiPost(
-        "/api/uploads/presign",
-        {
+      await uploadPresignedFile(file, {
+        presignBody: {
           scope: "OWNER_LISTING",
           listingId: Number(listingId),
           fileName: file.name,
           contentType: file.type || "application/octet-stream",
         },
-        true,
-      );
-      const uploadResponse = await fetch(presign.presignedUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type || "application/octet-stream",
-        },
-        body: file,
-      });
-      if (!uploadResponse.ok) {
-        throw new Error(`S3 upload failed for ${file.name}.`);
-      }
-      await apiPost(
-        "/api/uploads/complete",
-        {
+        completeBody: {
           scope: "OWNER_LISTING",
           listingId: Number(listingId),
-          objectKey: presign.objectKey,
-          contentType: file.type || "application/octet-stream",
-          sizeBytes: file.size,
         },
-        true,
-      );
+      });
     }
   };
 

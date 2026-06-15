@@ -16,7 +16,7 @@ import BodyCard from "@/shared/components/BodyCard";
 import { formatPricePerDay } from "@/shared/lib/formatPrice";
 import { spreadOverlappingMarkers } from "@/shared/lib/mapMarkers";
 import { listingCoords } from "@/shared/lib/location";
-import { useGoogleMaps } from "@/shared/context/GoogleMapsProvider";
+import { useGoogleMaps } from "@/context/GoogleMapsProvider";
 const simplifiedMapStyles = [
   { featureType: "administrative", elementType: "all", stylers: [{ visibility: "off" }] },
   { featureType: "poi.business", elementType: "all", stylers: [{ visibility: "off" }] },

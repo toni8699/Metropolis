@@ -12,11 +12,11 @@ from metropolis.services.marketplace_common import (
     LISTING_SELECT_SQL,
     _associate_listing_image_urls,
     _fetch_dashboard_analytics,
-    _hydrate_listing_rows,
     _listing_image_urls,
     _resolve_guidelines,
     _resolve_search_window,
     _upsert_listing_location,
+    hydrate_listing_rows,
 )
 
 
@@ -307,7 +307,7 @@ class ListingService:
                 row = cur.fetchone()
                 if not row:
                     return {"status": "not_found", "message": "Listing not found."}
-                listing = _hydrate_listing_rows(cur, [row])[0]
+                listing = hydrate_listing_rows(cur, [row])[0]
         return {"status": "success", "listing": listing}
 
     def list_listing_booked_ranges(self, listing_id: int) -> dict:
@@ -374,7 +374,7 @@ class ListingService:
                     """,
                     (actor["userId"],),
                 )
-                listings = _hydrate_listing_rows(cur, cur.fetchall())
+                listings = hydrate_listing_rows(cur, cur.fetchall())
         return {"status": "success", "listings": listings}
 
     def search_listings(self, query: dict) -> dict:
@@ -406,7 +406,7 @@ class ListingService:
                     """,
                     tuple(params),
                 )
-                listings = _hydrate_listing_rows(cur, cur.fetchall())
+                listings = hydrate_listing_rows(cur, cur.fetchall())
         return {"status": "success", "listings": listings}
 
     def update_listing(self, actor: dict, listing_id: int, payload: dict) -> dict:
@@ -615,3 +615,6 @@ class ListingService:
                     (owner_user_id,),
                 )
         return {"status": "success", "analytics": analytics}
+
+
+listing_service = ListingService()

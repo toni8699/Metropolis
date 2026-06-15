@@ -189,7 +189,7 @@ def _fetch_listing_ratings_map(cur, listing_ids: list[int]) -> dict[int, dict]:
     }
 
 
-def _fetch_listing_images_map(cur, listing_ids: list[int]) -> dict[int, list[str]]:
+def fetch_listing_images_map(cur, listing_ids: list[int]) -> dict[int, list[str]]:
     if not listing_ids:
         return {}
     cur.execute(
@@ -289,9 +289,9 @@ def _upsert_listing_location(
     )
 
 
-def _hydrate_listing_rows(cur, rows: list[dict]) -> list[dict]:
+def hydrate_listing_rows(cur, rows: list[dict]) -> list[dict]:
     listing_ids = [row["listing_id"] for row in rows]
-    images_by_listing = _fetch_listing_images_map(cur, listing_ids)
+    images_by_listing = fetch_listing_images_map(cur, listing_ids)
     ratings_by_listing = _fetch_listing_ratings_map(cur, listing_ids)
     return [
         _to_listing_row(

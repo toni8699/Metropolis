@@ -26,7 +26,7 @@ graph TD
     subgraph Edge["API layer"]
         API["Flask monolith :5000<br/>Blueprints: /api/auth · /market · /bookings<br/>/owner · /admin · /uploads · /vehicles"]
         AUTH["JWT auth + Flask-Limiter<br/>metropolis/auth.py"]
-        SVC["Service layer<br/>marketplace_service<br/>auth_service · review_service · uploads_service"]
+        SVC["Service layer<br/>listing_service · booking_service · fleet_service<br/>auth_service · review_service · uploads_service"]
         API --> AUTH
         API --> SVC
     end
@@ -40,7 +40,7 @@ graph TD
         GM["Google Maps / Places JS API<br/>Client-side geocoding & map UI"]
         PAY["Stripe<br/>PaymentIntents + Webhooks<br/>payment_service.py · /webhooks/stripe<br/>Dev/CI: mock path (no key needed)"]
         KYC["Host verification<br/>owner_profile.verification_status<br/>S3 USER_DOC uploads — no vendor API"]
-        GPS["Vehicle location<br/>listing_location lat/lng<br/>Fleet coords simulated in marketplace_service"]
+        GPS["Vehicle location<br/>listing_location lat/lng<br/>Fleet coords simulated in fleet_service"]
     end
 
     RW & HD & FM -->|"REST JSON + Bearer JWT<br/>frontend/src/utils/api.js"| API
@@ -74,7 +74,8 @@ sequenceDiagram
     participant Auth as Flask /api/auth
     participant Market as Flask /api/market
     participant Book as Flask /api/bookings
-    participant MS as marketplace_service
+    participant LS as listing_service
+    participant BS as booking_service
     participant DB as PostgreSQL
     participant Pay as Stripe / payment_service
     participant Host as Host (P2P OWNER listing)
@@ -83,14 +84,14 @@ sequenceDiagram
     Note over Renter,Fleet: Discovery
     Renter->>SPA: Search location + dates (Header)
     SPA->>Market: GET /api/market/listings?bbox&lat&lng&radius
-    Market->>MS: search_listings()
-    MS->>DB: SELECT vehicle_listing + listing_location
+    Market->>LS: search_listings()
+    LS->>DB: SELECT vehicle_listing + listing_location
     DB-->>SPA: active listings
 
     Renter->>SPA: Open listing /app/listings/:id
     SPA->>Market: GET /api/market/listings/:id
-    Market->>MS: get_listing()
-    MS->>DB: SELECT listing + hydrate photos/ratings
+    Market->>LS: get_listing()
+    LS->>DB: SELECT listing + hydrate photos/ratings
     DB-->>SPA: listing detail
 
     Note over Renter,Fleet: Reserve intent
@@ -107,19 +108,19 @@ sequenceDiagram
     Renter->>SPA: Request to book
     SPA->>SPA: bookingWindowFromDateStrings() → ISO startAt/endAt
     SPA->>Book: POST /api/bookings {listingId, startAt, endAt}
-    Book->>MS: create_booking(renter_user_id, payload)
+    Book->>BS: create_booking(renter_user_id, payload)
 
-    MS->>DB: SELECT vehicle_listing FOR UPDATE
+    BS->>DB: SELECT vehicle_listing FOR UPDATE
     alt source_type = FLEET
-        MS->>DB: Conflict check by listing_id OR fleet_vehicle_vin
+        BS->>DB: Conflict check by listing_id OR fleet_vehicle_vin
         Note right of Fleet: Same VIN cannot double-book
     else source_type = OWNER (P2P)
-        MS->>DB: Conflict check by listing_id only
+        BS->>DB: Conflict check by listing_id only
     end
 
-    MS->>DB: INSERT booking status=PENDING, price_snapshot_json
-    MS->>DB: INSERT trip_event BOOKING_CREATED
-    MS->>DB: COMMIT
+    BS->>DB: INSERT booking status=PENDING, price_snapshot_json
+    BS->>DB: INSERT trip_event BOOKING_CREATED
+    BS->>DB: COMMIT
     Book-->>SPA: booking PENDING
 
     Note over Renter,Fleet: Payment
@@ -128,44 +129,44 @@ sequenceDiagram
     SPA->>Book: POST /api/bookings/:id/payment-intent
     Book->>Pay: Create/confirm Stripe PaymentIntent (or mock)
     Pay-->>Book: PaymentIntent confirmed
-    Book->>MS: resolve post-payment status
-    MS->>DB: UPDATE booking → CONFIRMED or PENDING_APPROVAL
-    MS->>DB: INSERT trip_event PAYMENT_COMPLETED
+    Book->>BS: resolve post-payment status
+    BS->>DB: UPDATE booking → CONFIRMED or PENDING_APPROVAL
+    BS->>DB: INSERT trip_event PAYMENT_COMPLETED
     Book-->>SPA: booking CONFIRMED or PENDING_APPROVAL
     SPA->>Renter: redirect /app/trips
 
     par Host / fleet notification (read path)
         alt OWNER listing
             Host->>Book: GET /api/owner/bookings
-            Book->>MS: owner_bookings()
-            MS->>DB: SELECT bookings for host listings
+            Book->>BS: owner_bookings()
+            BS->>DB: SELECT bookings for host listings
         else FLEET listing
             Fleet->>Book: GET /api/admin/bookings
-            Book->>MS: admin_bookings()
-            MS->>DB: SELECT company fleet bookings
+            Book->>BS: admin_bookings()
+            BS->>DB: SELECT company fleet bookings
         end
     end
 
     Note over Renter,Fleet: Trip lifecycle
     Renter->>SPA: Trips /app/trips
     SPA->>Book: GET /api/bookings/mine
-    Book->>MS: list_renter_bookings()
-    MS->>DB: SELECT bookings for renter
+    Book->>BS: list_renter_bookings()
+    BS->>DB: SELECT bookings for renter
 
     opt pickup coordination
         Host->>Book: POST /api/bookings/:id/instructions
-        Book->>MS: send_instruction()
-        MS->>DB: INSERT booking_instruction + trip_event
+        Book->>BS: send_instruction()
+        BS->>DB: INSERT booking_instruction + trip_event
         Renter->>Book: POST /api/bookings/:id/confirm-pickup
-        MS->>DB: UPDATE booking → IN_PROGRESS
+        BS->>DB: UPDATE booking → IN_PROGRESS
     end
 
     Renter->>Book: POST /api/bookings/:id/complete
-    MS->>DB: UPDATE booking → COMPLETED + trip_event
+    BS->>DB: UPDATE booking → COMPLETED + trip_event
 
     opt review
         Renter->>Book: POST /api/bookings/:id/reviews
-        MS->>DB: INSERT review
+        BS->>DB: INSERT review
     end
 ```
 
@@ -184,7 +185,9 @@ Canonical schema: `db/schema.sql`, applied on empty databases via Alembic baseli
 |-------|----------|
 | Frontend routes | `frontend/src/app/App.jsx` |
 | API blueprints | `backend/metropolis/api/` |
-| Booking logic | `backend/metropolis/services/marketplace_service.py` |
+| Booking logic | `backend/metropolis/services/booking_service.py` |
+| Listing logic | `backend/metropolis/services/listing_service.py` |
+| Fleet logic | `backend/metropolis/services/fleet_service.py` |
 | Payment logic | `backend/metropolis/services/payment_service.py` |
 | Stripe webhook | `backend/metropolis/api/webhooks.py` |
 | Base schema | `db/schema.sql` |

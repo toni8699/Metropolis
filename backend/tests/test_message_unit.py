@@ -113,7 +113,7 @@ def test_list_message_threads_includes_unread_count():
     conn, cur = _mock_conn(fetchall=[row])
     with patch("metropolis.services.message_service.get_connection", return_value=conn):
         with patch(
-            "metropolis.services.message_service._fetch_listing_images_map",
+            "metropolis.services.message_service.fetch_listing_images_map",
             return_value={9: []},
         ):
             result = svc.list_message_threads(3)

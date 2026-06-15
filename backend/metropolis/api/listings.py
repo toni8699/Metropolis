@@ -13,11 +13,11 @@ from metropolis.schemas.marketplace import (
     ListingCreateSchema,
     ListingItemSchema,
     ListingListSchema,
-    ListingLocationSchema,
+    ListingLocationInputSchema,
     ListingUpdateSchema,
 )
 from metropolis.schemas.reviews import ReviewCollectionSchema
-from metropolis.services import marketplace_service, review_service
+from metropolis.services import fleet_service, listing_service, review_service
 
 bp = Blueprint("listings", __name__, url_prefix="/api/listings")
 
@@ -39,12 +39,12 @@ def list_listings(query):
     scope = (query.get("scope") or "").strip().lower()
     try:
         if not scope:
-            result = marketplace_service.search_listings(query)
+            result = listing_service.search_listings(query)
             return with_listing_links(result)
         if scope == "mine":
             if not g.get("current_user"):
                 raise Unauthorized(description="Authentication required.")
-            result = marketplace_service.owner_listings(g.current_user)
+            result = listing_service.owner_listings(g.current_user)
             result["scope"] = scope
             return with_listing_links(result, can_edit=True)
         if scope == "fleet":
@@ -52,7 +52,7 @@ def list_listings(query):
                 raise Unauthorized(description="Authentication required.")
             if not g.current_user.get("isAdmin"):
                 raise Forbidden(description="Admin access required.")
-            result = marketplace_service.admin_listings()
+            result = fleet_service.admin_listings()
             result["scope"] = scope
             return with_listing_links(result, can_edit=True)
         if scope == "host":
@@ -60,7 +60,7 @@ def list_listings(query):
                 raise Unauthorized(description="Authentication required.")
             if not g.current_user.get("isAdmin"):
                 raise Forbidden(description="Admin access required.")
-            result = marketplace_service.admin_host_listings()
+            result = fleet_service.admin_host_listings()
             result["scope"] = scope
             return with_listing_links(result)
         raise BadRequest(description="Unsupported scope. Use mine, fleet, or host.")
@@ -77,7 +77,7 @@ def list_listings(query):
 def get_listing(listing_id: int):
     """Get listing details by id."""
     try:
-        result = marketplace_service.get_listing(listing_id)
+        result = listing_service.get_listing(listing_id)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
@@ -100,7 +100,7 @@ def get_listing(listing_id: int):
 def create_listing(payload):
     """Create listing for authenticated user."""
     try:
-        result = marketplace_service.create_listing(g.current_user, payload)
+        result = listing_service.create_listing(g.current_user, payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
     raise_for_service_result(result)
@@ -121,7 +121,7 @@ def create_listing(payload):
 def patch_listing(payload, listing_id: int):
     """Patch listing fields."""
     try:
-        result = marketplace_service.update_listing(g.current_user, listing_id, payload)
+        result = listing_service.update_listing(g.current_user, listing_id, payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
     raise_for_service_result(result)
@@ -135,7 +135,7 @@ def patch_listing(payload, listing_id: int):
 def delete_listing(listing_id: int):
     """Delete listing when actor has listing access."""
     try:
-        result = marketplace_service.delete_listing(g.current_user, listing_id)
+        result = listing_service.delete_listing(g.current_user, listing_id)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
     raise_for_service_result(result)
@@ -144,13 +144,13 @@ def delete_listing(listing_id: int):
 
 @bp.post("/<int:listing_id>/location")
 @require_listing_access("listing_id")
-@body(ListingLocationSchema)
+@body(ListingLocationInputSchema)
 @response(ListingItemSchema)
 @other_responses({404: (ErrorSchema, "Not found."), 500: (ErrorSchema, "Server error.")})
 def set_location(payload, listing_id: int):
     """Upsert parking location for listing."""
     try:
-        result = marketplace_service.upsert_location(g.current_user, listing_id, payload)
+        result = listing_service.upsert_location(g.current_user, listing_id, payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
     raise_for_service_result(result)
@@ -165,7 +165,7 @@ def set_location(payload, listing_id: int):
 def add_availability(payload, listing_id: int):
     """Add availability window for listing."""
     try:
-        result = marketplace_service.add_availability(g.current_user, listing_id, payload)
+        result = listing_service.add_availability(g.current_user, listing_id, payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
     raise_for_service_result(result)
@@ -178,7 +178,7 @@ def add_availability(payload, listing_id: int):
 def list_listing_booked_ranges(listing_id: int):
     """List booking windows that block new reservations for this listing."""
     try:
-        result = marketplace_service.list_listing_booked_ranges(listing_id)
+        result = listing_service.list_listing_booked_ranges(listing_id)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
     raise_for_service_result(result)

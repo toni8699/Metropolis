@@ -22,7 +22,8 @@ from metropolis.schemas.messages import (
 from metropolis.schemas.payments import PaymentIntentResponseSchema
 from metropolis.schemas.reviews import ReviewItemSchema, ReviewSubmitSchema
 from metropolis.services import (
-    marketplace_service,
+    booking_service,
+    fleet_service,
     message_service,
     payment_service,
     review_service,
@@ -48,13 +49,13 @@ def list_bookings(query):
     scope = (query.get("scope") or "").strip().lower()
     try:
         if scope == "mine":
-            result = marketplace_service.list_renter_bookings(current_user_id())
+            result = booking_service.list_renter_bookings(current_user_id())
         elif scope == "owner":
-            result = marketplace_service.owner_bookings(current_user_id())
+            result = booking_service.owner_bookings(current_user_id())
         elif scope == "fleet":
             if not g.current_user.get("isAdmin"):
                 raise Forbidden(description="Admin access required.")
-            result = marketplace_service.admin_bookings()
+            result = fleet_service.admin_bookings()
         else:
             raise BadRequest(description="Unsupported scope. Use mine, owner, or fleet.")
         result["scope"] = scope
@@ -80,7 +81,7 @@ def list_bookings(query):
 def create_booking(payload):
     """Create booking (status PENDING until payment succeeds)."""
     try:
-        result = marketplace_service.create_booking(current_user_id(), payload)
+        result = booking_service.create_booking(current_user_id(), payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
     raise_for_service_result(result)
@@ -100,7 +101,7 @@ def create_booking(payload):
 def get_booking(booking_id: int):
     """Get booking details for renter, owner, or admin."""
     try:
-        result = marketplace_service.get_booking(
+        result = booking_service.get_booking(
             booking_id,
             current_user_id(),
             g.current_user["isAdmin"],
@@ -127,7 +128,7 @@ def get_booking(booking_id: int):
 def patch_booking(payload, booking_id: int):
     """Update booking status."""
     try:
-        result = marketplace_service.patch_booking(
+        result = booking_service.patch_booking(
             booking_id,
             current_user_id(),
             g.current_user["isAdmin"],

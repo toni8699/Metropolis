@@ -5,7 +5,7 @@ import HostOnboardingFlow from "@/features/host/components/HostOnboardingFlow";
 
 // ── External mocks ──────────────────────────────────────────────────────────
 
-vi.mock("@/shared/context/GoogleMapsProvider", () => ({
+vi.mock("@/context/GoogleMapsProvider", () => ({
   useGoogleMaps: () => ({ isLoaded: true, loadError: null, apiKey: "test-key" }),
 }));
 

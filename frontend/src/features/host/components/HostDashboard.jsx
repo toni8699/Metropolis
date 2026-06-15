@@ -45,7 +45,7 @@ import {
 } from "@/shared/lib/placesAutocomplete";
 import { CANADA_CENTER, CANADA_MAP_OPTIONS } from "@/shared/lib/location";
 import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
-import { useGoogleMaps } from "@/shared/context/GoogleMapsProvider";
+import { useGoogleMaps } from "@/context/GoogleMapsProvider";
 import MapPinPicker from "@/features/host/components/MapPinPicker";
 import {
   bookingStatusBadgeClass,

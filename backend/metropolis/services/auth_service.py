@@ -168,7 +168,12 @@ class AuthService:
                 has_listings = _fetch_has_listings(cur, user["user_id"])
                 conn.commit()
 
-        token = create_access_token(user["user_id"], user["email"], bool(user["is_admin"]))
+        token = create_access_token(
+            user["user_id"],
+            user["email"],
+            bool(user["is_admin"]),
+            has_listings=has_listings,
+        )
         return {
             "status": "success",
             "token": token,
@@ -199,7 +204,12 @@ class AuthService:
         if not user or not check_password_hash(user["password_hash"], password):
             return {"status": "validation_error", "message": "Invalid email or password."}
 
-        token = create_access_token(user["user_id"], user["email"], bool(user["is_admin"]))
+        token = create_access_token(
+            user["user_id"],
+            user["email"],
+            bool(user["is_admin"]),
+            has_listings=has_listings,
+        )
         return {
             "status": "success",
             "token": token,
@@ -456,7 +466,12 @@ class AuthService:
                 has_listings = _fetch_has_listings(cur, user["user_id"])
                 conn.commit()
 
-        token = create_access_token(user["user_id"], user["email"], bool(user["is_admin"]))
+        token = create_access_token(
+            user["user_id"],
+            user["email"],
+            bool(user["is_admin"]),
+            has_listings=has_listings,
+        )
         return {
             "status": "success",
             "token": token,

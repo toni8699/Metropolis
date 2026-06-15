@@ -1,6 +1,5 @@
 from apifairy import body, other_responses, response
 from flask import Blueprint
-from werkzeug.exceptions import InternalServerError
 
 from metropolis.auth import current_user_id, require_auth
 from metropolis.errors import raise_for_service_result
@@ -17,11 +16,7 @@ bp = Blueprint("me", __name__, url_prefix="/api")
 @other_responses({404: (ErrorSchema, "User not found."), 500: (ErrorSchema, "Server error.")})
 def me():
     """Current authenticated user."""
-    try:
-        result = auth_service.me(current_user_id())
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
-
+    result = auth_service.me(current_user_id())
     raise_for_service_result(result)
     return result
 
@@ -39,13 +34,6 @@ def me():
 )
 def update_me(payload):
     """Update current authenticated user's profile."""
-    try:
-        result = auth_service.update_me(
-            current_user_id(),
-            payload,
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
-
+    result = auth_service.update_me(current_user_id(), payload)
     raise_for_service_result(result)
     return result

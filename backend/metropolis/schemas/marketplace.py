@@ -83,7 +83,7 @@ class ListingUpdateSchema(ma.Schema):
     instantBook = ma.Boolean(required=False)
 
 
-ListingLocationSchema = ListingLocationWriteSchema
+ListingLocationInputSchema = ListingLocationWriteSchema
 
 
 class ListingAvailabilitySchema(ma.Schema):

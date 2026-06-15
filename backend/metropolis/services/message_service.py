@@ -3,7 +3,7 @@ from __future__ import annotations
 from psycopg2.extras import RealDictCursor
 
 from metropolis.db import get_connection
-from metropolis.services.marketplace_common import _fetch_listing_images_map
+from metropolis.services.marketplace_common import fetch_listing_images_map
 
 
 class MessageService:
@@ -243,7 +243,7 @@ class MessageService:
                 )
                 rows = cur.fetchall()
                 listing_ids = list({row["listing_id"] for row in rows})
-                images_by_listing = _fetch_listing_images_map(cur, listing_ids)
+                images_by_listing = fetch_listing_images_map(cur, listing_ids)
 
         threads = []
         for row in rows:

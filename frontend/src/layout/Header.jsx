@@ -9,7 +9,7 @@ import { addDays, format } from "date-fns";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useGoogleMaps } from "@/shared/context/GoogleMapsProvider";
+import { useGoogleMaps } from "@/context/GoogleMapsProvider";
 import AuthModal from "@/shared/components/AuthModal";
 import UserAvatar from "@/shared/components/UserAvatar";
 import UserMenuDropdown from "@/layout/header/UserMenuDropdown";
@@ -18,10 +18,8 @@ import WhereSuggestionsDropdown from "@/layout/header/WhereSuggestionsDropdown";
 import WhenDateDropdown from "@/layout/header/WhenDateDropdown";
 import VroomLogo from "@/layout/VroomLogo";
 import { defaultDateRangeFromToday, startOfToday } from "@/shared/lib/datePicker";
-import {
-  fetchPlacePredictions,
-  resolvePredictionCoordinates,
-} from "@/shared/lib/placesAutocomplete";
+import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
+import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 
 export default function Header({ onSearch, onHome }) {
   const navigate = useNavigate();
@@ -35,9 +33,6 @@ export default function Header({ onSearch, onHome }) {
   const [activeSection, setActiveSection] = useState("where");
   const [location, setLocation] = useState("montreal-core");
   const [searchQuery, setSearchQuery] = useState("montreal-core");
-  const [placePredictions, setPlacePredictions] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [placesError, setPlacesError] = useState("");
   const [selectedCoordinates, setSelectedCoordinates] = useState(null);
   const [selectedRange, setSelectedRange] = useState(defaultDateRangeFromToday);
   const searchContainerRef = useRef(null);
@@ -45,6 +40,17 @@ export default function Header({ onSearch, onHome }) {
   const mobileUserMenuRef = useRef(null);
   const desktopUserMenuRef = useRef(null);
   const { isLoaded: isPlacesLoaded, loadError: placesLoadError } = useGoogleMaps();
+  const {
+    predictions: placePredictions,
+    isLoading,
+    placesError,
+    setPlacesError,
+  } = usePlacesAutocomplete(searchQuery, {
+    enabled: isSearchExpanded && activeSection === "where",
+    debounceMs: 300,
+    mapsReady: isPlacesLoaded,
+    placesLoadError,
+  });
 
   useEffect(() => {
     function closeOnClickOutside(event) {
@@ -162,55 +168,7 @@ export default function Header({ onSearch, onHome }) {
     } catch {
       setPlacesError("Google Places failed to initialize.");
     }
-  }, [isPlacesLoaded]);
-
-  useEffect(() => {
-    if (!isSearchExpanded || activeSection !== "where") return;
-    if (!searchQuery.trim()) {
-      setPlacePredictions([]);
-      setIsLoading(false);
-      setPlacesError("");
-      return;
-    }
-    if (placesLoadError) {
-      setPlacePredictions([]);
-      setPlacesError("Google Maps failed to load.");
-      return;
-    }
-    if (!window.google?.maps?.places) {
-      setPlacePredictions([]);
-      setPlacesError("Location suggestions are not ready yet.");
-      return;
-    }
-
-    let isCancelled = false;
-    const debounceId = window.setTimeout(async () => {
-      setIsLoading(true);
-      setPlacesError("");
-      try {
-        const predictions = await fetchPlacePredictions(searchQuery, {
-          types: ["geocode"],
-        });
-        if (!isCancelled) {
-          setPlacePredictions(predictions);
-        }
-      } catch {
-        if (!isCancelled) {
-          setPlacePredictions([]);
-          setPlacesError("Could not fetch location suggestions.");
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
-      }
-    }, 300);
-
-    return () => {
-      isCancelled = true;
-      window.clearTimeout(debounceId);
-    };
-  }, [searchQuery, isSearchExpanded, activeSection, placesLoadError]);
+  }, [isPlacesLoaded, setPlacesError]);
 
   const setToday = () => {
     const today = startOfToday();

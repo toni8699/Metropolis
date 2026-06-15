@@ -5,7 +5,7 @@ import hashlib
 from psycopg2.extras import RealDictCursor
 
 from metropolis.db import get_connection
-from metropolis.services.booking_service import _to_booking_row
+from metropolis.services.booking_rows import to_booking_row
 from metropolis.services.marketplace_common import (
     _BOOKING_SELECT_SQL,
     _COMPANY_FLEET_FILTER,
@@ -13,9 +13,9 @@ from metropolis.services.marketplace_common import (
     CITY_COORDS,
     LISTING_SELECT_SQL,
     _fetch_dashboard_analytics,
-    _hydrate_listing_rows,
     _simple_geohash,
     _upsert_listing_location,
+    hydrate_listing_rows,
 )
 
 _VEHICLE_CATEGORY_OPTIONS = [
@@ -129,7 +129,7 @@ class FleetService:
                     LIMIT 500
                     """
                 )
-                listings = _hydrate_listing_rows(cur, cur.fetchall())
+                listings = hydrate_listing_rows(cur, cur.fetchall())
         return {"status": "success", "listings": listings}
 
     def admin_host_listings(self) -> dict:
@@ -143,7 +143,7 @@ class FleetService:
                     LIMIT 500
                     """
                 )
-                listings = _hydrate_listing_rows(cur, cur.fetchall())
+                listings = hydrate_listing_rows(cur, cur.fetchall())
         return {"status": "success", "listings": listings}
 
     def admin_company_locations(self) -> dict:
@@ -226,7 +226,7 @@ class FleetService:
                     """
                 )
                 rows = cur.fetchall()
-        return {"status": "success", "bookings": [_to_booking_row(row) for row in rows]}
+        return {"status": "success", "bookings": [to_booking_row(row) for row in rows]}
 
     def admin_analytics(self) -> dict:
         with get_connection() as conn:
@@ -340,3 +340,6 @@ class FleetService:
                     created += 1
                 conn.commit()
         return {"status": "success", "created": created, "existing": existing}
+
+
+fleet_service = FleetService()

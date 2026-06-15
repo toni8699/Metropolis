@@ -118,7 +118,7 @@ function ReservationSidebar({ thread }) {
 }
 
 export default function InboxPage() {
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [threads, setThreads] = useState([]);
   const [isLoadingThreads, setIsLoadingThreads] = useState(true);
@@ -231,14 +231,6 @@ export default function InboxPage() {
     const ok = await sendMessage(draft);
     if (ok) setDraft("");
   };
-
-  if (authLoading) {
-    return (
-      <div className="flex h-[calc(100dvh-5rem)] items-center justify-center text-sm text-gray-500 md:h-[calc(100dvh-4.5rem)]">
-        Loading…
-      </div>
-    );
-  }
 
   if (!isAuthenticated) {
     return <Navigate to="/app" replace />;

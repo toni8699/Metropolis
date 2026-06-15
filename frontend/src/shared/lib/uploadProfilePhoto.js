@@ -1,34 +1,13 @@
-import { apiPost } from "@/shared/api/api";
+import { uploadPresignedFile } from "@/shared/lib/uploadPresigned";
 
 export async function uploadProfilePhoto(file) {
-  const presign = await apiPost(
-    "/api/uploads/presign",
-    {
+  const presign = await uploadPresignedFile(file, {
+    presignBody: {
       scope: "USER_AVATAR",
       fileName: file.name,
       contentType: file.type || "application/octet-stream",
     },
-    true,
-  );
-  const uploadResponse = await fetch(presign.presignedUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": file.type || "application/octet-stream",
-    },
-    body: file,
+    completeBody: { scope: "USER_AVATAR" },
   });
-  if (!uploadResponse.ok) {
-    throw new Error(`Upload failed for ${file.name}.`);
-  }
-  await apiPost(
-    "/api/uploads/complete",
-    {
-      scope: "USER_AVATAR",
-      objectKey: presign.objectKey,
-      contentType: file.type || "application/octet-stream",
-      sizeBytes: file.size,
-    },
-    true,
-  );
   return presign.fileUrl;
 }

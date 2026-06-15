@@ -6,7 +6,7 @@ import stripe
 from psycopg2.extras import Json, RealDictCursor
 
 from metropolis.db import get_connection
-from metropolis.services.booking_service import _resolve_post_payment_status
+from metropolis.services.booking_support import resolve_post_payment_status
 
 
 def _stripe_enabled() -> bool:
@@ -186,7 +186,7 @@ class PaymentService:
                 snapshot = row["price_snapshot_json"] or {}
                 amount_cents = _amount_cents_from_snapshot(snapshot)
                 currency = (snapshot.get("currency") or "CAD").lower()
-                next_status = _resolve_post_payment_status(
+                next_status = resolve_post_payment_status(
                     row["source_type"],
                     bool(row.get("instant_book", True)),
                 )

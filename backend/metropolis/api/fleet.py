@@ -1,6 +1,5 @@
 from apifairy import other_responses, response
 from flask import Blueprint
-from werkzeug.exceptions import InternalServerError
 
 from metropolis.auth import require_admin
 from metropolis.schemas.admin import (
@@ -9,7 +8,7 @@ from metropolis.schemas.admin import (
 )
 from metropolis.schemas.common import ErrorSchema
 from metropolis.schemas.marketplace import VehicleClassCollectionSchema
-from metropolis.services import marketplace_service
+from metropolis.services import fleet_service
 
 bp = Blueprint("fleet", __name__, url_prefix="/api")
 
@@ -19,13 +18,10 @@ bp = Blueprint("fleet", __name__, url_prefix="/api")
 @other_responses({500: (ErrorSchema, "Server error.")})
 def list_vehicle_classes():
     """List vehicle classes for listing forms."""
-    try:
-        return {
-            "status": "success",
-            "vehicleClasses": marketplace_service.list_vehicle_classes(),
-        }
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
+    return {
+        "status": "success",
+        "vehicleClasses": fleet_service.list_vehicle_classes(),
+    }
 
 
 @bp.get("/company-locations")
@@ -34,10 +30,7 @@ def list_vehicle_classes():
 @other_responses({500: (ErrorSchema, "Database or server error.")})
 def list_company_locations():
     """List canonical company location sources for listing creation."""
-    try:
-        return marketplace_service.admin_company_locations()
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
+    return fleet_service.admin_company_locations()
 
 
 @bp.post("/fleet/sync")
@@ -46,7 +39,4 @@ def list_company_locations():
 @other_responses({500: (ErrorSchema, "Database or server error.")})
 def sync_fleet_listings():
     """Expose fleet as marketplace listings (FLEET source type)."""
-    try:
-        return marketplace_service.sync_fleet_listings()
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
+    return fleet_service.sync_fleet_listings()

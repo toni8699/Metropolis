@@ -1,7 +1,8 @@
 from apifairy import body, other_responses, response
 from flask import Blueprint
-from werkzeug.exceptions import BadRequest, InternalServerError
+from werkzeug.exceptions import InternalServerError
 
+from metropolis.errors import raise_for_service_result
 from metropolis.extensions import limiter
 from metropolis.schemas.auth import (
     AuthGoogleSchema,
@@ -32,8 +33,7 @@ def register(payload):
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
-    if result["status"] != "success":
-        raise BadRequest(description=result["message"])
+    raise_for_service_result(result)
     return result
 
 
@@ -49,8 +49,7 @@ def login(payload):
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
-    if result["status"] != "success":
-        raise BadRequest(description=result["message"])
+    raise_for_service_result(result)
     return result
 
 
@@ -65,6 +64,5 @@ def google_login(payload):
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
-    if result["status"] != "success":
-        raise BadRequest(description=result["message"])
+    raise_for_service_result(result)
     return result

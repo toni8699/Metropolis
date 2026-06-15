@@ -35,7 +35,7 @@ React 18 + Vite 5 SPA, deployed on Vercel. All config via `VITE_*` env vars bake
 | Real-time chat | `socket.io-client` via `useBookingChat` hook |
 | API client | `frontend/src/shared/api/api.js` (port 5000 default) |
 
-Key pages: `MapBrowsePage`, `ListingDetailPage`, `BookingCheckoutPage`, `TripsPage`, `InboxPage`, `OwnerDashboardPage`, `AdminDashboardPage`.
+Key pages: `MapBrowsePage`, `ListingDetailPage`, `BookingCheckoutPage`, `TripsPage`, `InboxPage`, `HostDashboardPage` (owner + admin modes via `mode` prop).
 
 ### Backend (`backend/`)
 
@@ -52,7 +52,7 @@ Flask 3 monolith, deployed on Render via Docker image pushed to GHCR.
 | File uploads | `boto3` presigned PUT URLs to S3 |
 | Payments | Stripe PaymentIntents (`payment_service.py`); mock path when no key set |
 
-Service modules: `auth_service`, `marketplace_service`, `payment_service`, `kyc_service`, `message_service`, `review_service`, `uploads_service`.
+Service modules: `auth_service`, `listing_service`, `booking_service`, `fleet_service`, `payment_service`, `kyc_service`, `message_service`, `review_service`, `uploads_service`.
 
 ### Database (`db/`)
 

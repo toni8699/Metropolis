@@ -2,18 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import ReviewModal from "@/features/reviews/components/ReviewModal";
+import BodyCard from "@/shared/components/BodyCard";
 import { apiGet } from "@/shared/api/api";
 import { bookingStatusBadgeClass, formatBookingStatusLabel } from "@/shared/lib/bookingStatus";
-
-function formatTripDates(startAt, endAt) {
-  if (!startAt || !endAt) return "Dates unavailable";
-  const start = String(startAt).slice(0, 10);
-  const end = String(endAt).slice(0, 10);
-  return `${start} → ${end}`;
-}
+import { formatTripWindow } from "@/shared/lib/tripDetail";
 
 export default function TripsPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [trips, setTrips] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,20 +33,12 @@ export default function TripsPage() {
     loadTrips();
   }, [isAuthenticated, loadTrips]);
 
-  if (authLoading) {
-    return (
-      <div className="mx-auto max-w-3xl py-12 text-center text-sm text-gray-500">
-        Loading...
-      </div>
-    );
-  }
-
   if (!isAuthenticated) {
     return <Navigate to="/app" replace />;
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 rounded-[2rem] border-2 border-black bg-[#f5f5d0] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+    <BodyCard className="mx-auto max-w-3xl space-y-6 p-6">
       <div>
         <h1 className="text-4xl font-extrabold text-[#183B1E]">Your trips</h1>
         <p className="mt-2 text-[#35593b]">
@@ -80,7 +67,7 @@ export default function TripsPage() {
         <div className="rounded-3xl border-2 border-black bg-[#FCFCE5] p-8 text-center shadow-[6px_6px_0px_0px_rgba(24,59,30,0.4)]">
           <p className="font-semibold text-[#35593b]">No trips yet.</p>
           <Link
-            to="/"
+            to="/app"
             className="mt-4 inline-block rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-5 py-2.5 font-extrabold text-white active:border-b-0"
           >
             Find a car
@@ -99,7 +86,7 @@ export default function TripsPage() {
                     {trip.listingTitle || `Listing #${trip.listingId}`}
                   </h2>
                   <p className="mt-1 text-sm text-gray-600">
-                    {formatTripDates(trip.startAt, trip.endAt)}
+                    {formatTripWindow(trip.startAt, trip.endAt)}
                   </p>
                 </div>
                 <span
@@ -143,6 +130,6 @@ export default function TripsPage() {
         onClose={() => setReviewBooking(null)}
         onSuccess={loadTrips}
       />
-    </div>
+    </BodyCard>
   );
 }
