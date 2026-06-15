@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 os.environ.setdefault("FLASK_DEBUG", "1")
-os.environ.setdefault("RATELIMIT_ENABLED", "0")
+os.environ["RATELIMIT_ENABLED"] = "0"
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 
@@ -30,6 +30,7 @@ pytestmark = pytest.mark.skipif(
 def client() -> TestClient:
     from metropolis.main import app
 
+    app.state.limiter.enabled = False
     with TestClient(app) as test_client:
         yield test_client
 

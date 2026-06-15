@@ -87,8 +87,9 @@ services:
         condition: service_healthy
     command: >
       bash -c "
-        pip install -q pytest requests python-dotenv "httpx2>=2.0,<3" &&
-        python -m pytest tests -v --tb=short
+        pip install -q uv &&
+        uv sync --frozen --extra dev &&
+        uv run pytest tests -v --tb=short
       "
 
   frontend:

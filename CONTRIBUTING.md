@@ -83,6 +83,9 @@ the database is empty. CI seeds test rows via `backend/scripts/seed_ci_database.
 cp .env.example .env
 # Fill DATABASE_URL, JWT_SECRET, AWS/S3 keys
 
+# Backend deps (first time / after pyproject.toml change)
+cd backend && uv sync --extra dev
+
 docker compose up --build
 ```
 
@@ -100,17 +103,39 @@ docker compose up --build
 # Backend unit + integration tests (backend must be running)
 docker compose --profile test run --rm test
 
+# Or locally with uv
+cd backend && uv sync --extra dev && uv run pytest tests -v
+
 # Frontend unit tests
 cd frontend && npm test
 
 # Lint
-cd backend && ruff check metropolis tests
+cd backend && uv run ruff check metropolis tests
 cd frontend && npm run lint
 ```
 
 Backend tests live in `backend/tests/`. `conftest.py` loads project `.env` for integration tests.
 
 ---
+
+## Dependencies
+
+Source of truth: `backend/pyproject.toml`. Lockfile: `backend/uv.lock`.
+
+```bash
+cd backend
+uv sync --extra dev          # local dev + test tools
+uv sync --frozen --extra dev # CI — exact pins
+```
+
+Docker prod images use `backend/requirements.txt` (prod export, no dev). After changing `pyproject.toml`:
+
+```bash
+cd backend
+uv lock
+uv export --frozen --no-dev -o requirements.txt
+```
+
 
 ## Environment variables
 

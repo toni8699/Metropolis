@@ -69,14 +69,17 @@ docker compose up --build
 docker compose build backend && docker compose up --build
 
 # Lint
-cd backend && ruff check metropolis tests
+cd backend && uv run ruff check metropolis tests
 cd frontend && npm run lint && npm run test
+
+# Backend deps (first time / after pyproject change)
+cd backend && uv sync --extra dev
 
 # Integration tests (backend must be running)
 docker compose --profile test run --rm test
 
 docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 -e RATELIMIT_ENABLED=0 backend \
-  bash -c 'pip install -q pytest requests python-dotenv && python -m pytest tests -v --tb=short'
+  bash -c 'pip install -q uv && uv sync --frozen --extra dev && uv run pytest tests -v --tb=short'
 
 # Migrations
 docker compose exec backend alembic upgrade head

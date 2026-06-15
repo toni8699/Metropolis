@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(_PROJECT_ROOT / ".env")
+# Before any metropolis import — Settings() is a module singleton.
+os.environ["RATELIMIT_ENABLED"] = "0"
 
 
 def integration_env() -> tuple[str, str]:
