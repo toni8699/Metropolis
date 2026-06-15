@@ -20,4 +20,4 @@ WORKDIR /app/backend
 
 EXPOSE 5000
 
-CMD ["python", "run.py"]
+CMD ["uvicorn", "metropolis.asgi:app", "--host", "0.0.0.0", "--port", "5000"]

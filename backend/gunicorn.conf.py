@@ -9,19 +9,12 @@ import os
 _port = os.environ.get("PORT", "8080")
 bind = f"0.0.0.0:{_port}"
 
-# Flask-SocketIO needs eventlet. Use WEB_CONCURRENCY=1 unless you add Redis
-# as a Socket.IO message queue for multi-worker deployments.
+# Gunicorn + UvicornWorker serves metropolis.asgi:app (FastAPI + Socket.IO).
 _cpu = multiprocessing.cpu_count()
 _default_workers = max(2, (_cpu * 2) + 1)
-worker_class = os.environ.get("GUNICORN_WORKER_CLASS", "eventlet")
-_use_eventlet = worker_class == "eventlet"
-workers = int(
-    os.environ.get(
-        "WEB_CONCURRENCY",
-        "1" if _use_eventlet else str(_default_workers),
-    )
-)
-threads = int(os.environ.get("GUNICORN_THREADS", "1" if _use_eventlet else "4"))
+worker_class = os.environ.get("GUNICORN_WORKER_CLASS", "uvicorn.workers.UvicornWorker")
+workers = int(os.environ.get("WEB_CONCURRENCY", str(_default_workers)))
+threads = int(os.environ.get("GUNICORN_THREADS", "1"))
 
 # Lifecycle
 timeout = int(os.environ.get("GUNICORN_TIMEOUT", "120"))
@@ -37,8 +30,8 @@ loglevel = os.environ.get("LOG_LEVEL", "info").lower()
 capture_output = True
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
-# App module (run:app from backend/run.py)
-wsgi_app = os.environ.get("GUNICORN_APP", "run:app")
+# ASGI app (FastAPI + Socket.IO) — see metropolis/asgi.py
+wsgi_app = os.environ.get("GUNICORN_APP", "metropolis.asgi:app")
 
 # Proxy headers (set to 1 behind ALB/nginx/Render)
 forwarded_allow_ips = os.environ.get("GUNICORN_FORWARDED_ALLOW_IPS", "127.0.0.1")

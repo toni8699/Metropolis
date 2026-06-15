@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from flask import current_app
 from psycopg2.extras import Json, RealDictCursor
 
+from metropolis.core.config import settings
 from metropolis.db import get_connection
 from metropolis.services.marketplace_common import (
     _BOOKING_HOLD_STATUSES,
@@ -53,9 +53,7 @@ class ListingService:
         return cur.fetchone()
 
     def create_listing(self, actor: dict, payload: dict) -> dict:
-        if not actor.get("isAdmin") and not bool(
-            current_app.config.get("ALLOW_USER_LISTINGS", False)
-        ):
+        if not actor.get("isAdmin") and not settings.allow_user_listings:
             return {
                 "status": "forbidden",
                 "message": "User vehicle listings are disabled. Admin fleet only.",

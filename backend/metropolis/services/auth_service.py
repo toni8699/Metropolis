@@ -9,9 +9,9 @@ import urllib.request
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from metropolis.auth import create_access_token
 from metropolis.config import Config
 from metropolis.db import get_connection
+from metropolis.dependencies.auth import create_access_token
 from metropolis.text_sanitize import sanitize_display_text
 
 

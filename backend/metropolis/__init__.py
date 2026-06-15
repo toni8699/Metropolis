@@ -56,5 +56,3 @@ def create_app(config: type[Config] | None = None) -> Flask:
 
     return app
 
-
-app = create_app()

@@ -1,4 +1,8 @@
-"""Background sweep for past-due bookings (in-process, no HTTP cron)."""
+"""Background sweep for past-due bookings.
+
+Deprecated: production uses ARQ worker (metropolis.jobs.booking_sweep).
+This Flask greenlet remains for run.py until Flask is removed.
+"""
 
 from __future__ import annotations
 

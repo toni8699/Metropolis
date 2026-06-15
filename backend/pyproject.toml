@@ -4,6 +4,11 @@ version = "0.1.0"
 description = "Flask backend for Metropolis Nexus"
 requires-python = ">=3.10"
 dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.32,<1",
+    "pydantic-settings>=2.0,<3",
+    "slowapi>=0.1.9,<0.2",
+    "email-validator>=2.0,<3",
     "flask>=3.0,<4",
     "flask-cors>=4.0,<6",
     "psycopg2-binary>=2.9,<3",
@@ -23,6 +28,8 @@ dependencies = [
     "eventlet>=0.36,<1",
     "stripe>=11.0,<13",
     "redis>=5.0,<6",
+    "python-socketio>=5.11,<6",
+    "arq>=0.26,<0.27",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +49,9 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.ruff.lint.per-file-ignores]
 # eventlet.monkey_patch() must run before Flask/SocketIO imports
 "run.py" = ["E402"]
+# FastAPI Depends() in parameter defaults is the standard DI pattern
+"metropolis/dependencies/**/*.py" = ["B008"]
+"metropolis/routers/**/*.py" = ["B008"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
