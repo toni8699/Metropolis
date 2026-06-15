@@ -33,7 +33,7 @@ React 18 + Vite 5 SPA, deployed on Vercel. All config via `VITE_*` env vars bake
 | Map | `@react-google-maps/api` |
 | Payments | `@stripe/react-stripe-js` + `StripePaymentForm` |
 | Real-time chat | `socket.io-client` via `useBookingChat` hook |
-| API client | `frontend/src/utils/api.js` (port 5000 default) |
+| API client | `frontend/src/shared/api/api.js` (port 5000 default) |
 
 Key pages: `MapBrowsePage`, `ListingDetailPage`, `BookingCheckoutPage`, `TripsPage`, `InboxPage`, `OwnerDashboardPage`, `AdminDashboardPage`.
 
@@ -56,9 +56,9 @@ Service modules: `auth_service`, `marketplace_service`, `booking_service`, `paym
 
 ### Database (`db/`)
 
-Neon PostgreSQL. Hybrid schema: legacy fleet tables (`area`, `branch`, `vehicle`, `employee`) plus marketplace tables (`app_user`, `vehicle_listing`, `booking`, `payment`, `review`, …).
+Neon PostgreSQL. Corporate geography (`area`, `branch`) plus marketplace tables (`app_user`, `vehicle_listing`, `booking`, `payment`, `review`, …) and fleet asset tables (`vehicle_asset`, …).
 
-Migrations are managed by **Alembic** (`backend/alembic/versions/`) from a fresh single baseline (`000001_new_base`). The `db/migrations/` folder contains read-only SQL fragments consumed by that baseline revision.
+**Migrations:** Alembic (`backend/alembic/versions/`). Baseline revision `000001_new_base` loads `db/schema.sql` on an empty database. After any revision, update `db/schema.sql` to match live schema.
 
 For details, see [architecture-diagrams.md](architecture-diagrams.md).
 
@@ -66,7 +66,7 @@ For details, see [architecture-diagrams.md](architecture-diagrams.md).
 
 ## Request lifecycle
 
-1. Browser → `fetch` via `frontend/src/utils/api.js` → Flask blueprint
+1. Browser → `fetch` via `frontend/src/shared/api/api.js` → Flask blueprint
 2. Blueprint validates JWT (`require_auth`) and request schema (Marshmallow)
 3. Blueprint calls a service function
 4. Service runs raw SQL via `psycopg2` `get_connection()` and returns a plain dict

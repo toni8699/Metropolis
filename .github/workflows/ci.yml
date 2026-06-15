@@ -70,16 +70,10 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
       - name: Install backend dependencies
         run: pip install -r backend/requirements.txt "pytest>=8.3,<9" "requests>=2.32,<3"
 
       - name: Apply database schema
-        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
-
-      - name: Run Alembic migrations
         working-directory: backend
         run: alembic upgrade head
 
@@ -257,8 +251,6 @@ jobs:
 
       - name: Apply schema and seed
         run: |
-          sudo apt-get update && sudo apt-get install -y postgresql-client
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/schema.sql
           cd backend
           alembic upgrade head
           python scripts/seed_ci_database.py

@@ -24,7 +24,7 @@ Peer-to-peer and fleet car rental marketplace. Renters search, book, and pay; ho
 |-------|---------|
 | **Frontend** | `frontend/` — React 18, Vite, Tailwind. Env baked at build (`VITE_*`). |
 | **Backend** | `backend/` — Flask monolith, raw SQL services, ApiFairy docs at `/docs`. |
-| **Database** | `db/` — Postgres via Neon; Alembic migrations + `schema.sql` snapshot. |
+| **Database** | `db/schema.sql` snapshot + Alembic (`alembic upgrade head` bootstraps empty DB). |
 | **Local** | Docker Compose — backend `:5000`, frontend `:3000`, Redis for Socket.IO. |
 | **CI / deploy** | GitHub Actions on `main` → test → push image to GHCR → Render deploy hook. |
 
@@ -59,7 +59,7 @@ edit code  →  docker compose up  →  lint / test  →  PR  →  merge main  �
 
 - **Local:** hot reload via compose volumes. Restart backend after env or dependency changes.
 - **Prod:** push to `main` deploys backend (Render via GHCR) and frontend (Vercel). Secrets live in Render / Vercel / GitHub — not in the repo.
-- **DB:** schema change → Alembic revision (from fresh baseline) → `docker compose exec backend alembic upgrade head` → update `db/schema.sql` when model shape changes.
+- **DB:** schema change → new Alembic revision → `docker compose exec backend alembic upgrade head` → update `db/schema.sql` to match. Fresh DB needs Alembic only (no manual `psql`).
 
 ### 3. Commands
 

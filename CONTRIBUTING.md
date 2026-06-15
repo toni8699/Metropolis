@@ -54,7 +54,7 @@ docker compose exec backend alembic upgrade head
 ```
 
 Fresh database bootstrap: `alembic upgrade head` runs `db/schema.sql` once when
-empty. Historical numbered SQL under `db/migrations/archive/` is reference only.
+the database is empty. CI seeds test rows via `backend/scripts/seed_ci_database.py`.
 
 ---
 
