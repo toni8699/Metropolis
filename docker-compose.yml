@@ -87,7 +87,7 @@ services:
         condition: service_healthy
     command: >
       bash -c "
-        pip install -q pytest requests python-dotenv &&
+        pip install -q pytest requests python-dotenv httpx2 &&
         python -m pytest tests -v --tb=short
       "
 
