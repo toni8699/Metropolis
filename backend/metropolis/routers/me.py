@@ -1,0 +1,31 @@
+"""Current user profile routes."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends
+
+from metropolis.core.errors import raise_for_service_result
+from metropolis.dependencies.auth import UserContext, get_current_user
+from metropolis.schemas.auth_models import MeResponse, MeUpdateRequest
+from metropolis.services import auth_service
+
+router = APIRouter(prefix="/api", tags=["me"])
+
+
+@router.get("/me", response_model=MeResponse)
+def me(user: UserContext = Depends(get_current_user)) -> dict:
+    """Current authenticated user."""
+    result = auth_service.me(user.user_id)
+    raise_for_service_result(result)
+    return result
+
+
+@router.patch("/me", response_model=MeResponse)
+def update_me(
+    payload: MeUpdateRequest,
+    user: UserContext = Depends(get_current_user),
+) -> dict:
+    """Update current authenticated user's profile."""
+    result = auth_service.update_me(user.user_id, payload.model_dump(by_alias=True))
+    raise_for_service_result(result)
+    return result

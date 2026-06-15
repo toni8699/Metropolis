@@ -2,16 +2,18 @@
 #    uv pip compile pyproject.toml -o requirements.txt
 alembic==1.18.4
     # via metropolis-backend (pyproject.toml)
-apifairy==1.5.1
+annotated-doc==0.0.4
+    # via fastapi
+annotated-types==0.7.0
+    # via pydantic
+anyio==4.14.0
+    # via
+    #   starlette
+    #   watchfiles
+arq==0.26.3
     # via metropolis-backend (pyproject.toml)
-apispec==6.10.0
-    # via apifairy
 bidict==0.23.1
     # via python-socketio
-blinker==1.9.0
-    # via
-    #   flask
-    #   flask-socketio
 boto3==1.43.10
     # via metropolis-backend (pyproject.toml)
 botocore==1.43.10
@@ -24,85 +26,57 @@ charset-normalizer==3.4.7
     # via requests
 click==8.4.0
     # via
-    #   flask
-    #   flask-socketio
+    #   arq
+    #   uvicorn
 deprecated==1.3.1
     # via limits
 dnspython==2.8.0
-    # via eventlet
-eventlet==0.41.0
+    # via email-validator
+email-validator==2.3.0
     # via metropolis-backend (pyproject.toml)
-flask==3.1.3
-    # via
-    #   metropolis-backend (pyproject.toml)
-    #   apifairy
-    #   flask-cors
-    #   flask-httpauth
-    #   flask-limiter
-    #   flask-marshmallow
-    #   flask-socketio
-flask-cors==5.0.1
+fastapi==0.137.1
     # via metropolis-backend (pyproject.toml)
-flask-httpauth==4.8.1
-    # via apifairy
-flask-limiter==3.12
-    # via metropolis-backend (pyproject.toml)
-flask-marshmallow==1.4.0
-    # via
-    #   metropolis-backend (pyproject.toml)
-    #   apifairy
-flask-socketio==5.6.1
-    # via metropolis-backend (pyproject.toml)
-greenlet==3.5.1
-    # via eventlet
 gunicorn==22.0.0
     # via metropolis-backend (pyproject.toml)
 h11==0.16.0
-    # via wsproto
-idna==3.18
-    # via requests
-itsdangerous==2.2.0
-    # via flask
-jinja2==3.1.6
     # via
-    #   flask
-    #   flask-socketio
+    #   uvicorn
+    #   wsproto
+hiredis==3.4.0
+    # via redis
+httptools==0.8.0
+    # via uvicorn
+idna==3.18
+    # via
+    #   anyio
+    #   email-validator
+    #   requests
 jmespath==1.1.0
     # via
     #   boto3
     #   botocore
 limits==5.8.0
-    # via flask-limiter
+    # via slowapi
 mako==1.3.12
     # via alembic
-markdown-it-py==4.2.0
-    # via rich
 markupsafe==3.0.3
     # via
-    #   flask
-    #   jinja2
     #   mako
     #   werkzeug
-marshmallow==3.26.2
-    # via
-    #   metropolis-backend (pyproject.toml)
-    #   flask-marshmallow
-    #   webargs
-mdurl==0.1.2
-    # via markdown-it-py
-ordered-set==4.1.0
-    # via flask-limiter
 packaging==26.2
     # via
-    #   apispec
     #   gunicorn
     #   limits
-    #   marshmallow
-    #   webargs
 psycopg2-binary==2.9.12
     # via metropolis-backend (pyproject.toml)
-pygments==2.20.0
-    # via rich
+pydantic==2.13.4
+    # via
+    #   fastapi
+    #   pydantic-settings
+pydantic-core==2.46.4
+    # via pydantic
+pydantic-settings==2.14.1
+    # via metropolis-backend (pyproject.toml)
 pyjwt==2.12.1
     # via
     #   metropolis-backend (pyproject.toml)
@@ -110,49 +84,67 @@ pyjwt==2.12.1
 python-dateutil==2.9.0.post0
     # via botocore
 python-dotenv==1.2.2
-    # via metropolis-backend (pyproject.toml)
+    # via
+    #   metropolis-backend (pyproject.toml)
+    #   pydantic-settings
+    #   uvicorn
 python-engineio==4.13.2
     # via python-socketio
 python-socketio==5.16.2
-    # via flask-socketio
-redis==5.3.1
     # via metropolis-backend (pyproject.toml)
+pyyaml==6.0.3
+    # via uvicorn
+redis==5.3.1
+    # via
+    #   metropolis-backend (pyproject.toml)
+    #   arq
 requests==2.34.2
     # via stripe
-rich==13.9.4
-    # via flask-limiter
 s3transfer==0.17.0
     # via boto3
 simple-websocket==1.1.0
     # via python-engineio
 six==1.17.0
     # via python-dateutil
+slowapi==0.1.10
+    # via metropolis-backend (pyproject.toml)
 sqlalchemy==2.0.49
     # via
     #   metropolis-backend (pyproject.toml)
     #   alembic
+starlette==1.3.1
+    # via fastapi
 stripe==12.5.1
     # via metropolis-backend (pyproject.toml)
 typing-extensions==4.15.0
     # via
     #   alembic
+    #   fastapi
     #   limits
+    #   pydantic
+    #   pydantic-core
     #   sqlalchemy
     #   stripe
+    #   typing-inspection
+typing-inspection==0.4.2
+    # via
+    #   fastapi
+    #   pydantic
+    #   pydantic-settings
 urllib3==2.7.0
     # via
     #   botocore
     #   requests
-webargs==8.7.1
-    # via
-    #   metropolis-backend (pyproject.toml)
-    #   apifairy
+uvicorn==0.49.0
+    # via metropolis-backend (pyproject.toml)
+uvloop==0.22.1
+    # via uvicorn
+watchfiles==1.2.0
+    # via uvicorn
+websockets==16.0
+    # via uvicorn
 werkzeug==3.1.8
-    # via
-    #   metropolis-backend (pyproject.toml)
-    #   flask
-    #   flask-cors
-    #   flask-socketio
+    # via metropolis-backend (pyproject.toml)
 wrapt==2.1.2
     # via deprecated
 wsproto==1.3.2
