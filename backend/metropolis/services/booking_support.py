@@ -68,7 +68,7 @@ def renter_can_complete_trip(status: str) -> bool:
 
 def auto_complete_expired_bookings(
     cur, *, renter_user_id: int | None = None, booking_id: int | None = None
-) -> None:
+) -> int:
     from psycopg2.extras import Json
 
     filters = [
@@ -92,7 +92,8 @@ def auto_complete_expired_bookings(
         """,
         tuple(params),
     )
-    for row in cur.fetchall():
+    completed = cur.fetchall()
+    for row in completed:
         cur.execute(
             """
             INSERT INTO trip_event (booking_id, event_type, actor_user_id, metadata_json)
@@ -100,6 +101,7 @@ def auto_complete_expired_bookings(
             """,
             (row["booking_id"], Json({"auto": True})),
         )
+    return len(completed)
 
 
 def fetch_trip_events(cur, booking_id: int) -> list[dict]:

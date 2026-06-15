@@ -4,6 +4,7 @@ from flask import Flask
 from flask_cors import CORS
 
 from metropolis.api import register_blueprints
+from metropolis.booking_sweep import register_booking_sweep
 from metropolis.config import Config
 from metropolis.errors import register_error_handlers
 from metropolis.extensions import apifairy, limiter, ma, socketio
@@ -51,6 +52,7 @@ def create_app(config: type[Config] | None = None) -> Flask:
     register_observability(app)
     register_blueprints(app)
     import metropolis.sockets  # noqa: F401
+    register_booking_sweep(app)
 
     return app
 

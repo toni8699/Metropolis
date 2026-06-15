@@ -18,6 +18,7 @@ env:
   ALLOW_USER_LISTINGS: "1"
   INTEGRATION_API_URL: http://127.0.0.1:5000
   RATELIMIT_ENABLED: "0"
+  BOOKING_SWEEP_ENABLED: "0"
 
 jobs:
   backend-lint:

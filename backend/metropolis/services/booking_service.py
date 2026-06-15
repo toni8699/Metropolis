@@ -64,7 +64,6 @@ class BookingService:
     ) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                auto_complete_expired_bookings(cur, booking_id=booking_id)
                 row = self._fetch_booking_detail_row(cur, booking_id)
                 if not row:
                     return {"status": "not_found", "message": "Booking not found."}
@@ -84,7 +83,6 @@ class BookingService:
                     row["status"], row["start_at"], row["end_at"]
                 )
                 row["can_complete_trip"] = is_renter and renter_can_complete_trip(row["status"])
-                conn.commit()
         booking = to_booking_row(row, include_detail=True)
         if is_renter:
             booking["userRole"] = "renter"
@@ -111,8 +109,6 @@ class BookingService:
     def list_renter_bookings(self, renter_user_id: int) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                auto_complete_expired_bookings(cur, renter_user_id=renter_user_id)
-                conn.commit()
                 cur.execute(
                     f"""
                     SELECT
@@ -582,6 +578,26 @@ class BookingService:
             "status": "validation_error",
             "message": f"Unsupported booking status: {status}.",
         }
+
+    def sweep_expired_bookings(self) -> dict:
+        """Mark every past-due CONFIRMED/IN_PROGRESS trip COMPLETED.
+
+        Called by the in-process booking sweep greenlet (see booking_sweep.py), not
+        from read endpoints. ponytail: cadence-bound — status may lag until the next
+        sweep; use BOOKING_SWEEP_INTERVAL_SEC to tune. Advisory lock skips duplicate
+        work when multiple Gunicorn workers are ever enabled.
+        """
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT pg_try_advisory_lock(%s) AS acquired", (421_001,))
+                if not cur.fetchone()["acquired"]:
+                    return {"status": "success", "completed": 0}
+                try:
+                    completed = auto_complete_expired_bookings(cur)
+                    conn.commit()
+                finally:
+                    cur.execute("SELECT pg_advisory_unlock(%s)", (421_001,))
+        return {"status": "success", "completed": completed}
 
 
 booking_service = BookingService()
