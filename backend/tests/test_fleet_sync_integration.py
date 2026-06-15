@@ -135,18 +135,3 @@ def test_admin_fleet_sync_idempotent():
     listings = listings_resp.json().get("listings", [])
     vins = [li.get("fleetVehicleVin") for li in listings]
     assert vins.count(vin) <= 1, "Sync should not create duplicate listings for the same VIN"
-
-
-def test_relocation_simulation_returns_result():
-    admin_token, _ = _register("fleet-admin-reloc", admin=True)
-    resp = _api("GET", "/api/simulations/relocation", token=admin_token)
-    assert resp.status_code == 200, resp.text
-    body = resp.json()
-    assert "relocationNeeded" in body
-    assert "moves" in body
-
-
-def test_non_admin_cannot_run_relocation():
-    token, _ = _register("fleet-renter-reloc")
-    resp = _api("GET", "/api/simulations/relocation", token=token)
-    assert resp.status_code == 403, resp.text

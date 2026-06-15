@@ -1,6 +1,6 @@
 # Metropolis Nexus — Architecture Summary
 
-Peer-to-peer and company fleet car rental marketplace (McGill Comp 421 project).
+Peer-to-peer and company fleet car rental marketplace.
 
 ---
 
@@ -52,7 +52,7 @@ Flask 3 monolith, deployed on Render via Docker image pushed to GHCR.
 | File uploads | `boto3` presigned PUT URLs to S3 |
 | Payments | Stripe PaymentIntents (`payment_service.py`); mock path when no key set |
 
-Service modules: `auth_service`, `marketplace_service`, `booking_service`, `payment_service`, `listing_service`, `fleet_service`, `kyc_service`, `message_service`, `review_service`, `uploads_service`, `rental_service`.
+Service modules: `auth_service`, `marketplace_service`, `payment_service`, `kyc_service`, `message_service`, `review_service`, `uploads_service`.
 
 ### Database (`db/`)
 

@@ -6,11 +6,10 @@ from metropolis.auth import require_admin
 from metropolis.schemas.admin import (
     AdminCompanyLocationsSchema,
     FleetSyncSchema,
-    RelocationSimulationSchema,
 )
 from metropolis.schemas.common import ErrorSchema
 from metropolis.schemas.marketplace import VehicleClassCollectionSchema
-from metropolis.services import marketplace_service, rental_service
+from metropolis.services import marketplace_service
 
 bp = Blueprint("fleet", __name__, url_prefix="/api")
 
@@ -51,19 +50,3 @@ def sync_fleet_listings():
         return marketplace_service.sync_fleet_listings()
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-
-
-@bp.get("/simulations/relocation")
-@require_admin()
-@response(RelocationSimulationSchema)
-@other_responses({500: (ErrorSchema, "Database or server error.")})
-def simulate_relocation():
-    """Run the fleet relocation planner simulation (admin)."""
-    try:
-        body = rental_service.simulate_relocation()
-    except Exception as exc:  # noqa: BLE001
-        raise InternalServerError(description=str(exc)) from exc
-
-    if body["status"] == "error":
-        raise InternalServerError(description=body["message"])
-    return body

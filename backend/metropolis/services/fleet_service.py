@@ -340,6 +340,3 @@ class FleetService:
                     created += 1
                 conn.commit()
         return {"status": "success", "created": created, "existing": existing}
-
-
-fleet_service = FleetService()

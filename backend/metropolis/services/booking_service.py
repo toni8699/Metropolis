@@ -794,6 +794,3 @@ class BookingService:
                 )
                 rows = cur.fetchall()
         return {"status": "success", "bookings": [_to_booking_row(row) for row in rows]}
-
-
-booking_service = BookingService()

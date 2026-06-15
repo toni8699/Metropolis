@@ -615,6 +615,3 @@ class ListingService:
                     (owner_user_id,),
                 )
         return {"status": "success", "analytics": analytics}
-
-
-listing_service = ListingService()

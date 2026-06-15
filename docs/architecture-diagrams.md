@@ -26,7 +26,7 @@ graph TD
     subgraph Edge["API layer"]
         API["Flask monolith :5000<br/>Blueprints: /api/auth · /market · /bookings<br/>/owner · /admin · /uploads · /vehicles"]
         AUTH["JWT auth + Flask-Limiter<br/>metropolis/auth.py"]
-        SVC["Service layer<br/>marketplace_service · rental_service<br/>auth_service · review_service · uploads_service"]
+        SVC["Service layer<br/>marketplace_service<br/>auth_service · review_service · uploads_service"]
         API --> AUTH
         API --> SVC
     end
@@ -169,7 +169,6 @@ sequenceDiagram
     end
 ```
 
-**Legacy path (not used by checkout UI):** `GET /api/vehicles/available` and `GET /api/reservations?email=` via `rental_service`.
 
 ---
 

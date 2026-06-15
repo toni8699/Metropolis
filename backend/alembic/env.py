@@ -25,7 +25,7 @@ if not database_url:
     raise RuntimeError("DATABASE_URL is required for Alembic migrations.")
 config.set_main_option("sqlalchemy.url", database_url)
 
-# Optional: set to sqldb.metadata after importing models for `alembic revision --autogenerate`.
+# Optional: set metadata here if Alembic autogenerate is adopted later.
 # Kept None so Alembic does not import the full Flask app (avoids heavy env deps on migrate).
 target_metadata = None
 

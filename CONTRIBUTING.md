@@ -4,9 +4,9 @@
 
 ## Database access pattern
 
-**All database queries use raw `psycopg2` — not SQLAlchemy ORM.**
+**Default: raw `psycopg2` via `get_connection()` — not an ORM.**
 
-`backend/metropolis/models/sqlalchemy_models.py` contains a minimal stub so Flask-SQLAlchemy initialises; it is not used for queries. Do not add ORM queries there.
+Core marketplace paths (auth, listings, bookings, payments, fleet, search, messages, reviews) stay raw SQL. Marshmallow schemas are for HTTP only; they are not database models.
 
 To query the database in a service:
 
@@ -21,6 +21,24 @@ with get_connection() as conn:
     conn.commit()  # required for writes
 ```
 
+### ORM islands (exception, not the default)
+
+SQLAlchemy ORM is allowed **only** for a new, self-contained feature that meets **all** of:
+
+1. **New tables** (or tables not read/written by existing raw-SQL services).
+2. **No cross-transaction with core flows** — e.g. not inside booking payment, conflict checks, or `FOR UPDATE` locks on `booking` / `vehicle_listing`.
+3. **Bounded service** — one module under `services/` (e.g. `notification_service.py`), not sprinkled into `booking_service.py` / `listing_service.py`.
+4. **Full stack for that island** — SQLAlchemy models in `models/`, Alembic revision, update `db/schema.sql`, tests use session/fixtures (not `get_connection` mocks).
+5. **API shape unchanged** — services still return plain dicts for Marshmallow; no ORM objects leak to blueprints.
+
+**Start an ORM island when:** the feature is mostly CRUD, owns its tables, and would not join the core booking/listing graph in the same transaction.
+
+**Do not start an ORM island when:** the change touches existing core tables, needs complex SQL (bbox search, fleet sync, booking locks), or is “just a few queries” in an existing service — extend raw SQL instead.
+
+**Never:** Flask-SQLAlchemy init with stub models and no queries; ORM + raw SQL on the same table in the same service; partial models for tables still owned by raw SQL elsewhere.
+
+When adding an island, document it in the service module docstring and add a one-line note under `models/README` (create if needed) listing which tables are ORM-backed.
+
 ---
 
 ## Project structure
@@ -30,7 +48,6 @@ backend/metropolis/
   api/          # Flask blueprints — thin controllers (validate, auth, call service)
   services/     # Business logic + SQL
   schemas/      # Marshmallow request/response schemas
-  models/       # SQLAlchemy stub (do not add ORM queries)
   auth.py       # JWT decorators: require_auth, require_admin
   db.py         # get_connection() factory
 ```
