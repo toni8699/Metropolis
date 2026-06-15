@@ -3,7 +3,6 @@ import {
   GoogleMap,
   OverlayView,
   OverlayViewF,
-  useJsApiLoader,
 } from "@react-google-maps/api";
 import {
   ChevronLeft,
@@ -16,8 +15,8 @@ import ListingRatingLine from "@/features/listings/components/ListingRatingLine"
 import BodyCard from "@/shared/components/BodyCard";
 import { formatPricePerDay } from "@/shared/lib/formatPrice";
 import { spreadOverlappingMarkers } from "@/shared/lib/mapMarkers";
-
-const fallbackCenter = { lat: 43.6532, lng: -79.3832 };
+import { listingCoords } from "@/shared/lib/location";
+import { useGoogleMaps } from "@/shared/context/GoogleMapsProvider";
 const simplifiedMapStyles = [
   { featureType: "administrative", elementType: "all", stylers: [{ visibility: "off" }] },
   { featureType: "poi.business", elementType: "all", stylers: [{ visibility: "off" }] },
@@ -26,13 +25,7 @@ const simplifiedMapStyles = [
   { featureType: "transit", elementType: "all", stylers: [{ visibility: "off" }] },
 ];
 
-function parseCoord(value) {
-  if (value == null) return null;
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  const normalized = String(value).trim().replace(",", ".");
-  const parsed = Number.parseFloat(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
+const fallbackCenter = { lat: 43.6532, lng: -79.3832 };
 
 const markerOffset = (width, height) => ({
   x: -(width / 2),
@@ -203,19 +196,13 @@ export default function SearchResultsView({
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [selectedCar, setSelectedCar] = useState(null);
   const mapRef = useRef(null);
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  const { isLoaded } = useJsApiLoader({
-    id: "google-maps-script",
-    googleMapsApiKey: apiKey || "",
-    libraries: ["places"],
-  });
+  const { apiKey, isLoaded } = useGoogleMaps();
 
   const mapCars = useMemo(() => {
     const withCoords = cars
       .map((car) => {
-        const lat = parseCoord(car.lat ?? car.latitude);
-        const lng = parseCoord(car.lng ?? car.longitude);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        const coords = listingCoords(car);
+        if (!coords) return null;
         const listingId = car.listingId ?? car.id;
         const pricePerDay =
           car.pricePerDay ?? car.price_per_day ?? car.priceSnapshot?.pricePerDay;
@@ -223,8 +210,8 @@ export default function SearchResultsView({
           ...car,
           id: listingId,
           listingId,
-          lat,
-          lng,
+          lat: coords.lat,
+          lng: coords.lng,
           pricePerDay,
         };
       })

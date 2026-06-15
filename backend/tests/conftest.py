@@ -44,6 +44,4 @@ def api_request(
     headers: dict[str, str] = {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    return requests.request(
-        method, f"{api_url}{path}", headers=headers, json=json, timeout=timeout
-    )
+    return requests.request(method, f"{api_url}{path}", headers=headers, json=json, timeout=timeout)

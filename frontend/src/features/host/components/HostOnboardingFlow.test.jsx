@@ -5,16 +5,16 @@ import HostOnboardingFlow from "@/features/host/components/HostOnboardingFlow";
 
 // ── External mocks ──────────────────────────────────────────────────────────
 
-vi.mock("@react-google-maps/api", () => ({
-  useJsApiLoader: () => ({ loadError: null }),
+vi.mock("@/shared/context/GoogleMapsProvider", () => ({
+  useGoogleMaps: () => ({ isLoaded: true, loadError: null, apiKey: "test-key" }),
 }));
+
+vi.mock("@/features/host/constants", () => ({ MIN_LISTING_PHOTOS: 1 }));
 
 vi.mock("@/shared/lib/placesAutocomplete", () => ({
   fetchPlacePredictions: vi.fn().mockResolvedValue([]),
   resolvePredictionCoordinates: vi.fn().mockResolvedValue({ lat: 45.5, lng: -73.5 }),
 }));
-
-vi.mock("@/shared/lib/listingPhotos", () => ({ MIN_LISTING_PHOTOS: 1 }));
 
 const mockNavigate = vi.fn();
 vi.mock("react-router-dom", async (importActual) => {

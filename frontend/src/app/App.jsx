@@ -6,15 +6,22 @@ import BookingDetailsPage from "@/views/BookingDetailsPage";
 import BookingCheckoutPage from "@/views/BookingCheckoutPage";
 import ListingDetailPage from "@/views/ListingDetailPage";
 import MapBrowsePage from "@/views/MapBrowsePage";
-import OwnerDashboardPage from "@/views/OwnerDashboardPage";
+import HostDashboardPage from "@/views/HostDashboardPage";
 import TripsPage from "@/views/TripsPage";
 import InboxPage from "@/views/InboxPage";
-import AdminDashboardPage from "@/views/AdminDashboardPage";
 import AccountSettingsPage from "@/views/AccountSettingsPage";
 import LoginPage from "@/views/LoginPage";
 import Layout from "@/layout/Layout";
 import HostOnboardingFlow from "@/features/host/components/HostOnboardingFlow";
 import { RequireAuth, RequireRole } from "@/app/RouteGuards";
+
+function AppShell({ children, onSearch, onHome }) {
+  return (
+    <Layout onSearch={onSearch} onHome={onHome}>
+      <div className="w-full px-4 py-4 sm:px-5 md:px-6 lg:px-7 xl:px-8">{children}</div>
+    </Layout>
+  );
+}
 
 function HostEntry() {
   const { isAdmin } = useAuth();
@@ -22,6 +29,32 @@ function HostEntry() {
     return <Navigate to="/admin" replace />;
   }
   return <HostOnboardingFlow />;
+}
+
+function browseRoutes(hasSearched, searchParams) {
+  return (
+    <>
+      <Route
+        path="/"
+        element={<MapBrowsePage hasSearched={hasSearched} searchParams={searchParams} />}
+      />
+      <Route
+        path="/app"
+        element={<MapBrowsePage hasSearched={hasSearched} searchParams={searchParams} />}
+      />
+      <Route path="/listings/:listingId" element={<ListingDetailPage />} />
+      <Route path="/app/listings/:listingId" element={<ListingDetailPage />} />
+      <Route path="/book/:id" element={<BookingCheckoutPage />} />
+      <Route path="/app/book/:id" element={<BookingCheckoutPage />} />
+      <Route path="/bookings/:bookingId" element={<BookingDetailsPage />} />
+      <Route path="/app/bookings/:bookingId" element={<BookingDetailsPage />} />
+      <Route path="/trips" element={<TripsPage />} />
+      <Route path="/app/trips" element={<TripsPage />} />
+      <Route path="/messages" element={<InboxPage />} />
+      <Route path="/app/messages" element={<InboxPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </>
+  );
 }
 
 export default function App() {
@@ -42,49 +75,15 @@ export default function App() {
   };
 
   const mainAppShell = (
-    <Layout onSearch={handleSearch} onHome={handleGoHome}>
-      <div className="w-full px-4 py-4 sm:px-5 md:px-6 lg:px-7 xl:px-8">
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <MapBrowsePage
-                hasSearched={hasSearched}
-                searchParams={searchParams}
-              />
-            }
-          />
-          <Route
-            path="/app"
-            element={
-              <MapBrowsePage
-                hasSearched={hasSearched}
-                searchParams={searchParams}
-              />
-            }
-          />
-          <Route path="/listings/:listingId" element={<ListingDetailPage />} />
-          <Route path="/app/listings/:listingId" element={<ListingDetailPage />} />
-          <Route path="/book/:id" element={<BookingCheckoutPage />} />
-          <Route path="/app/book/:id" element={<BookingCheckoutPage />} />
-          <Route path="/bookings/:bookingId" element={<BookingDetailsPage />} />
-          <Route path="/app/bookings/:bookingId" element={<BookingDetailsPage />} />
-          <Route path="/trips" element={<TripsPage />} />
-          <Route path="/app/trips" element={<TripsPage />} />
-          <Route path="/messages" element={<InboxPage />} />
-          <Route path="/app/messages" element={<InboxPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-    </Layout>
+    <AppShell onSearch={handleSearch} onHome={handleGoHome}>
+      <Routes>{browseRoutes(hasSearched, searchParams)}</Routes>
+    </AppShell>
   );
 
   const accountAppShell = (
-    <Layout onSearch={handleSearch} onHome={handleGoHome}>
-      <div className="w-full px-4 py-4 sm:px-5 md:px-6 lg:px-7 xl:px-8">
-        <AccountSettingsPage />
-      </div>
-    </Layout>
+    <AppShell onSearch={handleSearch} onHome={handleGoHome}>
+      <AccountSettingsPage />
+    </AppShell>
   );
 
   return (
@@ -96,9 +95,9 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route path="/host" element={<HostEntry />} />
-        <Route path="/host/dashboard" element={<OwnerDashboardPage />} />
+        <Route path="/host/dashboard" element={<HostDashboardPage mode="owner" />} />
         <Route element={<RequireRole roles={["admin"]} />}>
-          <Route path="/admin" element={<AdminDashboardPage />} />
+          <Route path="/admin" element={<HostDashboardPage mode="admin" />} />
         </Route>
       </Route>
 

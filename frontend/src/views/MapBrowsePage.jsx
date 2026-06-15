@@ -3,15 +3,7 @@ import CarGrid from "@/shared/components/CarGrid";
 import SearchResultsView from "@/features/browse/components/SearchResultsView";
 import BodyCard from "@/shared/components/BodyCard";
 import { apiGet } from "@/shared/api/api";
-import { getUserLocation, haversineKm } from "@/shared/lib/location";
-
-function parseCoord(value) {
-  if (value == null) return null;
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  const normalized = String(value).trim().replace(",", ".");
-  const parsed = Number.parseFloat(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
+import { getUserLocation, haversineKm, listingCoords } from "@/shared/lib/location";
 
 export default function MapBrowsePage({ hasSearched, searchParams }) {
   const [userLocation, setUserLocation] = useState(null);
@@ -82,13 +74,12 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
 
     const maxDistanceKm = 50;
     return listings.filter((listing) => {
-      const lat = parseCoord(listing.lat ?? listing.latitude);
-      const lng = parseCoord(listing.lng ?? listing.longitude);
-      if (lat == null || lng == null) return false;
+      const coords = listingCoords(listing);
+      if (!coords) return false;
       return (
         haversineKm(
           { lat: center.lat, lng: center.lng },
-          { lat, lng },
+          coords,
         ) <= maxDistanceKm
       );
     });
@@ -97,9 +88,8 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
   const cars = useMemo(
     () =>
       visibleListings.map((listing) => {
-        const lat = parseCoord(listing.lat ?? listing.latitude);
-        const lng = parseCoord(listing.lng ?? listing.longitude);
-        const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+        const coords = listingCoords(listing);
+        const hasCoords = Boolean(coords);
         return {
           id: listing.listingId,
           listingId: listing.listingId,
@@ -117,10 +107,10 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
           locationText: listing.cityZone ? `${listing.cityZone} • nearby` : null,
           pricePerDay: Number(listing.pricePerDay ?? listing.price_per_day ?? 0),
           favorite: false,
-          lat: hasCoords ? lat : null,
-          lng: hasCoords ? lng : null,
+          lat: hasCoords ? coords.lat : null,
+          lng: hasCoords ? coords.lng : null,
           distanceKm: hasCoords
-            ? haversineKm(userLocation, { lat, lng })
+            ? haversineKm(userLocation, coords)
             : null,
         };
       }),

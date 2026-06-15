@@ -6,10 +6,10 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { addDays, format } from "date-fns";
-import { useJsApiLoader } from "@react-google-maps/api";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useGoogleMaps } from "@/shared/context/GoogleMapsProvider";
 import AuthModal from "@/shared/components/AuthModal";
 import UserAvatar from "@/shared/components/UserAvatar";
 import UserMenuDropdown from "@/layout/header/UserMenuDropdown";
@@ -44,12 +44,7 @@ export default function Header({ onSearch, onHome }) {
   const geocoderRef = useRef(null);
   const mobileUserMenuRef = useRef(null);
   const desktopUserMenuRef = useRef(null);
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  const { isLoaded: isPlacesLoaded, loadError: placesLoadError } = useJsApiLoader({
-    id: "google-maps-script",
-    googleMapsApiKey: apiKey || "",
-    libraries: ["places"],
-  });
+  const { isLoaded: isPlacesLoaded, loadError: placesLoadError } = useGoogleMaps();
 
   useEffect(() => {
     function closeOnClickOutside(event) {

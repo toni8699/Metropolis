@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CarFront, ChevronLeft, ChevronRight, Fuel, Settings } from "lucide-react";
 import UserAvatar from "@/shared/components/UserAvatar";
-import { differenceInCalendarDays, format } from "date-fns";
+import { differenceInDays, format } from "date-fns";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/style.css";
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +12,7 @@ import ListingRatingLine from "@/features/listings/components/ListingRatingLine"
 import BodyCard from "@/shared/components/BodyCard";
 import { apiGet } from "@/shared/api/api";
 import { dateRangeOverlapsBooked } from "@/shared/lib/bookingDates";
+import { computeCheckoutTotals } from "@/shared/lib/checkoutPricing";
 import {
   airbnbDayPickerClassNames,
   bookedDayModifierClassNames,
@@ -220,24 +221,19 @@ export default function ListingDetailPage() {
     ? { fullName: "Company fleet" }
     : { fullName: hostedByName, profilePhotoUrl: listing.ownerProfilePhotoUrl };
 
-  const nights =
-    dateRange.from && dateRange.to
-      ? differenceInCalendarDays(dateRange.to, dateRange.from)
-      : 0;
-  const hasCompleteRange = Boolean(dateRange.from && dateRange.to && nights > 0);
-  const nightlySubtotal = hasCompleteRange ? Number(listing.pricePerDay || 0) * nights : 0;
-  const serviceFee = hasCompleteRange ? Number((nightlySubtotal * 0.12).toFixed(2)) : 0;
-  const cleaningFee = hasCompleteRange ? 25 : 0;
-  const totalPrice = hasCompleteRange
-    ? Number((nightlySubtotal + serviceFee + cleaningFee).toFixed(2))
-    : 0;
+  const rawDayCount =
+    dateRange.from && dateRange.to ? differenceInDays(dateRange.to, dateRange.from) : 0;
+  const hasCompleteRange = Boolean(dateRange.from && dateRange.to && rawDayCount > 0);
+  const pricing = hasCompleteRange
+    ? computeCheckoutTotals(listing.pricePerDay, rawDayCount)
+    : null;
 
   const handleReserveClick = () => {
     if (!dateRange.from || !dateRange.to) {
       setReserveError("Please select both check-in and checkout dates.");
       return;
     }
-    if (differenceInCalendarDays(dateRange.to, dateRange.from) <= 0) {
+    if (differenceInDays(dateRange.to, dateRange.from) <= 0) {
       setReserveError("Checkout date must be after check-in date.");
       return;
     }
@@ -476,25 +472,25 @@ export default function ListingDetailPage() {
                 {reserveError}
               </div>
             )}
-            {hasCompleteRange ? (
+            {hasCompleteRange && pricing ? (
               <div className="mt-5 space-y-3 border-t-4 border-black pt-4 text-sm text-[#35593b]">
                 <div className="flex items-center justify-between">
                   <p className="underline">
-                    ${listing.pricePerDay} x {nights} nights
+                    ${listing.pricePerDay} x {pricing.dayCount} nights
                   </p>
-                  <p>${nightlySubtotal.toFixed(2)}</p>
+                  <p>${pricing.subtotal.toFixed(2)}</p>
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="underline">Service fee</p>
-                  <p>${serviceFee.toFixed(2)}</p>
+                  <p>${pricing.serviceFee.toFixed(2)}</p>
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="underline">Cleaning fee</p>
-                  <p>${cleaningFee.toFixed(2)}</p>
+                  <p>${pricing.cleaningFee.toFixed(2)}</p>
                 </div>
                 <div className="flex items-center justify-between border-t-4 border-black pt-3 text-base font-semibold text-black">
                   <p>Total before taxes</p>
-                  <p>${totalPrice.toFixed(2)}</p>
+                  <p>${pricing.total.toFixed(2)}</p>
                 </div>
               </div>
             ) : (

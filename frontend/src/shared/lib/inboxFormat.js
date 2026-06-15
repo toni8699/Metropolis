@@ -1,5 +1,4 @@
 import { format, isThisYear, isToday, isYesterday, parseISO } from "date-fns";
-import { formatBookingStatusLabel } from "@/shared/lib/bookingStatus";
 import { formatTripWindow } from "@/shared/lib/tripDetail";
 
 export function formatInboxMessageTime(iso) {
@@ -17,7 +16,7 @@ export function formatInboxMessageTime(iso) {
 
 export function formatThreadContextSubtitle(thread) {
   if (!thread) return "";
-  const status = formatBookingStatusLabel(thread.status);
+  const status = tripPhaseLabel(thread.status);
   const window = formatTripWindow(thread.startAt, thread.endAt);
   const city = thread.cityZone
     ? thread.cityZone.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
@@ -31,5 +30,5 @@ export function tripPhaseLabel(status) {
   if (key === "IN_PROGRESS") return "In progress";
   if (key === "COMPLETED") return "Past trip";
   if (key === "CANCELLED") return "Cancelled";
-  return formatBookingStatusLabel(status);
+  return String(status || "").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) || "Unknown";
 }

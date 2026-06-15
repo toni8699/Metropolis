@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useJsApiLoader } from "@react-google-maps/api";
 import { UploadCloud, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import VroomLogo from "@/layout/VroomLogo";
 import { apiPost } from "@/shared/api/api";
 import { useAuth } from "@/context/AuthContext";
+import { useGoogleMaps } from "@/shared/context/GoogleMapsProvider";
 import {
   fetchPlacePredictions,
   resolvePredictionCoordinates,
 } from "@/shared/lib/placesAutocomplete";
-import { MIN_LISTING_PHOTOS } from "@/shared/lib/listingPhotos";
+import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
 import InstantBookToggle from "@/features/host/components/InstantBookToggle";
 
 const TOTAL_STEPS = 4;
@@ -42,12 +42,7 @@ export default function HostOnboardingFlow() {
   const [imageError, setImageError] = useState("");
 
   const fileInputRef = useRef(null);
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  const { loadError: placesLoadError } = useJsApiLoader({
-    id: "google-maps-script",
-    googleMapsApiKey: apiKey || "",
-    libraries: ["places"],
-  });
+  const { loadError: placesLoadError } = useGoogleMaps();
 
   useEffect(() => {
     setHeadlineVisible(false);
