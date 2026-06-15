@@ -120,11 +120,7 @@ def get_listing(
 
     raise_for_service_result(result)
     can_edit = bool(
-        user
-        and (
-            user.is_admin
-            or result.get("listing", {}).get("ownerUserId") == user.user_id
-        )
+        user and (user.is_admin or result.get("listing", {}).get("ownerUserId") == user.user_id)
     )
     return with_listing_links(result, can_edit=can_edit)
 

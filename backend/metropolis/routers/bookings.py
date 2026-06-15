@@ -33,8 +33,6 @@ from metropolis.sockets.booking_chat import emit_booking_message
 router = APIRouter(prefix="/api/bookings", tags=["bookings"])
 
 
-
-
 def _emit_booking_message_safe(booking_id: int, message: dict) -> None:
     try:
         emit_booking_message(booking_id, message)

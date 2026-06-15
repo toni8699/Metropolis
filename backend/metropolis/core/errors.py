@@ -62,9 +62,7 @@ def raise_werkzeug_as_http(exc: Exception) -> None:
 
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
-    async def handle_http_exception(
-        request: Request, exc: StarletteHTTPException
-    ) -> JSONResponse:
+    async def handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         if exc.status_code >= 500:
             _logger.error("%s on %s", exc.status_code, request.url.path, exc_info=exc)
             payload = {"status": "error", "message": _GENERIC_500_MESSAGE}
