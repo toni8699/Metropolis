@@ -1,7 +1,7 @@
 import { avatarColorClass, avatarInitials, avatarLabel } from "@/shared/lib/avatar";
 
-export default function UserAvatar({ user, className = "h-7 w-7 text-xs" }) {
-  const label = avatarLabel(user);
+export default function UserAvatar({ user, name, className = "h-7 w-7 text-xs" }) {
+  const label = user ? avatarLabel(user) : String(name || "").trim() || "Guest";
   const photoUrl = user?.profilePhotoUrl;
 
   if (photoUrl) {

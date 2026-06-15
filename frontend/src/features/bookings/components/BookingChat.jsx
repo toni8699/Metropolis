@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { MessageCircle, Send } from "lucide-react";
+import { MessageCircle } from "lucide-react";
+import ChatComposer from "@/features/chat/components/ChatComposer";
 import ChatMessageList from "@/features/chat/components/ChatMessageList";
 import { useBookingChat } from "@/shared/hooks/useBookingChat";
 
@@ -68,29 +69,13 @@ export default function BookingChat({ bookingId, renterUserId, hostUserId, curre
             <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{sendError}</p>
           )}
 
-          <form onSubmit={handleSend} className="mt-3 flex gap-2">
-            <label htmlFor={`booking-chat-${bookingId}`} className="sr-only">
-              Message
-            </label>
-            <input
-              id={`booking-chat-${bookingId}`}
-              type="text"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Write a message…"
-              maxLength={4000}
-              disabled={isSending}
-              className="min-w-0 flex-1 rounded-full border-2 border-black bg-white px-4 py-2 text-sm text-[#183B1E] placeholder:text-[#46634b] focus:outline-none disabled:bg-gray-100"
-            />
-            <button
-              type="submit"
-              disabled={!draft.trim() || isSending}
-              className="inline-flex items-center gap-1 rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-3 py-2 text-sm font-extrabold text-white active:border-b-0 disabled:opacity-50"
-            >
-              <Send className="h-4 w-4" />
-              Send
-            </button>
-          </form>
+          <ChatComposer
+            inputId={`booking-chat-${bookingId}`}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onSubmit={handleSend}
+            isSending={isSending}
+          />
         </>
       )}
     </section>

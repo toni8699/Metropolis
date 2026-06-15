@@ -93,9 +93,7 @@ def _expected_average(old_avg: float | None, old_count: int, new_rating: int) ->
         return float(new_rating)
     total = (old_avg or 0.0) * old_count + new_rating
     return float(
-        Decimal(str(total / (old_count + 1))).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        Decimal(str(total / (old_count + 1))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     )
 
 
@@ -110,9 +108,7 @@ def _set_booking_completed(booking_id: int) -> None:
         conn.commit()
 
 
-def _set_booking_window(
-    booking_id: int, *, start_at: datetime, end_at: datetime
-) -> None:
+def _set_booking_window(booking_id: int, *, start_at: datetime, end_at: datetime) -> None:
     """Update trip window; satisfies DB check end_at > start_at."""
     assert end_at > start_at, "test setup: end_at must be after start_at"
     with psycopg2.connect(DATABASE_URL) as conn:
@@ -226,9 +222,7 @@ def test_reviews_integration_flow():
 
     after_avg, after_count = _get_listing_stats(listing_id)
     assert after_count == baseline_count + 1
-    assert after_avg == pytest.approx(
-        _expected_average(baseline_avg, baseline_count, new_rating)
-    )
+    assert after_avg == pytest.approx(_expected_average(baseline_avg, baseline_count, new_rating))
 
 
 if __name__ == "__main__":

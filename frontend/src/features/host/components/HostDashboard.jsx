@@ -22,7 +22,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
 import {
   Bar,
   CartesianGrid,
@@ -44,7 +44,8 @@ import {
   resolvePredictionCoordinates,
 } from "@/shared/lib/placesAutocomplete";
 import { CANADA_CENTER, CANADA_MAP_OPTIONS } from "@/shared/lib/location";
-import { MIN_LISTING_PHOTOS } from "@/shared/lib/listingPhotos";
+import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
+import { useGoogleMaps } from "@/shared/context/GoogleMapsProvider";
 import MapPinPicker from "@/features/host/components/MapPinPicker";
 import {
   bookingStatusBadgeClass,
@@ -201,12 +202,7 @@ export default function HostDashboard({ mode = "admin" }) {
     [activeTab, isAdmin],
   );
 
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  const { isLoaded: isMapLoaded } = useJsApiLoader({
-    id: "google-maps-script",
-    googleMapsApiKey: apiKey || "",
-    libraries: ["places"],
-  });
+  const { apiKey, isLoaded: isMapLoaded } = useGoogleMaps();
 
   useEffect(() => {
     if (!isMapLoaded || !window.google?.maps) return;

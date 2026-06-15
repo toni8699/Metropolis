@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CarFront, MessageCircle, Send } from "lucide-react";
+import { ArrowLeft, CarFront, MessageCircle } from "lucide-react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
+import ChatComposer from "@/features/chat/components/ChatComposer";
 import ChatMessageList from "@/features/chat/components/ChatMessageList";
 import { useAuth } from "@/context/AuthContext";
 import { useBookingChat } from "@/shared/hooks/useBookingChat";
-import { avatarColorClass, avatarInitials } from "@/shared/lib/avatar";
 import BodyCard from "@/shared/components/BodyCard";
+import UserAvatar from "@/shared/components/UserAvatar";
 import {
   formatInboxMessageTime,
   formatThreadContextSubtitle,
@@ -14,16 +15,6 @@ import {
 import { bookingStatusBadgeClass, formatBookingStatusLabel } from "@/shared/lib/bookingStatus";
 import { formatMoney, formatTripWindow } from "@/shared/lib/tripDetail";
 import { apiGet } from "@/shared/api/api";
-
-function ThreadAvatar({ name, className = "h-12 w-12 text-sm" }) {
-  return (
-    <div
-      className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${avatarColorClass(name)} ${className}`}
-    >
-      {avatarInitials(name)}
-    </div>
-  );
-}
 
 function ConversationListItem({ thread, isActive, onSelect }) {
   const otherName = thread.otherParty?.name || "Guest";
@@ -41,7 +32,7 @@ function ConversationListItem({ thread, isActive, onSelect }) {
         isActive ? "border-l-4 border-l-[#E34B31] bg-[#f5f5d0]" : "border-l-4 border-l-transparent"
       }`}
     >
-      <ThreadAvatar name={otherName} className="h-11 w-11 text-xs" />
+      <UserAvatar name={otherName} className="h-11 w-11 text-xs" />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <p className="truncate font-semibold text-gray-900">{otherName}</p>
@@ -56,7 +47,7 @@ function ConversationListItem({ thread, isActive, onSelect }) {
         </div>
         <p className="mt-0.5 truncate text-sm text-gray-600">{snippet}</p>
         <p className="mt-1 truncate text-xs text-gray-500">
-          {tripPhaseLabel(thread.status)} · {formatThreadContextSubtitle(thread)}
+          {formatThreadContextSubtitle(thread)}
         </p>
       </div>
     </button>
@@ -318,7 +309,7 @@ export default function InboxPage() {
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <ThreadAvatar name={otherName} className="h-10 w-10 text-xs" />
+              <UserAvatar name={otherName} className="h-10 w-10 text-xs" />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-gray-900">{otherName}</p>
                 <p className="truncate text-xs text-gray-500">
@@ -352,32 +343,15 @@ export default function InboxPage() {
               <p className="mx-4 shrink-0 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{sendError}</p>
             )}
 
-            <form
+            <ChatComposer
+              inputId="inbox-message"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
               onSubmit={handleSend}
+              isSending={isSending}
               className="flex shrink-0 gap-2 border-t-2 border-black bg-[#FCFCE5] px-4 py-3"
-            >
-              <label htmlFor="inbox-message" className="sr-only">
-                Message
-              </label>
-              <input
-                id="inbox-message"
-                type="text"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Write a message…"
-                maxLength={4000}
-                disabled={isSending}
-                className="min-w-0 flex-1 rounded-full border-2 border-black bg-white px-4 py-2 text-sm text-[#183B1E] placeholder:text-[#46634b] focus:outline-none disabled:bg-gray-100"
-              />
-              <button
-                type="submit"
-                disabled={!draft.trim() || isSending}
-                className="inline-flex items-center gap-1 rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-2 text-sm font-extrabold text-white active:border-b-0 disabled:opacity-50"
-              >
-                <Send className="h-4 w-4" />
-                Send
-              </button>
-            </form>
+              buttonClassName="inline-flex items-center gap-1 rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-2 text-sm font-extrabold text-white active:border-b-0 disabled:opacity-50"
+            />
           </>
         )}
       </section>

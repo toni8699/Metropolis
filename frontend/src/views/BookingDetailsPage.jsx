@@ -9,9 +9,10 @@ import {
   MapPin,
   ShieldCheck,
 } from "lucide-react";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
 import BookingChat from "@/features/bookings/components/BookingChat";
 import { useAuth } from "@/context/AuthContext";
+import { useGoogleMaps } from "@/shared/context/GoogleMapsProvider";
 import { apiGet, apiPatch } from "@/shared/api/api";
 import {
   bookingStatusBadgeClass,
@@ -24,12 +25,8 @@ import {
 
 const mapContainerStyle = { width: "100%", height: "100%" };
 
-function PickupMap({ lat, lng, apiKey }) {
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-maps-script",
-    googleMapsApiKey: apiKey || "",
-    libraries: ["places"],
-  });
+function PickupMap({ lat, lng }) {
+  const { apiKey, isLoaded, loadError } = useGoogleMaps();
 
   if (!apiKey || lat == null || lng == null) {
     return (
@@ -79,7 +76,6 @@ function PickupMap({ lat, lng, apiKey }) {
 export default function BookingDetailsPage() {
   const { bookingId } = useParams();
   const { isAuthenticated, user } = useAuth();
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   const [booking, setBooking] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -267,7 +263,7 @@ export default function BookingDetailsPage() {
               {location?.pickupAddress || cityLabel || "Pickup location shared below"}
             </p>
             <div className="mt-3">
-              <PickupMap lat={location?.lat} lng={location?.lng} apiKey={apiKey} />
+              <PickupMap lat={location?.lat} lng={location?.lng} />
             </div>
             {(cityLabel || location?.pickupAddress) && (
               <p className="mt-2.5 flex items-start gap-1.5 text-xs text-gray-700">

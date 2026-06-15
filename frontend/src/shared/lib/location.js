@@ -10,6 +10,22 @@ export const CANADA_MAP_OPTIONS = {
   clickableIcons: false,
 };
 
+/** Parse lat/lng from number or locale decimal string (e.g. "43,65"). */
+export function parseCoord(value) {
+  if (value == null) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const normalized = String(value).trim().replace(",", ".");
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function listingCoords(entity) {
+  const lat = parseCoord(entity?.lat ?? entity?.latitude);
+  const lng = parseCoord(entity?.lng ?? entity?.longitude);
+  if (lat == null || lng == null) return null;
+  return { lat, lng };
+}
+
 export function haversineKm(from, to) {
   if (!from || !to) return null;
   const R = 6371;
