@@ -6,7 +6,7 @@
 
 **Default: raw `psycopg2` via `get_connection()` — not an ORM.**
 
-Core marketplace paths (auth, listings, bookings, payments, fleet, search, messages, reviews) stay raw SQL. Marshmallow schemas are for HTTP only; they are not database models.
+Core marketplace paths (auth, listings, bookings, payments, fleet, search, messages, reviews) stay raw SQL. Pydantic schemas (`schemas/*_models.py`) are for HTTP only; they are not database models.
 
 To query the database in a service:
 
@@ -29,13 +29,13 @@ SQLAlchemy ORM is allowed **only** for a new, self-contained feature that meets 
 2. **No cross-transaction with core flows** — e.g. not inside booking payment, conflict checks, or `FOR UPDATE` locks on `booking` / `vehicle_listing`.
 3. **Bounded service** — one module under `services/` (e.g. `notification_service.py`), not sprinkled into `booking_service.py` / `listing_service.py`.
 4. **Full stack for that island** — SQLAlchemy models in `models/`, Alembic revision, update `db/schema.sql`, tests use session/fixtures (not `get_connection` mocks).
-5. **API shape unchanged** — services still return plain dicts for Marshmallow; no ORM objects leak to blueprints.
+5. **API shape unchanged** — services still return plain dicts; Pydantic models serialize at the router boundary; no ORM objects leak to routers.
 
 **Start an ORM island when:** the feature is mostly CRUD, owns its tables, and would not join the core booking/listing graph in the same transaction.
 
 **Do not start an ORM island when:** the change touches existing core tables, needs complex SQL (bbox search, fleet sync, booking locks), or is “just a few queries” in an existing service — extend raw SQL instead.
 
-**Never:** Flask-SQLAlchemy init with stub models and no queries; ORM + raw SQL on the same table in the same service; partial models for tables still owned by raw SQL elsewhere.
+**Never:** SQLAlchemy init with stub models and no queries; ORM + raw SQL on the same table in the same service; partial models for tables still owned by raw SQL elsewhere.
 
 When adding an island, document it in the service module docstring and add a one-line note under `models/README` (create if needed) listing which tables are ORM-backed.
 
@@ -45,11 +45,13 @@ When adding an island, document it in the service module docstring and add a one
 
 ```
 backend/metropolis/
-  api/          # Flask blueprints — thin controllers (validate, auth, call service)
-  services/     # Business logic + SQL
-  schemas/      # Marshmallow request/response schemas
-  auth.py       # JWT decorators: require_auth, require_admin
-  db.py         # get_connection() factory
+  routers/       # FastAPI route handlers — thin controllers (validate, auth, call service)
+  services/      # Business logic + SQL
+  schemas/       # Pydantic request/response models (*_models.py, camel.py)
+  dependencies/  # FastAPI Depends (auth.py)
+  core/          # config, db pool, errors, limiter
+  asgi.py        # CombinedASGI: Socket.IO + FastAPI
+  db.py          # get_connection() factory (services)
 ```
 
 ---
@@ -88,7 +90,7 @@ docker compose up --build
 |---------|-----|
 | Frontend | http://localhost:3000 |
 | API | http://localhost:5000 |
-| API docs | http://localhost:5000/docs |
+| API docs | http://localhost:5000/docs (Swagger) · `/redoc` |
 
 ---
 

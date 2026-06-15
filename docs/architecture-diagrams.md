@@ -8,7 +8,7 @@ Mermaid diagrams reflecting the current codebase. Render in GitHub, GitLab, VS C
 | Booking flow (sequence) | [§2](#2-booking-flow-sequence) |
 | Database ER | [§3](#3-database-entity-relationship) |
 
-**Notes:** Single React SPA (no mobile app). Flask monolith (no API gateway). Payments via Stripe PaymentIntents (`payment_service.py`, `/webhooks/stripe`); dev/CI uses mock path when `STRIPE_SECRET_KEY` is absent. KYC is `owner_profile` + S3 docs. No `maintenance_log` table — fleet health uses `vehicle.status`.
+**Notes:** Single React SPA (no mobile app). FastAPI monolith (no API gateway). Payments via Stripe PaymentIntents (`payment_service.py`, `/webhooks/stripe`); dev/CI uses mock path when `STRIPE_SECRET_KEY` is absent. KYC is `owner_profile` + S3 docs. No `maintenance_log` table — fleet health uses `vehicle.status`. API docs at `/docs` (FastAPI Swagger).
 
 ---
 
@@ -24,8 +24,8 @@ graph TD
     end
 
     subgraph Edge["API layer"]
-        API["Flask monolith :5000<br/>Blueprints: /api/auth · /market · /bookings<br/>/owner · /admin · /uploads · /vehicles"]
-        AUTH["JWT auth + Flask-Limiter<br/>metropolis/auth.py"]
+        API["FastAPI ASGI :5000<br/>/api/auth · /api/listings · /api/bookings<br/>/api/users · /api/uploads · /api/fleet"]
+        AUTH["JWT auth + slowapi<br/>dependencies/auth.py"]
         SVC["Service layer<br/>listing_service · booking_service · fleet_service<br/>auth_service · review_service · uploads_service"]
         API --> AUTH
         API --> SVC
@@ -43,7 +43,7 @@ graph TD
         GPS["Vehicle location<br/>listing_location lat/lng<br/>Fleet coords simulated in fleet_service"]
     end
 
-    RW & HD & FM -->|"REST JSON + Bearer JWT<br/>frontend/src/utils/api.js"| API
+    RW & HD & FM -->|"REST JSON + Bearer JWT<br/>frontend/src/shared/api/api.js"| API
     MOB -.->|"planned"| API
 
     SVC -->|"psycopg2"| PG
@@ -64,16 +64,16 @@ graph TD
 
 ## 2. Booking Flow (Sequence)
 
-End-to-end path: search → listing → checkout → `POST /api/bookings` (status `PENDING`) → `POST /api/bookings/:id/payment-intent` (Stripe PaymentIntent or dev mock) → status transitions to `CONFIRMED` or `PENDING_APPROVAL`.
+End-to-end path: search → listing → checkout → `POST /api/bookings` (status `PENDING`) → `POST /api/bookings/:id/payments` (Stripe PaymentIntent or dev mock) → status transitions to `CONFIRMED` or `PENDING_APPROVAL`.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Renter
     participant SPA as React SPA
-    participant Auth as Flask /api/auth
-    participant Market as Flask /api/market
-    participant Book as Flask /api/bookings
+    participant Auth as FastAPI /api/auth
+    participant Listings as FastAPI /api/listings
+    participant Book as FastAPI /api/bookings
     participant LS as listing_service
     participant BS as booking_service
     participant DB as PostgreSQL
@@ -83,14 +83,14 @@ sequenceDiagram
 
     Note over Renter,Fleet: Discovery
     Renter->>SPA: Search location + dates (Header)
-    SPA->>Market: GET /api/market/listings?bbox&lat&lng&radius
-    Market->>LS: search_listings()
+    SPA->>Listings: GET /api/listings?bbox&lat&lng&radius
+    Listings->>LS: search_listings()
     LS->>DB: SELECT vehicle_listing + listing_location
     DB-->>SPA: active listings
 
     Renter->>SPA: Open listing /app/listings/:id
-    SPA->>Market: GET /api/market/listings/:id
-    Market->>LS: get_listing()
+    SPA->>Listings: GET /api/listings/:id
+    Listings->>LS: get_listing()
     LS->>DB: SELECT listing + hydrate photos/ratings
     DB-->>SPA: listing detail
 
@@ -104,7 +104,7 @@ sequenceDiagram
     SPA->>SPA: navigate /app/book/:id + date state
 
     Note over Renter,Fleet: Checkout
-    SPA->>Market: GET /api/market/listings/:id (reload)
+    SPA->>Listings: GET /api/listings/:id (reload)
     Renter->>SPA: Request to book
     SPA->>SPA: bookingWindowFromDateStrings() → ISO startAt/endAt
     SPA->>Book: POST /api/bookings {listingId, startAt, endAt}
@@ -126,7 +126,7 @@ sequenceDiagram
     Note over Renter,Fleet: Payment
     SPA->>Pay: Display @stripe/react-stripe-js card UI
     Renter->>SPA: Submit payment form
-    SPA->>Book: POST /api/bookings/:id/payment-intent
+    SPA->>Book: POST /api/bookings/:id/payments
     Book->>Pay: Create/confirm Stripe PaymentIntent (or mock)
     Pay-->>Book: PaymentIntent confirmed
     Book->>BS: resolve post-payment status
@@ -137,11 +137,11 @@ sequenceDiagram
 
     par Host / fleet notification (read path)
         alt OWNER listing
-            Host->>Book: GET /api/owner/bookings
+            Host->>Book: GET /api/bookings?scope=owner
             Book->>BS: owner_bookings()
             BS->>DB: SELECT bookings for host listings
         else FLEET listing
-            Fleet->>Book: GET /api/admin/bookings
+            Fleet->>Book: GET /api/bookings?scope=fleet
             Book->>BS: admin_bookings()
             BS->>DB: SELECT company fleet bookings
         end
@@ -149,19 +149,17 @@ sequenceDiagram
 
     Note over Renter,Fleet: Trip lifecycle
     Renter->>SPA: Trips /app/trips
-    SPA->>Book: GET /api/bookings/mine
+    SPA->>Book: GET /api/bookings?scope=mine
     Book->>BS: list_renter_bookings()
     BS->>DB: SELECT bookings for renter
 
     opt pickup coordination
-        Host->>Book: POST /api/bookings/:id/instructions
-        Book->>BS: send_instruction()
-        BS->>DB: INSERT booking_instruction + trip_event
-        Renter->>Book: POST /api/bookings/:id/confirm-pickup
-        BS->>DB: UPDATE booking → IN_PROGRESS
+        Host->>Book: PATCH /api/bookings/:id {status}
+        Book->>BS: update_booking_status()
+        BS->>DB: UPDATE booking + trip_event
     end
 
-    Renter->>Book: POST /api/bookings/:id/complete
+    Renter->>Book: PATCH /api/bookings/:id {status: COMPLETED}
     BS->>DB: UPDATE booking → COMPLETED + trip_event
 
     opt review
@@ -184,12 +182,17 @@ Canonical schema: `db/schema.sql`, applied on empty databases via Alembic baseli
 | Topic | Location |
 |-------|----------|
 | Frontend routes | `frontend/src/app/App.jsx` |
-| API blueprints | `backend/metropolis/api/` |
+| API routers | `backend/metropolis/routers/` |
+| ASGI entry (HTTP + Socket.IO) | `backend/metropolis/asgi.py` |
+| Auth dependencies | `backend/metropolis/dependencies/auth.py` |
+| Pydantic schemas | `backend/metropolis/schemas/*_models.py` |
 | Booking logic | `backend/metropolis/services/booking_service.py` |
 | Listing logic | `backend/metropolis/services/listing_service.py` |
 | Fleet logic | `backend/metropolis/services/fleet_service.py` |
 | Payment logic | `backend/metropolis/services/payment_service.py` |
-| Stripe webhook | `backend/metropolis/api/webhooks.py` |
+| Stripe webhook | `backend/metropolis/routers/webhooks.py` |
+| Socket.IO | `backend/metropolis/sockets/booking_chat.py` |
+| ARQ booking sweep | `backend/metropolis/jobs/booking_sweep.py` |
 | Base schema | `db/schema.sql` |
 | Active migrations | `backend/alembic/versions/` |
 | ER diagrams (current) | `docs/database-schema.md` |

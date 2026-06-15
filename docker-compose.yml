@@ -23,7 +23,7 @@ services:
     environment:
       PORT: "5000"
       FLASK_DEBUG: "1"
-      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173
       REDIS_URL: redis://redis:6379/0
       RATELIMIT_ENABLED: "0"
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
@@ -39,8 +39,8 @@ services:
       bash -c "
         echo 'Applying Alembic migrations (Neon)...' &&
         alembic upgrade head &&
-        echo 'Starting backend server...' &&
-        python run.py
+        echo 'Starting ASGI (FastAPI + Socket.IO)...' &&
+        uvicorn metropolis.asgi:app --host 0.0.0.0 --port 5000 --reload
       "
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
@@ -48,6 +48,24 @@ services:
       timeout: 5s
       retries: 12
       start_period: 40s
+
+  worker:
+    image: drivebnb-backend:local
+    container_name: drivebnb_worker
+    env_file:
+      - .env
+    environment:
+      FLASK_DEBUG: "1"
+      REDIS_URL: redis://redis:6379/0
+      BOOKING_SWEEP_ENABLED: "1"
+    depends_on:
+      - redis
+      - backend
+    volumes:
+      - ./backend:/app/backend
+      - ./db:/app/db
+    working_dir: /app/backend
+    command: arq metropolis.jobs.booking_sweep.WorkerSettings
 
   test:
     profiles: ["test"]

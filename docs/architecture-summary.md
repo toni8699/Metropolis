@@ -9,7 +9,7 @@ Peer-to-peer and company fleet car rental marketplace.
 ```
 ┌─────────────┐     REST / JWT      ┌──────────────────┐
 │  Vercel     │ ──────────────────► │  Render          │
-│  React SPA  │     Socket.IO       │  Flask + Gunicorn│
+│  React SPA  │     Socket.IO       │  Gunicorn+Uvicorn│
 └─────────────┘ ◄────────────────── └────────┬─────────┘
                                              │
                     ┌────────────────────────┼────────────────┐
@@ -39,16 +39,17 @@ Key pages: `MapBrowsePage`, `ListingDetailPage`, `BookingCheckoutPage`, `TripsPa
 
 ### Backend (`backend/`)
 
-Flask 3 monolith, deployed on Render via Docker image pushed to GHCR.
+FastAPI ASGI app (`metropolis.asgi:app`), deployed on Render via Docker image pushed to GHCR.
 
 | Concern | Detail |
 |---------|--------|
-| HTTP | Flask blueprints under `/api/*` and `/webhooks` |
-| Auth | `PyJWT` Bearer tokens; `require_auth` / `require_admin` decorators |
+| HTTP | FastAPI routers under `/api/*` and `/webhooks` |
+| Auth | `PyJWT` Bearer tokens; `Depends(get_current_user)` / `require_admin` |
 | Database | `psycopg2` raw SQL via `get_connection()`; **no ORM queries** |
-| Real-time | Flask-SocketIO + eventlet; Redis as message queue for multi-worker |
-| API docs | ApiFairy + Marshmallow at `/docs` |
-| Rate limits | Flask-Limiter (disabled in CI: `RATELIMIT_ENABLED=0`) |
+| Real-time | `python-socketio` ASGI + Redis manager for multi-worker |
+| API docs | FastAPI OpenAPI — Swagger at `/docs`, ReDoc at `/redoc` |
+| Rate limits | slowapi (disabled in CI: `RATELIMIT_ENABLED=0`) |
+| Background jobs | ARQ worker (`metropolis.jobs.booking_sweep`) via Redis |
 | File uploads | `boto3` presigned PUT URLs to S3 |
 | Payments | Stripe PaymentIntents (`payment_service.py`); mock path when no key set |
 
@@ -66,24 +67,24 @@ For details, see [architecture-diagrams.md](architecture-diagrams.md).
 
 ## Request lifecycle
 
-1. Browser → `fetch` via `frontend/src/shared/api/api.js` → Flask blueprint
-2. Blueprint validates JWT (`require_auth`) and request schema (Marshmallow)
-3. Blueprint calls a service function
+1. Browser → `fetch` via `frontend/src/shared/api/api.js` → FastAPI router
+2. Router validates JWT (`Depends`) and request body/query (Pydantic)
+3. Router calls a service function
 4. Service runs raw SQL via `psycopg2` `get_connection()` and returns a plain dict
-5. Blueprint serializes the dict through a Marshmallow response schema → JSON
+5. Router returns a Pydantic response model → JSON (camelCase via `CamelModel`)
 
 ---
 
 ## Real-time chat
 
-Socket.IO rooms named `booking_{id}`. JWT verified on `connect`. Redis backs broadcast across Gunicorn workers on Render.
+Socket.IO rooms named `booking_{id}`. JWT verified on `connect`. Redis backs broadcast across Gunicorn Uvicorn workers on Render.
 
 ---
 
 ## Payment flow
 
 1. `POST /api/bookings` → booking created with status `PENDING`
-2. `POST /api/bookings/:id/payment-intent` → `payment_service` creates a Stripe PaymentIntent (or returns `mock: true` in dev/CI)
+2. `POST /api/bookings/:id/payments` → `payment_service` creates a Stripe PaymentIntent (or returns `mock: true` in dev/CI)
 3. Frontend confirms via `@stripe/react-stripe-js`
 4. On success: booking transitions to `CONFIRMED` (instant-book / fleet) or `PENDING_APPROVAL` (host-approval P2P)
 5. Stripe webhook (`/webhooks/stripe`) handles async confirmation edge cases
@@ -95,7 +96,7 @@ Socket.IO rooms named `booking_{id}`. JWT verified on `connect`. Redis backs bro
 ```
 push main
   → backend-lint (Ruff)
-  → backend-test (Postgres service + Alembic + pytest)
+  → backend-test (Postgres service + Alembic + uvicorn + pytest)
   → frontend-lint (ESLint) + frontend-test (Vitest) + frontend-build
   → deploy: GHCR image → Render deploy hook
   → e2e: Playwright smoke tests

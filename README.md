@@ -2,7 +2,7 @@
 
 Peer-to-peer and fleet car rental marketplace. Renters search, book, and pay; hosts manage listings; admins sync fleet inventory. Includes map browse, Stripe checkout, real-time trip chat, and host KYC review.
 
-**Stack:** React + Vite · Flask + Socket.IO · Neon Postgres · AWS S3 · Stripe · Google Maps
+**Stack:** React + Vite · FastAPI + Socket.IO · Neon Postgres · AWS S3 · Stripe · Google Maps
 
 ---
 
@@ -11,7 +11,7 @@ Peer-to-peer and fleet car rental marketplace. Renters search, book, and pay; ho
 ```
 ┌─────────────┐     REST / JWT      ┌──────────────────┐
 │  Vercel     │ ──────────────────► │  Render          │
-│  React SPA  │     Socket.IO       │  Flask + Gunicorn│
+│  React SPA  │     Socket.IO       │  Uvicorn + Gunicorn│
 └─────────────┘ ◄────────────────── └────────┬─────────┘
                                              │
                     ┌────────────────────────┼────────────────┐
@@ -23,7 +23,7 @@ Peer-to-peer and fleet car rental marketplace. Renters search, book, and pay; ho
 | Layer | Details |
 |-------|---------|
 | **Frontend** | `frontend/` — React 18, Vite, Tailwind. Env baked at build (`VITE_*`). |
-| **Backend** | `backend/` — Flask monolith, raw SQL services, ApiFairy docs at `/docs`. |
+| **Backend** | `backend/` — FastAPI, raw SQL services, OpenAPI at `/docs` (Swagger) and `/redoc`. |
 | **Database** | `db/schema.sql` snapshot + Alembic (`alembic upgrade head` bootstraps empty DB). |
 | **Local** | Docker Compose — backend `:5000`, frontend `:3000`, Redis for Socket.IO. |
 | **CI / deploy** | GitHub Actions on `main` → test → push image to GHCR → Render deploy hook. |
@@ -49,7 +49,7 @@ docker compose up --build
 |-------|-----|
 | App | http://localhost:3000 |
 | API | http://localhost:5000 |
-| Docs | http://localhost:5000/docs |
+| Docs | http://localhost:5000/docs (Swagger) · `/redoc` |
 
 ### 2. Daily loop
 
