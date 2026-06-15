@@ -7,7 +7,7 @@ Run:
   docker compose up
   export $(grep -v '^#' .env | xargs)
   cd backend && uv sync --extra dev
-  pytest ../tests/test_reviews_integration.py -v
+  pytest tests/test_reviews_integration.py -v
 
 Env (optional):
   INTEGRATION_API_URL  default http://localhost:5000
@@ -20,18 +20,14 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, ROUND_HALF_UP
-from pathlib import Path
+from decimal import ROUND_HALF_UP, Decimal
 
 import psycopg2
 import pytest
 import requests
-from dotenv import load_dotenv
+from conftest import api_request, integration_env
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-
-API_URL = os.environ.get("INTEGRATION_API_URL", "http://localhost:5000").rstrip("/")
-DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+API_URL, DATABASE_URL = integration_env()
 INTEGRATION_EMAIL = os.environ.get("INTEGRATION_EMAIL", "").strip()
 INTEGRATION_PASSWORD = os.environ.get("INTEGRATION_PASSWORD", "").strip()
 INTEGRATION_LISTING_ID = os.environ.get("INTEGRATION_LISTING_ID", "").strip()
@@ -40,15 +36,6 @@ pytestmark = pytest.mark.skipif(
     not DATABASE_URL,
     reason="DATABASE_URL must be set (project .env)",
 )
-
-
-def _api(method: str, path: str, *, token: str | None = None, json: dict | None = None):
-    headers = {}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    return requests.request(
-        method, f"{API_URL}{path}", headers=headers, json=json, timeout=30
-    )
 
 
 def _error_message(resp: requests.Response) -> str:
@@ -61,7 +48,8 @@ def _error_message(resp: requests.Response) -> str:
 
 def _login_or_register() -> str:
     if INTEGRATION_EMAIL and INTEGRATION_PASSWORD:
-        resp = _api(
+        resp = api_request(
+            API_URL,
             "POST",
             "/api/auth/login",
             json={"email": INTEGRATION_EMAIL, "password": INTEGRATION_PASSWORD},
@@ -71,7 +59,8 @@ def _login_or_register() -> str:
 
     email = f"review-int-{uuid.uuid4().hex[:10]}@example.com"
     password = "ReviewTest123!"
-    resp = _api(
+    resp = api_request(
+        API_URL,
         "POST",
         "/api/auth/register",
         json={"email": email, "password": password, "fullName": "Review Integration"},
@@ -83,7 +72,7 @@ def _login_or_register() -> str:
 def _pick_listing_id() -> int:
     if INTEGRATION_LISTING_ID:
         return int(INTEGRATION_LISTING_ID)
-    resp = _api("GET", "/api/listings")
+    resp = api_request(API_URL, "GET", "/api/listings")
     assert resp.status_code == 200, _error_message(resp)
     listings = resp.json().get("listings") or []
     assert listings, "No listings in database — need at least one active listing"
@@ -91,7 +80,7 @@ def _pick_listing_id() -> int:
 
 
 def _get_listing_stats(listing_id: int) -> tuple[int | None, int]:
-    resp = _api("GET", f"/api/listings/{listing_id}")
+    resp = api_request(API_URL, "GET", f"/api/listings/{listing_id}")
     assert resp.status_code == 200, _error_message(resp)
     listing = resp.json()["listing"]
     avg = listing.get("averageRating")
@@ -146,7 +135,8 @@ def test_reviews_integration_flow():
 
     start = datetime(2099, 6, 1, 10, 0, tzinfo=timezone.utc)
     end = start + timedelta(days=3)
-    booking_resp = _api(
+    booking_resp = api_request(
+        API_URL,
         "POST",
         "/api/bookings",
         token=token,
@@ -168,8 +158,12 @@ def test_reviews_integration_flow():
         "comment": "integration test review",
     }
 
-    early_resp = _api(
-        "POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload
+    early_resp = api_request(
+        API_URL,
+        "POST",
+        f"/api/bookings/{booking_id}/reviews",
+        token=token,
+        json=review_payload,
     )
     assert early_resp.status_code == 400, early_resp.text
     assert "COMPLETED" in _error_message(early_resp)
@@ -185,8 +179,12 @@ def test_reviews_integration_flow():
         end_at=now - timedelta(days=31),
     )
 
-    expired_resp = _api(
-        "POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload
+    expired_resp = api_request(
+        API_URL,
+        "POST",
+        f"/api/bookings/{booking_id}/reviews",
+        token=token,
+        json=review_payload,
     )
     assert expired_resp.status_code == 400, expired_resp.text
     assert "30-day review window" in _error_message(expired_resp)
@@ -200,8 +198,12 @@ def test_reviews_integration_flow():
 
     new_rating = 4
     review_payload["rating"] = new_rating
-    ok_resp = _api(
-        "POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload
+    ok_resp = api_request(
+        API_URL,
+        "POST",
+        f"/api/bookings/{booking_id}/reviews",
+        token=token,
+        json=review_payload,
     )
     assert ok_resp.status_code == 201, _error_message(ok_resp)
     body = ok_resp.json()
@@ -212,8 +214,12 @@ def test_reviews_integration_flow():
     assert body["review"]["accuracy"] == review_payload["accuracy"]
     assert body["review"]["communication"] == review_payload["communication"]
 
-    dup_resp = _api(
-        "POST", f"/api/bookings/{booking_id}/reviews", token=token, json=review_payload
+    dup_resp = api_request(
+        API_URL,
+        "POST",
+        f"/api/bookings/{booking_id}/reviews",
+        token=token,
+        json=review_payload,
     )
     assert dup_resp.status_code == 400, dup_resp.text
     assert "already submitted" in _error_message(dup_resp).lower()

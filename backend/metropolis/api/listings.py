@@ -1,8 +1,9 @@
 from apifairy import arguments, body, other_responses, response
 from flask import Blueprint, g
-from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotFound, Unauthorized
+from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, Unauthorized
 
 from metropolis.auth import optional_auth, require_auth, require_listing_access
+from metropolis.errors import raise_for_service_result
 from metropolis.hateoas import with_listing_links
 from metropolis.schemas.common import ErrorSchema, StatusSchema
 from metropolis.schemas.marketplace import (
@@ -80,8 +81,7 @@ def get_listing(listing_id: int):
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     can_edit = bool(
         g.get("current_user")
         and (
@@ -103,10 +103,7 @@ def create_listing(payload):
         result = marketplace_service.create_listing(g.current_user, payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
+    raise_for_service_result(result)
     return with_listing_links(result, can_edit=True)
 
 
@@ -127,10 +124,7 @@ def patch_listing(payload, listing_id: int):
         result = marketplace_service.update_listing(g.current_user, listing_id, payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     return with_listing_links(result, can_edit=True)
 
 
@@ -144,8 +138,7 @@ def delete_listing(listing_id: int):
         result = marketplace_service.delete_listing(g.current_user, listing_id)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     return result
 
 
@@ -160,8 +153,7 @@ def set_location(payload, listing_id: int):
         result = marketplace_service.upsert_location(g.current_user, listing_id, payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     return with_listing_links(result, can_edit=True)
 
 
@@ -176,8 +168,7 @@ def add_availability(payload, listing_id: int):
         result = marketplace_service.add_availability(g.current_user, listing_id, payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     return result["availability"]
 
 
@@ -190,8 +181,7 @@ def list_listing_booked_ranges(listing_id: int):
         result = marketplace_service.list_listing_booked_ranges(listing_id)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     return result
 
 
@@ -204,6 +194,5 @@ def list_listing_reviews(listing_id: int):
         result = review_service.list_listing_reviews(listing_id)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     return result

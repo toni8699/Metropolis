@@ -2,7 +2,7 @@ from apifairy import body, other_responses, response
 from flask import Blueprint, g
 from werkzeug.exceptions import InternalServerError
 
-from metropolis.auth import require_auth
+from metropolis.auth import current_user_id, require_auth
 from metropolis.schemas.common import ErrorSchema
 from metropolis.schemas.uploads import (
     UploadCompleteRequestSchema,
@@ -24,7 +24,7 @@ def presign_upload(payload):
     """Create a presigned S3 upload URL."""
     try:
         return uploads_service.presign_upload(
-            int(g.current_user["sub"]),
+            current_user_id(),
             str(g.current_user.get("role", "user")),
             payload,
         )
@@ -43,7 +43,7 @@ def complete_upload(payload):
     """Persist uploaded file metadata in database."""
     try:
         return uploads_service.complete_upload(
-            int(g.current_user["sub"]),
+            current_user_id(),
             str(g.current_user.get("role", "user")),
             payload,
         )

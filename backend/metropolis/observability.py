@@ -6,29 +6,9 @@ import logging
 import os
 from typing import Any
 
-import jwt
-from flask import Flask, current_app, g, has_request_context, request
+from flask import Flask, g, has_request_context, request
 
 logger = logging.getLogger("metropolis")
-
-
-def _decode_user_id_from_bearer() -> int | None:
-    header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
-        return None
-    token = header.removeprefix("Bearer ").strip()
-    if not token:
-        return None
-    try:
-        payload = jwt.decode(
-            token,
-            current_app.config["JWT_SECRET"],
-            algorithms=["HS256"],
-            options={"verify_exp": False},
-        )
-        return int(payload["sub"])
-    except (jwt.InvalidTokenError, TypeError, ValueError):
-        return None
 
 
 def _extract_booking_id() -> int | None:
@@ -87,8 +67,6 @@ class RequestContextFilter(logging.Filter):
         current_user = getattr(g, "current_user", None)
         if isinstance(current_user, dict) and current_user.get("userId") is not None:
             record.user_id = current_user["userId"]
-        elif getattr(g, "_log_user_id", None) is not None:
-            record.user_id = g._log_user_id
 
         record.booking_id = getattr(g, "_log_booking_id", None)
         record.listing_id = getattr(g, "_log_listing_id", None)
@@ -121,26 +99,22 @@ def register_observability(app: Flask) -> None:
 
     @app.before_request
     def _bind_request_logging_context() -> None:
-        user_id = _decode_user_id_from_bearer()
-        booking_id = _extract_booking_id()
-        listing_id = _extract_listing_id()
-
-        g._log_user_id = user_id
-        g._log_booking_id = booking_id
-        g._log_listing_id = listing_id
-
-        if hasattr(g, "current_user") and isinstance(g.current_user, dict):
-            g._log_user_id = g.current_user.get("userId") or user_id
+        g._log_booking_id = _extract_booking_id()
+        g._log_listing_id = _extract_listing_id()
 
     @app.after_request
     def _log_server_errors(response: Any) -> Any:
         if response.status_code >= 500:
+            user_id = None
+            current_user = getattr(g, "current_user", None)
+            if isinstance(current_user, dict):
+                user_id = current_user.get("userId")
             logger.error(
                 "HTTP %s %s",
                 response.status_code,
                 request.path,
                 extra={
-                    "user_id": getattr(g, "_log_user_id", None),
+                    "user_id": user_id,
                     "booking_id": getattr(g, "_log_booking_id", None),
                     "listing_id": getattr(g, "_log_listing_id", None),
                 },

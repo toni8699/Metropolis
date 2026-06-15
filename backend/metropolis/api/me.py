@@ -1,8 +1,9 @@
 from apifairy import body, other_responses, response
-from flask import Blueprint, g
-from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
+from flask import Blueprint
+from werkzeug.exceptions import InternalServerError
 
-from metropolis.auth import require_auth
+from metropolis.auth import current_user_id, require_auth
+from metropolis.errors import raise_for_service_result
 from metropolis.schemas.auth import MeSchema, MeUpdateSchema
 from metropolis.schemas.common import ErrorSchema
 from metropolis.services import auth_service
@@ -17,12 +18,11 @@ bp = Blueprint("me", __name__, url_prefix="/api")
 def me():
     """Current authenticated user."""
     try:
-        result = auth_service.me(int(g.current_user["sub"]))
+        result = auth_service.me(current_user_id())
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     return result
 
 
@@ -41,14 +41,11 @@ def update_me(payload):
     """Update current authenticated user's profile."""
     try:
         result = auth_service.update_me(
-            int(g.current_user["sub"]),
+            current_user_id(),
             payload,
         )
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] != "success":
-        raise BadRequest(description=result["message"])
+    raise_for_service_result(result)
     return result

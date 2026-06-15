@@ -1,7 +1,7 @@
 from marshmallow import EXCLUDE, pre_load
 
 from metropolis.extensions import ma
-from metropolis.schemas.common import LinkSchema
+from metropolis.schemas.common import LinkSchema, ListingLocationWriteSchema
 
 
 class ListingCreateSchema(ma.Schema):
@@ -83,11 +83,7 @@ class ListingUpdateSchema(ma.Schema):
     instantBook = ma.Boolean(required=False)
 
 
-class ListingLocationSchema(ma.Schema):
-    lat = ma.Float(required=True)
-    lng = ma.Float(required=True)
-    cityZone = ma.String(required=True)
-    pickupAddress = ma.String(required=False, allow_none=True)
+ListingLocationSchema = ListingLocationWriteSchema
 
 
 class ListingAvailabilitySchema(ma.Schema):

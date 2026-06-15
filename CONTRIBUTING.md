@@ -106,7 +106,7 @@ cd backend && ruff check metropolis tests
 cd frontend && npm run lint
 ```
 
-Backend tests live in `backend/tests/` and `tests/` (root). Both paths are in `pytest.ini`.
+Backend tests live in `backend/tests/`. `conftest.py` loads project `.env` for integration tests.
 
 ---
 

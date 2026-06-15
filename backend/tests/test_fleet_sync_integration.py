@@ -5,19 +5,14 @@ Requires: running API + DATABASE_URL.
 
 from __future__ import annotations
 
-import os
 import uuid
-from pathlib import Path
 
 import psycopg2
 import pytest
 import requests
-from dotenv import load_dotenv
+from conftest import integration_env
 
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-
-API_URL = os.environ.get("INTEGRATION_API_URL", "http://localhost:5000").rstrip("/")
-DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+API_URL, DATABASE_URL = integration_env()
 
 pytestmark = pytest.mark.skipif(
     not DATABASE_URL,

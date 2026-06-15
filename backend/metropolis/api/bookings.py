@@ -1,8 +1,9 @@
 from apifairy import arguments, body, other_responses, response
 from flask import Blueprint, g
-from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotFound
+from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError
 
-from metropolis.auth import require_auth
+from metropolis.auth import current_user_id, require_auth
+from metropolis.errors import raise_for_service_result
 from metropolis.extensions import limiter, rate_limit_user_or_ip
 from metropolis.hateoas import with_booking_links
 from metropolis.schemas.bookings import (
@@ -47,9 +48,9 @@ def list_bookings(query):
     scope = (query.get("scope") or "").strip().lower()
     try:
         if scope == "mine":
-            result = marketplace_service.list_renter_bookings(int(g.current_user["userId"]))
+            result = marketplace_service.list_renter_bookings(current_user_id())
         elif scope == "owner":
-            result = marketplace_service.owner_bookings(g.current_user["userId"])
+            result = marketplace_service.owner_bookings(current_user_id())
         elif scope == "fleet":
             if not g.current_user.get("isAdmin"):
                 raise Forbidden(description="Admin access required.")
@@ -79,13 +80,10 @@ def list_bookings(query):
 def create_booking(payload):
     """Create booking (status PENDING until payment succeeds)."""
     try:
-        result = marketplace_service.create_booking(int(g.current_user["sub"]), payload)
+        result = marketplace_service.create_booking(current_user_id(), payload)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     return with_booking_links(result)
 
 
@@ -104,16 +102,13 @@ def get_booking(booking_id: int):
     try:
         result = marketplace_service.get_booking(
             booking_id,
-            int(g.current_user["sub"]),
+            current_user_id(),
             g.current_user["isAdmin"],
         )
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
+    raise_for_service_result(result)
     return with_booking_links(result)
 
 
@@ -134,18 +129,13 @@ def patch_booking(payload, booking_id: int):
     try:
         result = marketplace_service.patch_booking(
             booking_id,
-            int(g.current_user["sub"]),
+            current_user_id(),
             g.current_user["isAdmin"],
             payload,
         )
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
+    raise_for_service_result(result)
     return with_booking_links(result)
 
 
@@ -163,15 +153,10 @@ def patch_booking(payload, booking_id: int):
 def create_booking_payment(booking_id: int):
     """Create Stripe PaymentIntent for a pending booking (dev auto-completes without keys)."""
     try:
-        result = payment_service.create_payment_intent(booking_id, int(g.current_user["sub"]))
+        result = payment_service.create_payment_intent(booking_id, current_user_id())
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     return result
 
 
@@ -190,16 +175,13 @@ def list_booking_messages(booking_id: int):
     try:
         result = message_service.list_booking_messages(
             booking_id,
-            int(g.current_user["sub"]),
+            current_user_id(),
             g.current_user["isAdmin"],
         )
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
+    raise_for_service_result(result)
     return {"messages": result["messages"]}
 
 
@@ -220,19 +202,14 @@ def create_booking_message(payload, booking_id: int):
     try:
         result = message_service.create_booking_message(
             booking_id,
-            int(g.current_user["userId"]),
+            current_user_id(),
             payload["messageText"],
             g.current_user["isAdmin"],
         )
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
 
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
+    raise_for_service_result(result)
 
     message = result["message"]
     emit_booking_message(booking_id, message)
@@ -256,7 +233,7 @@ def submit_review(payload, booking_id: int):
     try:
         result = review_service.submit_review(
             booking_id,
-            int(g.current_user["sub"]),
+            current_user_id(),
             payload["targetType"],
             payload["rating"],
             payload.get("comment"),
@@ -268,10 +245,5 @@ def submit_review(payload, booking_id: int):
         raise BadRequest(description=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
-    if result["status"] == "forbidden":
-        raise Forbidden(description=result["message"])
+    raise_for_service_result(result)
     return result

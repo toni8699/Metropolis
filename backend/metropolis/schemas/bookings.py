@@ -1,5 +1,5 @@
 from metropolis.extensions import ma
-from metropolis.schemas.common import LinkSchema
+from metropolis.schemas.common import LinkSchema, ListingLocationSchema
 
 
 class BookingCreateSchema(ma.Schema):
@@ -24,14 +24,6 @@ class BookingListSchema(ma.Schema):
             "description": "mine (renter), owner (host), or fleet (admin).",
         },
     )
-
-
-class ListingLocationSchema(ma.Schema):
-    lat = ma.Float(allow_none=True)
-    lng = ma.Float(allow_none=True)
-    cityZone = ma.String(allow_none=True)
-    address = ma.String(allow_none=True)
-    geohash = ma.String(allow_none=True)
 
 
 class HostProfileSchema(ma.Schema):

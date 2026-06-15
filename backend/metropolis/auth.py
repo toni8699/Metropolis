@@ -89,6 +89,11 @@ def _resolve_request_user() -> dict:
     return _load_user_context(int(payload["sub"]))
 
 
+def current_user_id() -> int:
+    """Authenticated user id from g.current_user (set by require_auth)."""
+    return int(g.current_user["userId"])
+
+
 def require_auth():
     def decorator(fn):
         @wraps(fn)

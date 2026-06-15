@@ -1,8 +1,9 @@
 from apifairy import arguments, body, other_responses, response
 from flask import Blueprint
-from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
+from werkzeug.exceptions import BadRequest, InternalServerError
 
 from metropolis.auth import require_admin
+from metropolis.errors import raise_for_service_result
 from metropolis.schemas.admin import (
     AdminKycQueueSchema,
     AdminKycUpdateSchema,
@@ -58,8 +59,5 @@ def patch_user_kyc(payload, user_id: int):
         result = kyc_service.set_status(user_id, verification_status)
     except Exception as exc:  # noqa: BLE001
         raise InternalServerError(description=str(exc)) from exc
-    if result["status"] == "validation_error":
-        raise BadRequest(description=result["message"])
-    if result["status"] == "not_found":
-        raise NotFound(description=result["message"])
+    raise_for_service_result(result)
     return result
