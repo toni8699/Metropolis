@@ -6,12 +6,12 @@ const SMOKE_BOOKING_START = "2099-12-01T10:00:00Z";
 const SMOKE_BOOKING_END = "2099-12-04T10:00:00Z";
 
 async function registerUser(request, prefix) {
-  const email = `${prefix}-${Date.now()}@e2e.test`;
+  const email = `${prefix}-${Date.now()}@example.com`;
   const password = "E2eTest123!";
   const resp = await request.post(`${apiURL}/api/auth/register`, {
     data: { email, password, fullName: prefix },
   });
-  expect(resp.ok()).toBeTruthy();
+  expect(resp.ok(), await resp.text()).toBeTruthy();
   const body = await resp.json();
   return { email, password, token: body.token, user: body.user };
 }
