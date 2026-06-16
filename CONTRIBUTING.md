@@ -11,7 +11,7 @@ Core marketplace paths (auth, listings, bookings, payments, fleet, search, messa
 To query the database in a service:
 
 ```python
-from metropolis.db import get_connection
+from metropolis.core.db import get_connection
 from psycopg2.extras import RealDictCursor
 
 with get_connection() as conn:
@@ -51,7 +51,6 @@ backend/metropolis/
   dependencies/  # FastAPI Depends (auth.py)
   core/          # config, db pool, errors, limiter
   asgi.py        # CombinedASGI: Socket.IO + FastAPI
-  db.py          # get_connection() factory (services)
 ```
 
 ---

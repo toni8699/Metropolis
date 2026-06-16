@@ -5,7 +5,7 @@ import os
 import stripe
 from psycopg2.extras import Json, RealDictCursor
 
-from metropolis.db import get_connection
+from metropolis.core.db import get_connection
 from metropolis.services.booking_support import resolve_post_payment_status
 
 

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from psycopg2.extras import RealDictCursor
 
-from metropolis.db import get_connection
+from metropolis.core.db import get_connection
 
 REVIEW_WINDOW_DAYS = 30
 

@@ -11,7 +11,7 @@ from psycopg2.extras import RealDictCursor
 from werkzeug.exceptions import BadRequest, Forbidden, InternalServerError, NotFound
 
 from metropolis.core.config import settings
-from metropolis.db import get_connection
+from metropolis.core.db import get_connection
 
 ALLOWED_SCOPES = {"FLEET", "OWNER_LISTING", "USER_DOC", "USER_AVATAR"}
 

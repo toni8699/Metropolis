@@ -4,7 +4,7 @@ import hashlib
 
 from psycopg2.extras import RealDictCursor
 
-from metropolis.db import get_connection
+from metropolis.core.db import get_connection
 from metropolis.services.booking_rows import to_booking_row
 from metropolis.services.marketplace_common import (
     _BOOKING_SELECT_SQL,

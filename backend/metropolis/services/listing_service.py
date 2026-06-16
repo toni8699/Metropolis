@@ -5,7 +5,7 @@ from datetime import datetime
 from psycopg2.extras import Json, RealDictCursor
 
 from metropolis.core.config import settings
-from metropolis.db import get_connection
+from metropolis.core.db import get_connection
 from metropolis.services.marketplace_common import (
     _BOOKING_HOLD_STATUSES,
     _LISTING_AVAILABLE_FOR_WINDOW_SQL,

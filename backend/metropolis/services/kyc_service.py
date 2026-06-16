@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from psycopg2.extras import RealDictCursor
 
-from metropolis.db import get_connection
+from metropolis.core.db import get_connection
 
 
 class KycService:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from psycopg2.extras import Json, RealDictCursor
 
-from metropolis.db import get_connection
+from metropolis.core.db import get_connection
 from metropolis.services.booking_rows import build_host_earnings, to_booking_row
 from metropolis.services.booking_support import (
     auto_complete_expired_bookings,
