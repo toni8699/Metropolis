@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from metropolis.core.errors import raise_for_service_result
 from metropolis.dependencies.auth import (
@@ -42,12 +42,32 @@ def _actor_from_user(user: UserContext) -> dict:
     }
 
 
+def parse_listing_list_query(request: Request) -> ListingListQuery:
+    """Read listing search query params (FastAPI CamelModel only binds camelCase aliases)."""
+    qp = request.query_params
+    payload: dict = {}
+    if scope := qp.get("scope"):
+        payload["scope"] = scope
+    if bbox := qp.get("bbox"):
+        payload["bbox"] = bbox
+    if city_zone := qp.get("city_zone") or qp.get("cityZone"):
+        payload["city_zone"] = city_zone
+    start_s = qp.get("start_at") or qp.get("start") or qp.get("startAt")
+    end_s = qp.get("end_at") or qp.get("end") or qp.get("endAt")
+    if start_s:
+        payload["start_at"] = start_s
+    if end_s:
+        payload["end_at"] = end_s
+    return ListingListQuery.model_validate(payload)
+
+
 @router.get("", response_model=ListingCollectionResponse)
 def list_listings(
-    query: ListingListQuery = Depends(),
+    request: Request,
     user: UserContext | None = Depends(get_optional_user),
 ) -> dict:
     """Search public listings or list scoped collections (mine, fleet, host)."""
+    query = parse_listing_list_query(request)
     scope = (query.scope or "").strip().lower()
     if not scope:
         result = listing_service.search_listings(

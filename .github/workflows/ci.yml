@@ -19,6 +19,8 @@ env:
   INTEGRATION_API_URL: http://127.0.0.1:5000
   RATELIMIT_ENABLED: "0"
   BOOKING_SWEEP_ENABLED: "0"
+  STRIPE_SECRET_KEY: ""
+  STRIPE_WEBHOOK_SECRET: ""
 
 jobs:
   backend-lint:
@@ -224,6 +226,8 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     env:
       CORS_ORIGINS: http://127.0.0.1:3000,http://localhost:3000
+      STRIPE_SECRET_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
     services:
       postgres:
         image: postgres:16-alpine

@@ -78,27 +78,65 @@ the database is empty. CI seeds test rows via `backend/scripts/seed_ci_database.
 
 ## Running locally
 
+See [README.md — Setup](README.md#setup-one-time). Short version:
+
 ```bash
-cp .env.example .env
-# Fill DATABASE_URL, JWT_SECRET, AWS/S3 keys
-
-# Backend deps (first time / after pyproject.toml change)
-cd backend && uv sync --extra dev
-
+cp .env.example .env && cp frontend/.env.example frontend/.env.local
+cd backend && uv sync --extra dev && cd ../frontend && npm install
 docker compose up --build
 ```
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| API | http://localhost:5000 |
-| API docs | http://localhost:5000/docs (Swagger) · `/redoc` |
 
 ---
 
 ## Tests
 
-See [README.md — Testing](README.md#testing). Integration tests skip automatically when `DATABASE_URL` is remote (Neon).
+### Before a PR
+
+```bash
+cd backend && uv run ruff check metropolis tests scripts
+cd backend && uv run ruff format --check metropolis tests scripts
+cd backend && uv run pytest tests -v
+
+cd frontend && npm run lint && npm test
+```
+
+CI runs the same checks on push/PR to `main` or `develop`.
+
+### Backend
+
+| Layer | Location | Needs DB? |
+|-------|----------|-----------|
+| Unit | `backend/tests/test_*_unit.py`, mocks | No |
+| Integration | `backend/tests/test_*_integration.py`, `test_fastapi_auth.py` | Yes — local Postgres + API |
+
+```bash
+cd backend && uv sync --extra dev   # first time / after pyproject change
+uv run pytest tests -v              # unit tests; integration skipped if no test DB
+```
+
+Full suite (what CI runs):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test run --rm test
+```
+
+That starts `postgres_test`, migrates, seeds `scripts/seed_ci_database.py`, starts the API, runs all of `pytest`.
+
+### Frontend
+
+```bash
+cd frontend && npm test        # Vitest — src/**/*.test.{js,jsx}
+cd frontend && npm run lint
+cd frontend && npm run build   # CI also checks production build
+```
+
+E2E: `npm run test:e2e` (Playwright, `frontend/e2e/`). CI smoke runs on push to `main` after deploy.
+
+### Adding tests
+
+- Pure logic / service helpers → `test_*_unit.py`, mock `get_connection` or external clients.
+- HTTP + database flows → `test_*_integration.py`; use the Docker test command above before merging.
+- New integration file → add filename to `_INTEGRATION_TEST_FILES` in `backend/tests/conftest.py`.
 
 ---
 

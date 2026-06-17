@@ -8,8 +8,8 @@ from metropolis.core.config import settings
 from metropolis.core.db import get_connection
 from metropolis.services.marketplace_common import (
     _BOOKING_HOLD_STATUSES,
-    _LISTING_AVAILABLE_FOR_WINDOW_SQL,
     LISTING_SELECT_SQL,
+    listing_available_for_window_sql,
     _associate_listing_image_urls,
     _fetch_dashboard_analytics,
     _listing_image_urls,
@@ -391,8 +391,8 @@ class ListingService:
             return window
         if window is not None:
             start_at, end_at = window
-            clauses.append(_LISTING_AVAILABLE_FOR_WINDOW_SQL)
-            params.extend([end_at, start_at, end_at, start_at])
+            clauses.append(listing_available_for_window_sql(_BOOKING_HOLD_STATUSES))
+            params.extend([*_BOOKING_HOLD_STATUSES, end_at, start_at, end_at, start_at])
 
         where_sql = " AND ".join(clauses)
         with get_connection() as conn:

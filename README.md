@@ -26,74 +26,22 @@ Peer-to-peer and fleet car rental marketplace. Renters search, book, and pay; ho
 | **Backend** | `backend/` — FastAPI, raw SQL services, OpenAPI at `/docs` (Swagger) and `/redoc`. |
 | **Database** | `db/schema.sql` snapshot + Alembic (`alembic upgrade head` bootstraps empty DB). |
 | **Local** | Docker Compose — backend `:5000`, frontend `:3000`, Redis for Socket.IO. |
-| **CI / deploy** | GitHub Actions on `main` → test → push image to GHCR → Render deploy hook. |
+| **CI / deploy** | GitHub Actions on `main` / `develop` → lint + test → merge `main` deploys. |
 
 Production setup: [docs/production-deployment.md](docs/production-deployment.md)
 
 ---
 
-## Testing
-
-**Do not run integration tests against Neon.** Your `.env` `DATABASE_URL` is for the dev app. Pytest integration tests create/delete rows — use an isolated Postgres instead.
-
-### Backend (full suite)
-
-Uses local Postgres via `docker-compose.test.yml` (never reads Neon):
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test run --rm test
-```
-
-This spins up `postgres_test`, runs migrations, seeds CI fixtures, starts the API, and runs `pytest`.
-
-### Backend (unit tests only)
-
-Safe even when `.env` points at Neon — no DB writes:
-
-```bash
-cd backend && uv sync --extra dev
-uv run pytest tests -v -k "not integration"
-# or only *_unit.py files:
-uv run pytest tests/test_*_unit.py tests/test_auth_jwt_unit.py -v
-```
-
-### Frontend
-
-```bash
-cd frontend && npm test          # Vitest unit tests
-cd frontend && npm run lint
-```
-
-E2E (Playwright) runs on CI after merge to `main`; locally:
-
-```bash
-cd frontend && npm run test:e2e   # needs app + API running
-```
-
-### CI (GitHub Actions)
-
-On push/PR to `main` or `develop`: Ruff → backend pytest (ephemeral Postgres) → frontend lint/test/build. Push to `main` also deploys and runs Playwright smoke.
-
-### Clean test junk from Neon dev DB
-
-If you already polluted Neon with local pytest:
-
-```bash
-docker compose exec backend python scripts/purge_test_listings.py          # preview
-docker compose exec backend python scripts/purge_test_listings.py --execute
-```
-
----
-
-## Dev flow
-
-### 1. One-time setup
+## Setup (one time)
 
 ```bash
 cp .env.example .env
 cp frontend/.env.example frontend/.env.local
-# Fill DATABASE_URL, JWT_SECRET, AWS/S3 in .env
-# Fill VITE_API_URL=http://localhost:5000 and VITE_GOOGLE_MAPS_API_KEY in frontend/.env.local
+# .env — DATABASE_URL, JWT_SECRET, AWS/S3
+# frontend/.env.local — VITE_API_URL=http://localhost:5000, VITE_GOOGLE_MAPS_API_KEY
+
+cd backend && uv sync --extra dev
+cd ../frontend && npm install
 
 docker compose up --build
 ```
@@ -102,40 +50,74 @@ docker compose up --build
 |-------|-----|
 | App | http://localhost:3000 |
 | API | http://localhost:5000 |
-| Docs | http://localhost:5000/docs (Swagger) · `/redoc` |
+| Docs | http://localhost:5000/docs · `/redoc` |
 
-### 2. Daily loop
+After `pyproject.toml` changes: `cd backend && uv sync --extra dev`.
+
+---
+
+## Workflow
 
 ```
-edit code  →  docker compose up  →  lint / test  →  PR  →  merge main  →  prod deploy
+edit  →  lint / test  →  PR to main or develop  →  CI  →  merge main  →  deploy
 ```
 
-- **Local:** hot reload via compose volumes. Restart backend after env or dependency changes.
-- **Prod:** push to `main` deploys backend (Render via GHCR) and frontend (Vercel). Secrets live in Render / Vercel / GitHub — not in the repo.
-- **DB:** schema change → new Alembic revision → `docker compose exec backend alembic upgrade head` → update `db/schema.sql` to match. Fresh DB needs Alembic only (no manual `psql`).
-
-### 3. Commands
+**Before you push** (from repo root):
 
 ```bash
-# Start / rebuild
+# Backend
+cd backend && uv run ruff check metropolis tests scripts
+cd backend && uv run ruff format --check metropolis tests scripts
+cd backend && uv run pytest tests -v
+
+# Frontend
+cd frontend && npm run lint
+cd frontend && npm test
+```
+
+**CI** (`.github/workflows/ci.yml`) runs the same on every push/PR to `main` or `develop`: Ruff → backend pytest → frontend lint/test/build. Push to `main` also builds the backend image, deploys to Render, and runs Playwright smoke.
+
+**Prod:** backend via Render (GHCR image), frontend via Vercel. Secrets live in Render / Vercel / GitHub — not in the repo.
+
+**DB changes:** new Alembic revision → `docker compose exec backend alembic upgrade head` → update `db/schema.sql`.
+
+More detail: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+---
+
+## Testing
+
+| What | Command |
+|------|---------|
+| Backend (day to day) | `cd backend && uv run pytest tests -v` |
+| Backend lint | `cd backend && uv run ruff check metropolis tests scripts` |
+| Frontend | `cd frontend && npm test` |
+| Frontend lint | `cd frontend && npm run lint` |
+| Full backend suite + integration | see below |
+
+`pytest` runs unit tests locally. Integration tests need a running API and Postgres — they auto-skip when those are not available (normal when you only run pytest on your laptop).
+
+**Full backend suite** (migrations, seed, API, all tests) — ephemeral local Postgres via Docker:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test run --rm test
+```
+
+**E2E** (Playwright) — CI on `main` deploy; locally with app + API up:
+
+```bash
+cd frontend && npm run test:e2e
+```
+
+---
+
+## Commands
+
+```bash
 docker compose up --build
 docker compose build backend && docker compose up --build
 
-# Lint
-cd backend && uv run ruff check metropolis tests
-cd frontend && npm run lint && npm run test
-
-# Backend deps (first time / after pyproject change)
-cd backend && uv sync --extra dev
-
-# See "Testing" section above for pytest / integration tests
-
-# Migrations
 docker compose exec backend alembic upgrade head
-# Optional fresh reset for mock/local DB
-docker compose exec backend alembic downgrade base && docker compose exec backend alembic upgrade head
-
-# Health
 curl http://localhost:5000/api/health
 ```
 

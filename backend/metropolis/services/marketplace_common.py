@@ -60,12 +60,16 @@ _BOOKING_NEEDS_REVIEW_SQL = """
 _BOOKING_HOLD_STATUSES = ("PENDING", "PENDING_APPROVAL", "CONFIRMED", "IN_PROGRESS")
 _BOOKING_BLOCKING_STATUSES = ("CONFIRMED", "IN_PROGRESS")
 
-_LISTING_AVAILABLE_FOR_WINDOW_SQL = """
+
+def listing_available_for_window_sql(statuses: tuple[str, ...]) -> str:
+    """SQL fragment: listing has no overlapping holds or blocked availability windows."""
+    status_sql = ", ".join(["%s::booking_status"] * len(statuses))
+    return f"""
 NOT EXISTS (
   SELECT 1
   FROM booking b
   JOIN vehicle_listing vl ON vl.listing_id = b.listing_id
-  WHERE b.status IN ('CONFIRMED', 'IN_PROGRESS')
+  WHERE b.status IN ({status_sql})
     AND b.start_at < %s
     AND b.end_at > %s
     AND (
