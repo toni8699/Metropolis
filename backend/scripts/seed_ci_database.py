@@ -23,8 +23,8 @@ def main() -> int:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO app_user (email, password_hash, role, full_name, is_admin)
-                VALUES (%s, %s, 'RENTER', 'CI Host', FALSE)
+                INSERT INTO app_user (email, password_hash, role, full_name, is_admin, is_verified)
+                VALUES (%s, %s, 'RENTER', 'CI Host', FALSE, TRUE)
                 ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
                 RETURNING user_id
                 """,

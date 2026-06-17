@@ -34,7 +34,7 @@ function VerifiedRow({ label, verified, action }) {
 }
 
 export default function AccountSettingsPage() {
-  const { isAuthenticated, user, updateProfile } = useAuth();
+  const { isAuthenticated, user, updateProfile, resendVerification } = useAuth();
   const [form, setForm] = useState({
     lives: "",
     about: "",
@@ -48,6 +48,8 @@ export default function AccountSettingsPage() {
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isResendingEmail, setIsResendingEmail] = useState(false);
+  const [resendEmailMessage, setResendEmailMessage] = useState("");
   const photoInputRef = useRef(null);
   const phoneInputRef = useRef(null);
 
@@ -141,6 +143,19 @@ export default function AccountSettingsPage() {
     }
   };
 
+  const handleResendVerification = async () => {
+    setResendEmailMessage("");
+    setIsResendingEmail(true);
+    try {
+      await resendVerification();
+      setResendEmailMessage("Verification email sent.");
+    } catch (err) {
+      setResendEmailMessage(err?.message || "Could not resend verification email.");
+    } finally {
+      setIsResendingEmail(false);
+    }
+  };
+
   const displayName = firstName(user?.fullName);
   const joinedLabel =
     user?.joinedLabel ||
@@ -221,8 +236,23 @@ export default function AccountSettingsPage() {
                 />
                 <VerifiedRow
                   label="Email address"
-                  verified={Boolean(user?.hasEmail)}
-                  action={null}
+                  verified={Boolean(user?.isVerified)}
+                  action={
+                    <div className="mt-1 space-y-1">
+                      <p className="text-xs text-vroom-accent">Verify your email address</p>
+                      <button
+                        type="button"
+                        onClick={handleResendVerification}
+                        disabled={isResendingEmail}
+                        className="text-xs font-bold text-vroom-accent hover:underline disabled:opacity-50"
+                      >
+                        {isResendingEmail ? "Sending..." : "Resend verification email"}
+                      </button>
+                      {resendEmailMessage && (
+                        <p className="text-xs text-gray-500">{resendEmailMessage}</p>
+                      )}
+                    </div>
+                  }
                 />
                 <VerifiedRow
                   label="Phone number"

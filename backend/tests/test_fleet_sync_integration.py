@@ -29,17 +29,46 @@ def _api(method: str, path: str, *, json: dict | None = None, token: str | None 
     return requests.request(method, f"{API_URL}{path}", headers=headers, json=json, timeout=15)
 
 
-def _register(prefix: str, admin: bool = False) -> tuple[str, int]:
+def _register(prefix: str) -> tuple[str, int]:
+    from auth_test_helpers import register_and_login_http
+
     email = f"{prefix}-{uuid.uuid4().hex[:8]}@example.com"
-    role = "admin" if admin else "user"
-    resp = _api(
-        "POST",
-        "/api/auth/register",
-        json={"email": email, "password": "FleetTest123!", "fullName": prefix, "role": role},
+    token = register_and_login_http(
+        API_URL,
+        DATABASE_URL,
+        email=email,
+        password="FleetTest123!",
+        full_name=prefix,
     )
-    assert resp.status_code == 201, resp.text
-    body = resp.json()
-    return body["token"], int(body["user"]["userId"])
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT user_id FROM app_user WHERE email = %s", (email,))
+            user_id = int(cur.fetchone()[0])
+    return token, user_id
+
+
+def _create_admin(prefix: str) -> tuple[str, int]:
+    email = f"{prefix}-{uuid.uuid4().hex[:8]}@example.com"
+    from werkzeug.security import generate_password_hash
+
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO app_user (
+                  email, password_hash, role, full_name, is_admin, is_verified
+                )
+                VALUES (%s, %s, 'ADMIN'::user_role, %s, TRUE, TRUE)
+                RETURNING user_id
+                """,
+                (email, generate_password_hash("FleetTest123!"), prefix),
+            )
+            user_id = cur.fetchone()[0]
+        conn.commit()
+
+    login_resp = _api("POST", "/api/auth/login", json={"email": email, "password": "FleetTest123!"})
+    assert login_resp.status_code == 200, login_resp.text
+    return login_resp.json()["token"], user_id
 
 
 def _seed_fleet_vehicle(vin: str) -> None:
@@ -106,7 +135,7 @@ def test_unauthenticated_cannot_access_fleet_admin():
 
 
 def test_admin_can_list_fleet_listings():
-    admin_token, _ = _register("fleet-admin-list", admin=True)
+    admin_token, _ = _create_admin("fleet-admin-list")
     resp = _api("GET", "/api/listings?scope=fleet", token=admin_token)
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -117,7 +146,7 @@ def test_admin_fleet_sync_idempotent():
     """Syncing the same fleet vehicle twice should not duplicate listings."""
     vin = f"{SYNC_VIN_PREFIX}{uuid.uuid4().hex[:8].upper()}"
     _seed_fleet_vehicle(vin)
-    admin_token, _ = _register("fleet-admin-sync", admin=True)
+    admin_token, _ = _create_admin("fleet-admin-sync")
 
     resp1 = _api("POST", "/api/fleet/sync", token=admin_token)
     assert resp1.status_code == 200, resp1.text

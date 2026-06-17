@@ -75,6 +75,8 @@ CREATE TABLE app_user
   work VARCHAR(100),
   is_approved_to_drive BOOLEAN NOT NULL DEFAULT FALSE,
   is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+  is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  verification_token TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

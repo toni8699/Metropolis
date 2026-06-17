@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 _logger = logging.getLogger("metropolis")
 _GENERIC_500_MESSAGE = "Internal server error."
-_OK_STATUSES = frozenset({"success", "ok"})
+_OK_STATUSES = frozenset({"success", "ok", "pending_verification"})
 
 
 def _detail_message(detail: object) -> str:
@@ -63,6 +63,8 @@ def register_exception_handlers(app: FastAPI) -> None:
             payload = {"status": "validation_error", "message": _detail_message(exc.detail)}
         elif exc.status_code == 404:
             payload = {"status": "not_found", "message": _detail_message(exc.detail)}
+        elif exc.status_code == 403:
+            payload = {"status": "forbidden", "message": _detail_message(exc.detail)}
         else:
             payload = {"status": "error", "message": _detail_message(exc.detail)}
         return JSONResponse(status_code=exc.status_code, content=payload)

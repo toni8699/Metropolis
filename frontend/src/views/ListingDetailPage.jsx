@@ -22,7 +22,7 @@ import { listingPhotos } from "@/shared/lib/listingPhotos";
 
 export default function ListingDetailPage() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, ensureVerifiedEmail } = useAuth();
   const { listingId } = useParams();
   const [listing, setListing] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -190,6 +190,9 @@ export default function ListingDetailPage() {
     setReserveError("");
     if (!isAuthenticated) {
       setIsAuthModalOpen(true);
+      return;
+    }
+    if (!ensureVerifiedEmail()) {
       return;
     }
     goToCheckout();

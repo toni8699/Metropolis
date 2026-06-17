@@ -23,8 +23,12 @@ vi.mock("react-router-dom", async (importActual) => {
 });
 
 const mockRefreshMe = vi.fn();
+const mockEnsureVerifiedEmail = vi.fn(() => true);
 vi.mock("@/context/AuthContext", () => ({
-  useAuth: () => ({ refreshMe: mockRefreshMe }),
+  useAuth: () => ({
+    refreshMe: mockRefreshMe,
+    ensureVerifiedEmail: mockEnsureVerifiedEmail,
+  }),
 }));
 
 vi.mock("@/shared/api/api", () => ({

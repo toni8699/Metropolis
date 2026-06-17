@@ -8,9 +8,9 @@ from metropolis.core.errors import raise_for_service_result
 from metropolis.dependencies.auth import (
     ListingAccessContext,
     UserContext,
-    get_current_user,
     get_optional_user,
     require_listing_access,
+    verified_user_required,
 )
 from metropolis.hateoas import with_listing_links
 from metropolis.schemas.listing_models import (
@@ -124,9 +124,9 @@ def get_listing(
 @router.post("", status_code=201, response_model=ListingItemResponse)
 def create_listing(
     payload: ListingCreateRequest,
-    user: UserContext = Depends(get_current_user),
+    user: UserContext = Depends(verified_user_required),
 ) -> dict:
-    """Create listing for authenticated user."""
+    """Create listing for authenticated verified user."""
     try:
         result = listing_service.create_listing(
             _actor_from_user(user),

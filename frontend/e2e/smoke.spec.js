@@ -8,12 +8,18 @@ const SMOKE_BOOKING_END = "2099-12-04T10:00:00Z";
 async function registerUser(request, prefix) {
   const email = `${prefix}-${Date.now()}@example.com`;
   const password = "E2eTest123!";
-  const resp = await request.post(`${apiURL}/api/auth/register`, {
+  const reg = await request.post(`${apiURL}/api/auth/register`, {
     data: { email, password, fullName: prefix },
   });
-  expect(resp.ok(), await resp.text()).toBeTruthy();
-  const body = await resp.json();
-  return { email, password, token: body.token, user: body.user };
+  expect(reg.ok(), await reg.text()).toBeTruthy();
+  const regBody = await reg.json();
+  const verifyToken = regBody.verificationToken;
+  expect(verifyToken, "DEBUG=1 must return verificationToken for e2e").toBeTruthy();
+  const verifyResp = await request.get(
+    `${apiURL}/api/auth/verify-email?token=${encodeURIComponent(verifyToken)}`,
+  );
+  expect(verifyResp.ok(), await verifyResp.text()).toBeTruthy();
+  return { email, password, token: regBody.token, user: regBody.user };
 }
 
 async function createSmokeListing(request, hostToken) {

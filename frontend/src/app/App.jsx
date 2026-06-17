@@ -1,5 +1,5 @@
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
-import { useState } from "react";
+import { Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { AppPathRedirect } from "@/app/AppPathRedirect";
 import { useAuth } from "@/context/AuthContext";
 import BookingDetailsPage from "@/views/BookingDetailsPage";
@@ -11,6 +11,7 @@ import TripsPage from "@/views/TripsPage";
 import InboxPage from "@/views/InboxPage";
 import AccountSettingsPage from "@/views/AccountSettingsPage";
 import LoginPage from "@/views/LoginPage";
+import VerifyEmailPage from "@/views/VerifyEmailPage";
 import Layout from "@/layout/Layout";
 import HostOnboardingFlow from "@/features/host/components/HostOnboardingFlow";
 import SuccessListingPage from "@/features/host/SuccessListingPage";
@@ -25,9 +26,22 @@ function AppShell({ onSearch, onHome }) {
 }
 
 function HostEntry() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isAuthenticated, isVerified, promptVerifyEmail } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAdmin || !isAuthenticated || isVerified) {
+      return;
+    }
+    promptVerifyEmail();
+    navigate("/app", { replace: true });
+  }, [isAdmin, isAuthenticated, isVerified, navigate, promptVerifyEmail]);
+
   if (isAdmin) {
     return <Navigate to="/admin" replace />;
+  }
+  if (isAuthenticated && !isVerified) {
+    return null;
   }
   return <HostOnboardingFlow />;
 }
@@ -52,6 +66,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route
         path="/app"
         element={<AppShell onSearch={handleSearch} onHome={handleGoHome} />}

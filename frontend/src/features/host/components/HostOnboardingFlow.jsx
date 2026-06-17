@@ -17,7 +17,7 @@ const vehicleTypes = ["Sedan", "SUV", "Truck", "Electric"];
 
 export default function HostOnboardingFlow() {
   const navigate = useNavigate();
-  const { refreshMe } = useAuth();
+  const { refreshMe, ensureVerifiedEmail } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [headlineVisible, setHeadlineVisible] = useState(true);
   const [listingData, setListingData] = useState({
@@ -146,6 +146,9 @@ export default function HostOnboardingFlow() {
   };
 
   const submitListing = async () => {
+    if (!ensureVerifiedEmail()) {
+      return;
+    }
     if (imageFiles.length < MIN_LISTING_PHOTOS) {
       setSubmitError(`Add at least ${MIN_LISTING_PHOTOS} photos before publishing.`);
       return;

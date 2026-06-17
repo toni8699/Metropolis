@@ -757,7 +757,13 @@ redis==5.3.1 \
 requests==2.34.2 \
     --hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0 \
     --hash=sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed
-    # via stripe
+    # via
+    #   resend
+    #   stripe
+resend==2.32.1 \
+    --hash=sha256:bed52db24beb2657ac09ddc19e046ed7ddfb510d43d4c5e8d00aa8f9483acee2 \
+    --hash=sha256:e5e7a7ffad510b449c570645476ce662781996ce9a5e08076dd2d3a242a60485
+    # via metropolis-backend
 s3transfer==0.17.0 \
     --hash=sha256:9edeb6d1c3c2f89d6050348548834ad8289610d886e5bf7b7207728bd43ce33a \
     --hash=sha256:ce3801712acf4ad3e89fb9990df97b4972e93f4b3b0004d214be5bce12814c20
@@ -896,6 +902,7 @@ typing-extensions==4.15.0 \
     #   pydantic
     #   pydantic-core
     #   pyjwt
+    #   resend
     #   sqlalchemy
     #   starlette
     #   stripe

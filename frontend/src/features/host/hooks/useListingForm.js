@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiPatch, apiPost } from "@/shared/api/api";
+import { useAuth } from "@/context/AuthContext";
 import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
 import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
@@ -51,6 +52,7 @@ export function useListingForm({
   setSuccess,
   setActiveTab,
 }) {
+  const { ensureVerifiedEmail } = useAuth();
   const [listingForm, setListingForm] = useState(() => ({
     ...emptyListingForm,
     isCompanyOwned: isAdmin,
@@ -336,6 +338,10 @@ export function useListingForm({
     event.preventDefault();
     setError("");
     setSuccess("");
+
+    if (!isAdmin && !editingListingId && !ensureVerifiedEmail()) {
+      return;
+    }
 
     if (!editingListingId && pendingPhotoCount < MIN_LISTING_PHOTOS) {
       setError(`Add at least ${MIN_LISTING_PHOTOS} photos before saving a new listing.`);

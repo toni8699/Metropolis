@@ -59,15 +59,17 @@ def _error_message(resp: requests.Response) -> str:
 
 
 def _register_user(prefix: str) -> tuple[str, int]:
+    from auth_test_helpers import register_and_login_http
+
     email = f"{prefix}-{uuid.uuid4().hex[:10]}@example.com"
     password = "ApprovalTest123!"
-    resp = _api(
-        "POST",
-        "/api/auth/register",
-        json={"email": email, "password": password, "fullName": prefix},
+    token = register_and_login_http(
+        API_URL,
+        DATABASE_URL,
+        email=email,
+        password=password,
+        full_name=prefix,
     )
-    assert resp.status_code == 201, _error_message(resp)
-    token = resp.json()["token"]
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT user_id FROM app_user WHERE email = %s", (email,))

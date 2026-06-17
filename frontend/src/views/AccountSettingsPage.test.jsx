@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import AccountSettingsPage from "@/views/AccountSettingsPage";
 
 const mockUpdateProfile = vi.fn();
+const mockResendVerification = vi.fn();
 let mockAuth;
 
 vi.mock("@/context/AuthContext", () => ({
@@ -22,6 +23,8 @@ function renderPage() {
 describe("AccountSettingsPage", () => {
   beforeEach(() => {
     mockUpdateProfile.mockReset();
+    mockResendVerification.mockReset();
+    mockResendVerification.mockResolvedValue({ status: "success" });
     mockUpdateProfile.mockResolvedValue({
       fullName: "Jane Driver",
       phone: "+1 514 555 0100",
@@ -37,6 +40,7 @@ describe("AccountSettingsPage", () => {
     mockAuth = {
       isAuthenticated: true,
       updateProfile: mockUpdateProfile,
+      resendVerification: mockResendVerification,
       user: {
         userId: 1,
         email: "jane@example.com",
@@ -52,6 +56,7 @@ describe("AccountSettingsPage", () => {
         tripsCount: 0,
         hasPhone: false,
         hasEmail: true,
+        isVerified: true,
         isApprovedToDrive: false,
       },
     };
@@ -74,6 +79,17 @@ describe("AccountSettingsPage", () => {
       }),
     );
     expect(await screen.findByText(/profile updated/i)).toBeDefined();
+  });
+
+  it("shows resend verification for unverified email", async () => {
+    const user = userEvent.setup();
+    mockAuth.user = { ...mockAuth.user, isVerified: false };
+    renderPage();
+
+    expect(screen.getByText(/verify your email address/i)).toBeDefined();
+    await user.click(screen.getByRole("button", { name: /resend verification email/i }));
+    await vi.waitFor(() => expect(mockResendVerification).toHaveBeenCalled());
+    expect(await screen.findByText(/verification email sent/i)).toBeDefined();
   });
 
   it("redirects unauthenticated users to login with return path", () => {

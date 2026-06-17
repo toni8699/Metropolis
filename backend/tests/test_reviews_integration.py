@@ -59,14 +59,15 @@ def _login_or_register() -> str:
 
     email = f"review-int-{uuid.uuid4().hex[:10]}@example.com"
     password = "ReviewTest123!"
-    resp = api_request(
+    from auth_test_helpers import register_and_login_http
+
+    return register_and_login_http(
         API_URL,
-        "POST",
-        "/api/auth/register",
-        json={"email": email, "password": password, "fullName": "Review Integration"},
+        DATABASE_URL,
+        email=email,
+        password=password,
+        full_name="Review Integration",
     )
-    assert resp.status_code == 201, _error_message(resp)
-    return resp.json()["token"]
 
 
 def _pick_listing_id() -> int:

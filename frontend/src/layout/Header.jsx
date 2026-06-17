@@ -18,7 +18,7 @@ import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 
 export default function Header({ onSearch, onHome }) {
   const navigate = useNavigate();
-  const { isAuthenticated, isAdmin, user, logout } = useAuth();
+  const { isAuthenticated, isAdmin, user, logout, ensureVerifiedEmail } = useAuth();
   const showHostDashboard = isAuthenticated && !isAdmin;
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -172,6 +172,9 @@ export default function Header({ onSearch, onHome }) {
     }
     if (isAdmin) {
       navigate("/admin");
+      return;
+    }
+    if (!ensureVerifiedEmail()) {
       return;
     }
     navigate("/host");

@@ -28,7 +28,7 @@ export default function BookingCheckoutPage() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isVerified, ensureVerifiedEmail, promptVerifyEmail } = useAuth();
   const [listing, setListing] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,6 +45,11 @@ export default function BookingCheckoutPage() {
 
   useEffect(() => {
     if (!isAuthenticated) {
+      navigate(`/app/listings/${id}`, { replace: true });
+      return;
+    }
+    if (!isVerified) {
+      promptVerifyEmail();
       navigate(`/app/listings/${id}`, { replace: true });
       return;
     }
@@ -69,7 +74,7 @@ export default function BookingCheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, startDate, endDate, navigate, isAuthenticated]);
+  }, [id, startDate, endDate, navigate, isAuthenticated, isVerified, promptVerifyEmail]);
 
   const start = safeParseDate(startDate);
   const end = safeParseDate(endDate);
@@ -85,6 +90,7 @@ export default function BookingCheckoutPage() {
 
   const handleRequestBooking = async () => {
     if (!listing || !startDate || !endDate) return;
+    if (!ensureVerifiedEmail()) return;
     setSubmitError("");
     setIsSubmitting(true);
     try {
@@ -109,6 +115,9 @@ export default function BookingCheckoutPage() {
       }
       setClientSecret(intent.clientSecret);
     } catch (err) {
+      if (err?.message === "EMAIL_NOT_VERIFIED") {
+        promptVerifyEmail();
+      }
       setSubmitError(err?.message || "Could not request booking.");
     } finally {
       setIsSubmitting(false);

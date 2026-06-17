@@ -78,15 +78,17 @@ def _listing_ids(resp: requests.Response) -> set[int]:
 
 
 def _register_user(prefix: str) -> str:
+    from auth_test_helpers import register_and_login_http
+
     email = f"{prefix}-{uuid.uuid4().hex[:10]}@example.com"
     password = "SearchTest123!"
-    resp = _api(
-        "POST",
-        "/api/auth/register",
-        json={"email": email, "password": password, "fullName": prefix},
+    return register_and_login_http(
+        API_URL,
+        DATABASE_URL,
+        email=email,
+        password=password,
+        full_name=prefix,
     )
-    assert resp.status_code == 201, _error_message(resp)
-    return resp.json()["token"]
 
 
 def _create_instant_book_listing(host_token: str) -> int:
@@ -175,15 +177,15 @@ def listing_with_confirmed_booking():
     pay_resp = _api("POST", f"/api/bookings/{booking_id}/payments", token=renter_token)
     assert pay_resp.status_code == 200, _error_message(pay_resp)
     pay_body = pay_resp.json()
-    assert (
-        pay_body.get("mock") is True
-    ), "integration tests expect mock payment (unset STRIPE_SECRET_KEY in CI)"
+    assert pay_body.get("mock") is True, (
+        "integration tests expect mock payment (unset STRIPE_SECRET_KEY in CI)"
+    )
     detail_resp = _api("GET", f"/api/bookings/{booking_id}", token=renter_token)
     assert detail_resp.status_code == 200, _error_message(detail_resp)
     booking_status = detail_resp.json()["booking"]["status"]
-    assert (
-        booking_status == "CONFIRMED"
-    ), f"expected instant-book payment to confirm booking, got {booking_status}"
+    assert booking_status == "CONFIRMED", (
+        f"expected instant-book payment to confirm booking, got {booking_status}"
+    )
     yield listing_id, booking_id
     _delete_booking(booking_id)
     if delete_listing:

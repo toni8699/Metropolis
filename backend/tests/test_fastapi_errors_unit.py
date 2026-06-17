@@ -9,6 +9,7 @@ from metropolis.core.errors import raise_for_service_result
 def test_raise_for_service_result_ok_statuses() -> None:
     raise_for_service_result({"status": "success"})
     raise_for_service_result({"status": "ok"})
+    raise_for_service_result({"status": "pending_verification"})
 
 
 def test_raise_for_service_result_maps_errors() -> None:

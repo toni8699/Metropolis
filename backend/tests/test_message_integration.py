@@ -37,15 +37,22 @@ def _api(method: str, path: str, *, json: dict | None = None, token: str | None 
 
 
 def _register(prefix: str) -> tuple[str, int]:
+    import psycopg2
+    from auth_test_helpers import register_and_login_http
+
     email = f"{prefix}-{uuid.uuid4().hex[:8]}@example.com"
-    resp = _api(
-        "POST",
-        "/api/auth/register",
-        json={"email": email, "password": "MsgTest123!", "fullName": prefix},
+    token = register_and_login_http(
+        API_URL,
+        DATABASE_URL,
+        email=email,
+        password="MsgTest123!",
+        full_name=prefix,
     )
-    assert resp.status_code == 201, resp.text
-    body = resp.json()
-    return body["token"], int(body["user"]["userId"])
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT user_id FROM app_user WHERE email = %s", (email,))
+            user_id = int(cur.fetchone()[0])
+    return token, user_id
 
 
 def _create_listing(host_token: str) -> int:

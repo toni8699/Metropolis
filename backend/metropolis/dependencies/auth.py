@@ -89,6 +89,21 @@ def require_admin(user: UserContext = Depends(get_current_user)) -> UserContext:
     return user
 
 
+def verified_user_required(user: UserContext = Depends(get_current_user)) -> UserContext:
+    if user.is_admin:
+        return user
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT is_verified FROM app_user WHERE user_id = %s",
+                (user.user_id,),
+            )
+            row = cur.fetchone()
+    if not row or not row.get("is_verified"):
+        raise HTTPException(status_code=403, detail="EMAIL_NOT_VERIFIED")
+    return user
+
+
 def get_optional_user(
     creds: HTTPAuthorizationCredentials | None = Depends(http_bearer),
 ) -> UserContext | None:

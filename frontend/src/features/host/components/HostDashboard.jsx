@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import Layout from "@/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
@@ -6,7 +6,7 @@ import { useGoogleMaps } from "@/context/GoogleMapsProvider";
 import { useHostDashboardData } from "@/features/host/hooks/useHostDashboardData";
 import { useListingForm } from "@/features/host/hooks/useListingForm";
 import { useHostDashboardTabs } from "@/features/host/hooks/useHostDashboardTabs";
-import { getNavItems, getPageTitle } from "@/features/host/lib/dashboardNav";
+import { getNavItems, getPageTitle, TAB } from "@/features/host/lib/dashboardNav";
 import HostDashboardShell from "@/features/host/components/dashboard/HostDashboardShell";
 import HostDashboardSidebar from "@/features/host/components/dashboard/HostDashboardSidebar";
 import HostDashboardHeader from "@/features/host/components/dashboard/HostDashboardHeader";
@@ -15,7 +15,7 @@ import HostDashboardContent from "@/features/host/components/dashboard/HostDashb
 
 export default function HostDashboard({ mode = "admin" }) {
   const location = useLocation();
-  const { refreshMe } = useAuth();
+  const { refreshMe, ensureVerifiedEmail } = useAuth();
   const isAdmin = mode === "admin";
   const navItems = useMemo(() => getNavItems(isAdmin), [isAdmin]);
   const { apiKey, isLoaded: isMapLoaded } = useGoogleMaps();
@@ -23,6 +23,16 @@ export default function HostDashboard({ mode = "admin" }) {
   const data = useHostDashboardData({ isAdmin, pathname: location.pathname });
   const { activeTab, setActiveTab, requestTabChange, setConfirmLeaveIfDirty } =
     useHostDashboardTabs();
+
+  const guardedTabChange = useCallback(
+    (tabId) => {
+      if (!isAdmin && tabId === TAB.create_listing && !ensureVerifiedEmail()) {
+        return;
+      }
+      requestTabChange(tabId);
+    },
+    [isAdmin, ensureVerifiedEmail, requestTabChange],
+  );
 
   const form = useListingForm({
     isAdmin,
@@ -49,7 +59,7 @@ export default function HostDashboard({ mode = "admin" }) {
           isAdmin={isAdmin}
           navItems={navItems}
           activeTab={activeTab}
-          onTabChange={requestTabChange}
+          onTabChange={guardedTabChange}
         />
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <HostDashboardHeader
@@ -74,7 +84,7 @@ export default function HostDashboard({ mode = "admin" }) {
             apiKey={apiKey}
             isMapLoaded={isMapLoaded}
             form={form}
-            onRequestTabChange={requestTabChange}
+            onRequestTabChange={guardedTabChange}
             onDeleteListing={data.deleteListing}
             onBookingDecision={data.handleBookingDecision}
             onKycDecision={data.decideKyc}

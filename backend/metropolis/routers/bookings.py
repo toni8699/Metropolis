@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from metropolis.core.errors import raise_for_service_result
 from metropolis.core.limiter import limiter, rate_limit_user_or_ip
-from metropolis.dependencies.auth import UserContext, get_current_user
+from metropolis.dependencies.auth import UserContext, get_current_user, verified_user_required
 from metropolis.hateoas import with_booking_links
 from metropolis.schemas.booking_models import (
     BookingCollectionResponse,
@@ -78,9 +78,9 @@ def list_bookings(
 def create_booking(
     request: Request,
     payload: BookingCreateRequest,
-    user: UserContext = Depends(get_current_user),
+    user: UserContext = Depends(verified_user_required),
 ) -> dict:
-    """Create booking (status PENDING until payment succeeds)."""
+    """Create booking (status PENDING until payment succeeds). Requires verified email."""
     try:
         result = booking_service.create_booking(
             user.user_id,

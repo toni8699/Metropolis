@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     # OAuth
     google_oauth_client_id: str = Field(default="", validation_alias="GOOGLE_OAUTH_CLIENT_ID")
 
+    # Email (Resend)
+    resend_api_key: str = Field(default="", validation_alias="RESEND_API_KEY")
+    mail_from: str = Field(default="", validation_alias="MAIL_FROM")
+    frontend_base_url: str = Field(
+        default="http://localhost:5173",
+        validation_alias="FRONTEND_BASE_URL",
+    )
+
     # Redis (Socket.IO message queue, ARQ worker)
     redis_url: str = Field(default="", validation_alias="REDIS_URL")
 
@@ -111,6 +119,9 @@ class Settings(BaseSettings):
         "google_oauth_client_id",
         "redis_url",
         "database_url",
+        "resend_api_key",
+        "mail_from",
+        "frontend_base_url",
         mode="before",
     )
     @classmethod

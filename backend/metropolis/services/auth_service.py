@@ -109,6 +109,17 @@ def _normalize_profile_photo_url(value: str | None) -> str | None | bool:
 
 
 class AuthService:
+    def _format_user_summary(self, user: dict, has_listings: bool) -> dict:
+        return {
+            "userId": user["user_id"],
+            "email": user["email"],
+            "fullName": user.get("full_name"),
+            "role": "admin" if user["is_admin"] else "user",
+            "isAdmin": bool(user["is_admin"]),
+            "hasListings": has_listings,
+            "isVerified": bool(user.get("is_verified")),
+        }
+
     def _format_me_user(
         self,
         user: dict,
@@ -138,11 +149,11 @@ class AuthService:
             "role": "admin" if user["is_admin"] else "user",
             "isAdmin": bool(user["is_admin"]),
             "hasListings": has_listings,
+            "isVerified": bool(user.get("is_verified")),
         }
 
-    def register(self, email: str, password: str, full_name: str | None, role: str | None) -> dict:
-        normalized_role = (role or "user").strip().lower()
-        is_admin = normalized_role == "admin"
+    def register(self, email: str, password: str, full_name: str) -> dict:
+        verification_token = secrets.token_urlsafe(32)
 
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -152,16 +163,18 @@ class AuthService:
 
                 cur.execute(
                     """
-                    INSERT INTO app_user (email, password_hash, role, full_name, is_admin)
-                    VALUES (%s, %s, %s::user_role, %s, %s)
-                    RETURNING user_id, email, full_name, is_admin
+                    INSERT INTO app_user (
+                        email, password_hash, role, full_name, is_admin,
+                        is_verified, verification_token
+                    )
+                    VALUES (%s, %s, 'RENTER'::user_role, %s, FALSE, FALSE, %s)
+                    RETURNING user_id, email, full_name, is_admin, is_verified
                     """,
                     (
                         email,
                         generate_password_hash(password),
-                        "ADMIN" if is_admin else "RENTER",
                         full_name,
-                        is_admin,
+                        verification_token,
                     ),
                 )
                 user = cur.fetchone()
@@ -176,15 +189,88 @@ class AuthService:
         )
         return {
             "status": "success",
+            "message": "Check your email to verify your account.",
             "token": token,
-            "user": {
-                "userId": user["user_id"],
-                "email": user["email"],
-                "fullName": user["full_name"],
-                "role": "admin" if user["is_admin"] else "user",
-                "isAdmin": bool(user["is_admin"]),
-                "hasListings": has_listings,
-            },
+            "user": self._format_user_summary(user, has_listings),
+            "verification_token": verification_token,
+        }
+
+    def resend_verification(self, user_id: int) -> dict:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT user_id, email, is_verified
+                    FROM app_user
+                    WHERE user_id = %s
+                    """,
+                    (user_id,),
+                )
+                user = cur.fetchone()
+                if not user:
+                    return {"status": "not_found", "message": "User not found."}
+                if user.get("is_verified"):
+                    return {"status": "success", "message": "Email already verified."}
+
+                verification_token = secrets.token_urlsafe(32)
+                cur.execute(
+                    """
+                    UPDATE app_user
+                    SET verification_token = %s
+                    WHERE user_id = %s
+                    """,
+                    (verification_token, user_id),
+                )
+                conn.commit()
+
+        return {
+            "status": "success",
+            "message": "Verification email sent.",
+            "email": user["email"],
+            "verification_token": verification_token,
+        }
+
+    def verify_email(self, token: str) -> dict:
+        normalized = (token or "").strip()
+        if not normalized:
+            return {"status": "validation_error", "message": "Verification token is required."}
+
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT user_id, is_verified
+                    FROM app_user
+                    WHERE verification_token = %s
+                    """,
+                    (normalized,),
+                )
+                user = cur.fetchone()
+                if not user:
+                    return {
+                        "status": "validation_error",
+                        "message": "Invalid or expired verification link.",
+                    }
+
+                if user.get("is_verified"):
+                    return {
+                        "status": "success",
+                        "message": "Email already verified.",
+                    }
+
+                cur.execute(
+                    """
+                    UPDATE app_user
+                    SET is_verified = TRUE
+                    WHERE user_id = %s
+                    """,
+                    (user["user_id"],),
+                )
+                conn.commit()
+
+        return {
+            "status": "success",
+            "message": "Your email has been verified.",
         }
 
     def login(self, email: str, password: str) -> dict:
@@ -192,7 +278,7 @@ class AuthService:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     """
-                    SELECT user_id, email, full_name, password_hash, is_admin
+                    SELECT user_id, email, full_name, password_hash, is_admin, is_verified
                     FROM app_user
                     WHERE email = %s
                     """,
@@ -213,14 +299,7 @@ class AuthService:
         return {
             "status": "success",
             "token": token,
-            "user": {
-                "userId": user["user_id"],
-                "email": user["email"],
-                "fullName": user["full_name"],
-                "role": "admin" if user["is_admin"] else "user",
-                "isAdmin": bool(user["is_admin"]),
-                "hasListings": has_listings,
-            },
+            "user": self._format_user_summary(user, has_listings),
         }
 
     def me(self, user_id: int) -> dict:
@@ -230,7 +309,7 @@ class AuthService:
                     """
                     SELECT user_id, email, full_name, phone, profile_photo_url,
                            lives, about, languages, work, is_approved_to_drive,
-                           created_at, is_admin
+                           created_at, is_admin, is_verified
                     FROM app_user
                     WHERE user_id = %s
                     """,
@@ -382,7 +461,7 @@ class AuthService:
                     WHERE user_id = %s
                     RETURNING user_id, email, full_name, phone, profile_photo_url,
                               lives, about, languages, work, is_approved_to_drive,
-                              created_at, is_admin
+                              created_at, is_admin, is_verified
                     """,
                     tuple(params),
                 )
@@ -446,7 +525,7 @@ class AuthService:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     """
-                    SELECT user_id, email, full_name, is_admin
+                    SELECT user_id, email, full_name, is_admin, is_verified
                     FROM app_user
                     WHERE email = %s
                     """,
@@ -456,9 +535,12 @@ class AuthService:
                 if not user:
                     cur.execute(
                         """
-                        INSERT INTO app_user (email, password_hash, role, full_name, is_admin)
-                        VALUES (%s, %s, 'RENTER'::user_role, %s, FALSE)
-                        RETURNING user_id, email, full_name, is_admin
+                        INSERT INTO app_user (
+                            email, password_hash, role, full_name, is_admin,
+                            is_verified, verification_token
+                        )
+                        VALUES (%s, %s, 'RENTER'::user_role, %s, FALSE, TRUE, NULL)
+                        RETURNING user_id, email, full_name, is_admin, is_verified
                         """,
                         (email, generate_password_hash(secrets.token_urlsafe(32)), full_name),
                     )
@@ -475,12 +557,5 @@ class AuthService:
         return {
             "status": "success",
             "token": token,
-            "user": {
-                "userId": user["user_id"],
-                "email": user["email"],
-                "fullName": user["full_name"],
-                "role": "admin" if user["is_admin"] else "user",
-                "isAdmin": bool(user["is_admin"]),
-                "hasListings": has_listings,
-            },
+            "user": self._format_user_summary(user, has_listings),
         }

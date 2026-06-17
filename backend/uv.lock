@@ -718,6 +718,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "python-socketio" },
     { name = "redis" },
+    { name = "resend" },
     { name = "slowapi" },
     { name = "sqlalchemy" },
     { name = "stripe" },
@@ -750,6 +751,7 @@ requires-dist = [
     { name = "python-socketio", specifier = ">=5.11,<6" },
     { name = "redis", specifier = ">=5.0,<6" },
     { name = "requests", marker = "extra == 'dev'", specifier = ">=2.32,<3" },
+    { name = "resend", specifier = ">=2.32.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6,<0.8" },
     { name = "slowapi", specifier = ">=0.1.9,<0.2" },
     { name = "sqlalchemy", specifier = ">=2.0,<3" },
@@ -1165,6 +1167,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed", size = 142856 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl", hash = "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0", size = 73075 },
+]
+
+[[package]]
+name = "resend"
+version = "2.32.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ff/c7/60aec66cc80193cddc1f8e15d356ecd9de5c087320bb221c214ccf201f03/resend-2.32.1.tar.gz", hash = "sha256:e5e7a7ffad510b449c570645476ce662781996ce9a5e08076dd2d3a242a60485", size = 46193 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/76/37/751bd31698b57c075aa2ddf4d98aaff6e2e9b625923d4aad67f6cc950379/resend-2.32.1-py2.py3-none-any.whl", hash = "sha256:bed52db24beb2657ac09ddc19e046ed7ddfb510d43d4c5e8d00aa8f9483acee2", size = 72659 },
 ]
 
 [[package]]
