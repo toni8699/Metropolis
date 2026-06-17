@@ -35,9 +35,7 @@ def test_parse_listing_list_query_accepts_start_end_aliases():
     from metropolis.routers.listings import parse_listing_list_query
 
     request = Mock()
-    request.query_params = QueryParams(
-        "start=2099-06-02T10:00:00Z&end=2099-06-04T10:00:00Z"
-    )
+    request.query_params = QueryParams("start=2099-06-02T10:00:00Z&end=2099-06-04T10:00:00Z")
     query = parse_listing_list_query(request)
     assert query.start_at is not None
     assert query.end_at is not None
