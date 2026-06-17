@@ -30,6 +30,10 @@
   .neo-warn {
     @apply rounded-xl border-2 border-black bg-vroom-gold/40 px-4 py-3 text-sm font-semibold text-vroom-heading;
   }
+
+  .neo-success {
+    @apply rounded-xl border-2 border-black bg-vroom-sage px-4 py-3 text-sm font-semibold text-vroom-heading;
+  }
 }
 
 :root {
