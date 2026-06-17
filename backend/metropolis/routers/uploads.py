@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
-from metropolis.core.errors import raise_werkzeug_as_http
+from metropolis.core.errors import raise_for_service_result
 from metropolis.dependencies.auth import UserContext, get_current_user
 from metropolis.schemas.upload_models import (
     UploadCompleteRequest,
@@ -23,16 +23,13 @@ def presign_upload(
     user: UserContext = Depends(get_current_user),
 ) -> dict:
     """Create a presigned S3 upload URL."""
-    try:
-        return uploads_service.presign_upload(
-            user.user_id,
-            user.service_role(),
-            payload.model_dump(by_alias=True),
-        )
-    except HTTPException:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        raise_werkzeug_as_http(exc)
+    result = uploads_service.presign_upload(
+        user.user_id,
+        user.service_role(),
+        payload.model_dump(by_alias=True),
+    )
+    raise_for_service_result(result)
+    return result
 
 
 @router.post("/complete", response_model=UploadCompleteResponse)
@@ -41,13 +38,10 @@ def complete_upload(
     user: UserContext = Depends(get_current_user),
 ) -> dict:
     """Persist uploaded file metadata in database."""
-    try:
-        return uploads_service.complete_upload(
-            user.user_id,
-            user.service_role(),
-            payload.model_dump(by_alias=True),
-        )
-    except HTTPException:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        raise_werkzeug_as_http(exc)
+    result = uploads_service.complete_upload(
+        user.user_id,
+        user.service_role(),
+        payload.model_dump(by_alias=True),
+    )
+    raise_for_service_result(result)
+    return result

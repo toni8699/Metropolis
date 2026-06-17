@@ -10,6 +10,7 @@ import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
 import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
 import InstantBookToggle from "@/features/host/components/InstantBookToggle";
+import { markRecentListingCreated } from "@/features/host/lib/recentListing";
 
 const TOTAL_STEPS = 4;
 const vehicleTypes = ["Sedan", "SUV", "Truck", "Electric"];
@@ -191,7 +192,8 @@ export default function HostOnboardingFlow() {
       await uploadListingPhotos(listingId, imageFiles);
 
       await refreshMe();
-      navigate("/host/dashboard");
+      markRecentListingCreated();
+      navigate(`/host/success/${listingId}`);
     } catch (error) {
       setSubmitError(error?.message || "Could not publish listing.");
     } finally {

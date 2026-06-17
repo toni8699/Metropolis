@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
-
-os.environ.setdefault("FLASK_DEBUG", "1")
 
 from metropolis.services.auth_service import _joined_label
 

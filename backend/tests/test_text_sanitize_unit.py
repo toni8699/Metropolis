@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
-os.environ.setdefault("FLASK_DEBUG", "1")
-
 from metropolis.text_sanitize import sanitize_display_text
 
 

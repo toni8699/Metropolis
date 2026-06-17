@@ -98,22 +98,7 @@ docker compose up --build
 
 ## Tests
 
-```bash
-# Backend unit + integration tests (backend must be running)
-docker compose --profile test run --rm test
-
-# Or locally with uv
-cd backend && uv sync --extra dev && uv run pytest tests -v
-
-# Frontend unit tests
-cd frontend && npm test
-
-# Lint
-cd backend && uv run ruff check metropolis tests
-cd frontend && npm run lint
-```
-
-Backend tests live in `backend/tests/`. `conftest.py` loads project `.env` for integration tests.
+See [README.md — Testing](README.md#testing). Integration tests skip automatically when `DATABASE_URL` is remote (Neon).
 
 ---
 
@@ -146,6 +131,6 @@ uv export --frozen --no-dev -o requirements.txt
 | `STRIPE_WEBHOOK_SECRET` | No | Required only for webhook verification |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `S3_BUCKET` | No | Required for photo/KYC uploads |
 | `GOOGLE_OAUTH_CLIENT_ID` | No | Required for Google sign-in |
-| `FLASK_DEBUG` | No | Set to `0` in production |
+| `DEBUG` | No | Set to `0` in production |
 
-Security checks in `metropolis/security.py` block `FLASK_DEBUG=0` with a weak `JWT_SECRET` or wildcard CORS.
+Security checks in `metropolis/security.py` block `DEBUG=0` with a weak `JWT_SECRET` or wildcard CORS.

@@ -1,4 +1,4 @@
-"""Pydantic auth / profile schemas (FastAPI — mirrors Marshmallow auth.py)."""
+"""Pydantic auth / profile schemas."""
 
 from __future__ import annotations
 

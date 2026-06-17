@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiPatch, apiPost } from "@/shared/api/api";
 import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
@@ -60,6 +60,10 @@ export function useListingForm({
   const [pendingPhotoPreviewUrls, setPendingPhotoPreviewUrls] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isSavingListing, setIsSavingListing] = useState(false);
+  const [createSuccessListing, setCreateSuccessListing] = useState(null);
+  const [updateSaveSignal, setUpdateSaveSignal] = useState(0);
+  const [baselineKey, setBaselineKey] = useState(0);
+  const baselineRef = useRef("");
   const [addressQuery, setAddressQuery] = useState("");
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
@@ -135,6 +139,44 @@ export function useListingForm({
     : pendingPhotoCount >= MIN_LISTING_PHOTOS;
   const hasConfirmedLocation =
     Number.isFinite(Number(listingForm.latitude)) && Number.isFinite(Number(listingForm.longitude));
+
+  const getFormSnapshot = useCallback(
+    () =>
+      JSON.stringify({
+        listingForm,
+        addressQuery,
+        pendingPhotoCount,
+        locationMode,
+        editingListingId,
+      }),
+    [listingForm, addressQuery, pendingPhotoCount, locationMode, editingListingId],
+  );
+
+  const syncFormBaseline = () => {
+    baselineRef.current = getFormSnapshot();
+  };
+
+  useEffect(() => {
+    syncFormBaseline();
+  }, [baselineKey, getFormSnapshot]);
+
+  const isDirty = useMemo(() => {
+    if (!baselineRef.current) return false;
+    return getFormSnapshot() !== baselineRef.current;
+  }, [
+    baselineKey,
+    getFormSnapshot,
+    listingForm,
+    addressQuery,
+    pendingPhotoCount,
+    locationMode,
+    editingListingId,
+  ]);
+
+  const confirmLeaveIfDirty = () => {
+    if (!isDirty) return true;
+    return window.confirm("You have unsaved changes. Are you sure you want to leave?");
+  };
 
   const applyHubBranchSelection = (branchIdValue) => {
     const selectedBranch =
@@ -301,6 +343,7 @@ export function useListingForm({
     }
 
     setIsSavingListing(true);
+    const wasEditing = Boolean(editingListingId);
     try {
       const usesCompanyDropdown = isAdmin && locationMode === "hub";
       const payload = omitUndefined({
@@ -343,7 +386,7 @@ export function useListingForm({
       });
 
       let targetListingId = null;
-      if (editingListingId) {
+      if (wasEditing) {
         await apiPatch(`/api/listings/${editingListingId}`, payload, true);
         targetListingId = Number(editingListingId);
       } else {
@@ -371,37 +414,29 @@ export function useListingForm({
         );
       }
 
-      let uploadedCount = 0;
       if (targetListingId && pendingPhotoFiles.length) {
-        const uploadResult = await uploadListingPhotos(targetListingId, {
+        await uploadListingPhotos(targetListingId, {
           skipRefresh: true,
           skipSuccess: true,
         });
-        uploadedCount = uploadResult?.uploadedCount || 0;
       }
-      setListingForm((prev) => ({
-        ...emptyListingForm,
-        isCompanyOwned: isAdmin,
-        areaId: prev.areaId || "",
-        branchId: prev.branchId || "",
-      }));
-      setLocationMode(isAdmin ? "hub" : "custom");
-      setEditingListingId(null);
-      setSuccess(
-        targetListingId
-          ? uploadedCount > 0
-            ? editingListingId
-              ? `Listing updated and ${uploadedCount} photo(s) uploaded.`
-              : `Listing created and ${uploadedCount} photo(s) uploaded.`
-            : editingListingId
-              ? "Listing updated successfully."
-              : "Listing created successfully."
-          : "Listing created successfully.",
-      );
-      if (!editingListingId) {
+
+      if (wasEditing) {
+        setUpdateSaveSignal((count) => count + 1);
+        resetFormState();
+        await refresh();
+      } else {
+        setCreateSuccessListing({
+          listingId: targetListingId,
+          title:
+            listingForm.title?.trim() ||
+            `${listingForm.make || ""} ${listingForm.model || ""}`.trim() ||
+            "Your listing",
+          pricePerDay: Number(listingForm.pricePerDay),
+        });
         await refreshMe().catch(() => {});
+        await refresh();
       }
-      await refresh();
     } catch (err) {
       setError(err?.message || (editingListingId ? "Could not update listing." : "Could not create listing."));
     } finally {
@@ -409,7 +444,31 @@ export function useListingForm({
     }
   };
 
+  const resetFormState = () => {
+    setListingForm((prev) => ({
+      ...emptyListingForm,
+      isCompanyOwned: isAdmin,
+      areaId: prev.areaId || "",
+      branchId: prev.branchId || "",
+    }));
+    setPendingPhotoFiles([]);
+    setAddressQuery("");
+    setLocationMode(isAdmin ? "hub" : "custom");
+    setEditingListingId(null);
+    setBaselineKey((key) => key + 1);
+  };
+
+  const dismissCreateSuccess = (nextTab = null) => {
+    setCreateSuccessListing(null);
+    resetFormState();
+    if (nextTab) {
+      setActiveTab(nextTab);
+    }
+  };
+
   const startEditListing = (listing) => {
+    if (!confirmLeaveIfDirty()) return;
+
     const resolvedAddress = listing.pickupAddress || "";
     const resolvedLat = listing.latitude ?? listing.lat ?? null;
     const resolvedLng = listing.longitude ?? listing.lng ?? null;
@@ -456,19 +515,12 @@ export function useListingForm({
     setActiveTab("create_listing");
     setError("");
     setSuccess("");
+    setBaselineKey((key) => key + 1);
   };
 
   const cancelForm = () => {
-    setListingForm((prev) => ({
-      ...emptyListingForm,
-      isCompanyOwned: isAdmin,
-      areaId: prev.areaId,
-      branchId: prev.branchId,
-    }));
-    setPendingPhotoFiles([]);
-    setAddressQuery("");
-    setLocationMode(isAdmin ? "hub" : "custom");
-    setEditingListingId(null);
+    if (!confirmLeaveIfDirty()) return;
+    resetFormState();
     setActiveTab("overview");
   };
 
@@ -557,6 +609,11 @@ export function useListingForm({
     isDragOver,
     setIsDragOver,
     isSavingListing,
+    createSuccessListing,
+    updateSaveSignal,
+    isDirty,
+    confirmLeaveIfDirty,
+    dismissCreateSuccess,
     addressQuery,
     setAddressQuery,
     placePredictions,

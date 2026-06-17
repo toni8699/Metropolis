@@ -1,10 +1,10 @@
-"""Pydantic listing schemas (FastAPI — mirrors Marshmallow marketplace.py)."""
+"""Pydantic listing schemas."""
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import AliasChoices, ConfigDict, Field, computed_field, model_validator
 from pydantic.alias_generators import to_camel
 
 from metropolis.schemas.camel import CamelModel
@@ -34,28 +34,31 @@ class ListingAvailabilityResponse(ListingAvailabilityRequest):
 
 class ListingCreateRequest(CamelModel):
     title: str
-    brand: str | None = None
-    make: str | None = None
+    make: str | None = Field(default=None, validation_alias=AliasChoices("make", "brand"))
     model: str | None = None
     year: int | None = None
     mileage: int | None = None
     vehicle_class_id: int | None = None
     description: str | None = None
-    guidelines: str | None = None
+    guidelines: str | None = Field(
+        default=None, validation_alias=AliasChoices("guidelines", "rules")
+    )
     transmission: str | None = None
     fuel_type: str | None = None
     seats: int | None = None
     doors: int | None = None
     features: list[str] | None = None
-    images: list[str] | None = None
-    latitude: float | None = None
-    longitude: float | None = None
-    rules: str | None = None
+    images: list[str] | None = Field(
+        default=None, validation_alias=AliasChoices("images", "photos")
+    )
+    lat: float | None = Field(
+        default=None, validation_alias=AliasChoices("lat", "latitude")
+    )
+    lng: float | None = Field(
+        default=None, validation_alias=AliasChoices("lng", "longitude")
+    )
     pickup_notes_template: str | None = None
     price_per_day: float
-    photos: list[str] | None = None
-    lat: float | None = None
-    lng: float | None = None
     city_zone: str | None = None
     pickup_address: str | None = None
     is_company_owned: bool | None = None
@@ -75,32 +78,35 @@ class ListingUpdateRequest(CamelModel):
     )
 
     title: str | None = None
-    brand: str | None = None
-    make: str | None = None
+    make: str | None = Field(default=None, validation_alias=AliasChoices("make", "brand"))
     model: str | None = None
     year: int | None = None
     mileage: int | None = None
     vehicle_class_id: int | None = None
     description: str | None = None
-    guidelines: str | None = None
+    guidelines: str | None = Field(
+        default=None, validation_alias=AliasChoices("guidelines", "rules")
+    )
     transmission: str | None = None
     fuel_type: str | None = None
     seats: int | None = None
     doors: int | None = None
     features: list[str] | None = None
-    images: list[str] | None = None
-    latitude: float | None = None
-    longitude: float | None = None
-    rules: str | None = None
+    images: list[str] | None = Field(
+        default=None, validation_alias=AliasChoices("images", "photos")
+    )
+    lat: float | None = Field(
+        default=None, validation_alias=AliasChoices("lat", "latitude")
+    )
+    lng: float | None = Field(
+        default=None, validation_alias=AliasChoices("lng", "longitude")
+    )
     pickup_notes_template: str | None = None
     pickup_address: str | None = None
     price_per_day: float | None = None
-    photos: list[str] | None = None
     active: bool | None = None
     status: str | None = None
     is_company_owned: bool | None = None
-    lat: float | None = None
-    lng: float | None = None
     city_zone: str | None = None
     instant_book: bool | None = None
 
@@ -119,34 +125,23 @@ class ListingUpdateRequest(CamelModel):
 class ListingListQuery(CamelModel):
     """GET /api/listings query parameters (public search + scoped lists)."""
 
-    model_config = ConfigDict(
-        populate_by_name=True,
-        alias_generator=to_camel,
-        serialize_by_alias=True,
-        extra="ignore",
-    )
-
     scope: str | None = None
     bbox: str | None = Field(
         default=None,
         description="minLng,minLat,maxLng,maxLat",
     )
-    start_at: datetime | None = None
-    end_at: datetime | None = None
-    start: datetime | None = None
-    end: datetime | None = None
-    city_zone: str | None = None
-
-    def to_service_query(self) -> dict:
-        data = self.model_dump(by_alias=True, exclude_none=True)
-        # ponytail: service reads start_at/end_at or start/end — not camelCase startAt
-        if data.get("start_at") is None:
-            data["start_at"] = data.get("startAt") or data.get("start")
-        if data.get("end_at") is None:
-            data["end_at"] = data.get("endAt") or data.get("end")
-        if data.get("city_zone") is None and data.get("cityZone") is not None:
-            data["city_zone"] = data["cityZone"]
-        return data
+    start_at: datetime | None = Field(
+        default=None,
+        validation_alias=AliasChoices("start_at", "start", "startAt"),
+    )
+    end_at: datetime | None = Field(
+        default=None,
+        validation_alias=AliasChoices("end_at", "end", "endAt"),
+    )
+    city_zone: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("city_zone", "cityZone"),
+    )
 
 
 class ListingResponse(CamelModel):
@@ -154,7 +149,6 @@ class ListingResponse(CamelModel):
     vehicle_id: int | None = None
     source_type: str
     title: str
-    brand: str | None = None
     make: str | None = None
     model: str | None = None
     year: int | None = None
@@ -168,12 +162,10 @@ class ListingResponse(CamelModel):
     doors: int | None = None
     features: list[str] | None = None
     images: list[str] | None = None
-    latitude: float | None = None
-    longitude: float | None = None
-    rules: str | None = None
+    lat: float | None = None
+    lng: float | None = None
     pickup_notes_template: str | None = None
     price_per_day: float
-    photos: list[str]
     active: bool
     status: str | None = None
     owner_user_id: int | None = None
@@ -181,8 +173,6 @@ class ListingResponse(CamelModel):
     owner_name: str | None = None
     owner_profile_photo_url: str | None = None
     fleet_vehicle_vin: str | None = None
-    lat: float | None = None
-    lng: float | None = None
     city_zone: str | None = None
     geohash: str | None = None
     pickup_address: str | None = None
@@ -196,6 +186,31 @@ class ListingResponse(CamelModel):
     review_count: int
     instant_book: bool
     links: dict[str, LinkResponse] | None = Field(default=None, alias="_links")
+
+    @computed_field
+    @property
+    def brand(self) -> str | None:
+        return self.make
+
+    @computed_field
+    @property
+    def latitude(self) -> float | None:
+        return self.lat
+
+    @computed_field
+    @property
+    def longitude(self) -> float | None:
+        return self.lng
+
+    @computed_field
+    @property
+    def photos(self) -> list[str] | None:
+        return self.images
+
+    @computed_field
+    @property
+    def rules(self) -> str | None:
+        return self.guidelines
 
 
 class ListingCollectionResponse(CamelModel):

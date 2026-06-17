@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
-os.environ.setdefault("FLASK_DEBUG", "1")
-
 from metropolis.services.auth_service import _normalize_profile_photo_url
 
 

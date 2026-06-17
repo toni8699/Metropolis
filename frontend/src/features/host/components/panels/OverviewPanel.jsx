@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import OptimizationChecklist from "@/features/host/components/OptimizationChecklist";
 import { AnalyticsCard } from "@/features/host/components/form/Fields";
 import {
   buildBookingsByLocation,
@@ -21,7 +22,7 @@ import {
 
 const pieColors = ["#4f46e5", "#818cf8", "#c7d2fe"];
 
-export default function OverviewPanel({ analytics, bookings, isAdmin }) {
+export default function OverviewPanel({ analytics, bookings, listings = [], isAdmin }) {
   const recentBookings = useMemo(
     () =>
       bookings.slice(0, 5).map((booking) => ({
@@ -40,6 +41,8 @@ export default function OverviewPanel({ analytics, bookings, isAdmin }) {
 
   return (
     <>
+      <OptimizationChecklist listings={listings} isAdmin={isAdmin} />
+
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 p-11">
         <AnalyticsCard label="Total Listings" value={analytics?.listingCount ?? 0} />
         <AnalyticsCard label="Total Bookings" value={analytics?.bookingCount ?? 0} />

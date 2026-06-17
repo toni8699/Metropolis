@@ -101,6 +101,15 @@ export default function HostDashboard({ mode = "admin" }) {
   const isListingsTab =
     activeTab === "listings" || activeTab === "fleet_listings" || activeTab === "host_listings";
 
+  const listingsTabId = isAdmin ? "fleet_listings" : "listings";
+
+  const requestTabChange = (tabId) => {
+    if (activeTab === "create_listing" && tabId !== "create_listing" && !form.confirmLeaveIfDirty()) {
+      return;
+    }
+    setActiveTab(tabId);
+  };
+
   return (
     <Layout>
       <div className="fixed inset-x-0 top-28 md:top-[104px] bottom-0 z-0 flex border-t-4 border-black bg-[#D0F0C0] overflow-hidden">
@@ -117,7 +126,7 @@ export default function HostDashboard({ mode = "admin" }) {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => requestTabChange(item.id)}
                   className={`w-[calc(100%-2rem)] mx-4 px-4 py-2 rounded-lg flex items-center gap-3 text-sm transition ${
                     isActive
                       ? "border-2 border-black bg-[#dbe8be] text-[#183B1E] font-extrabold shadow-[3px_3px_0px_0px_rgba(24,59,30,0.35)]"
@@ -160,7 +169,12 @@ export default function HostDashboard({ mode = "admin" }) {
             )}
 
             {activeTab === "overview" && (
-              <OverviewPanel analytics={analytics} bookings={bookings} isAdmin={isAdmin} />
+              <OverviewPanel
+                analytics={analytics}
+                bookings={bookings}
+                listings={listings}
+                isAdmin={isAdmin}
+              />
             )}
 
             {activeTab === "create_listing" && (
@@ -170,6 +184,7 @@ export default function HostDashboard({ mode = "admin" }) {
                 companyLocations={companyLocations}
                 apiKey={apiKey}
                 isMapLoaded={isMapLoaded}
+                listingsTabId={listingsTabId}
               />
             )}
 
@@ -186,7 +201,7 @@ export default function HostDashboard({ mode = "admin" }) {
                 showHostColumn={activeTab === "host_listings"}
                 showTypeColumn={isAdmin && activeTab !== "host_listings"}
                 showAddButton={activeTab !== "host_listings"}
-                onAdd={() => setActiveTab("create_listing")}
+                onAdd={() => requestTabChange("create_listing")}
                 onEdit={form.startEditListing}
                 onDelete={deleteListing}
               />

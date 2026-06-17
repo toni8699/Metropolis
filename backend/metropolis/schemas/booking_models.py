@@ -1,4 +1,4 @@
-"""Pydantic booking/payment schemas (FastAPI — mirrors Marshmallow bookings.py)."""
+"""Pydantic booking/payment schemas."""
 
 from __future__ import annotations
 

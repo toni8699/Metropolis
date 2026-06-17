@@ -7,16 +7,9 @@ from __future__ import annotations
 
 import os
 import uuid
-from pathlib import Path
 
 import pytest
-from dotenv import load_dotenv
 from fastapi.testclient import TestClient
-
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-
-os.environ.setdefault("FLASK_DEBUG", "1")
-os.environ["RATELIMIT_ENABLED"] = "0"
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 
@@ -28,8 +21,9 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def client() -> TestClient:
-    from metropolis.main import app
+    from metropolis.main import create_app
 
+    app = create_app()
     app.state.limiter.enabled = False
     with TestClient(app) as test_client:
         yield test_client
@@ -96,6 +90,15 @@ def test_login_wrong_password_rejected(client: TestClient) -> None:
     assert resp.json()["status"] == "validation_error"
 
 
+def test_login_unknown_email_rejected(client: TestClient) -> None:
+    resp = client.post(
+        "/api/auth/login",
+        json={"email": "nobody@example.com", "password": "Whatever123!"},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["status"] == "validation_error"
+
+
 def test_me_requires_auth(client: TestClient) -> None:
     resp = client.get("/api/me")
     assert resp.status_code == 401
@@ -134,6 +137,32 @@ def test_patch_me_updates_profile(client: TestClient) -> None:
     assert resp.json()["user"]["about"] == "Hello world"
 
 
+def test_patch_me_blank_profile_fields_become_null(client: TestClient) -> None:
+    reg = client.post(
+        "/api/auth/register",
+        json={
+            "email": _unique_email("patch-blank"),
+            "password": "PatchBlank123!",
+            "fullName": "Blank User",
+        },
+    )
+    token = reg.json()["token"]
+    resp = client.patch(
+        "/api/me",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"fullName": "   ", "phone": ""},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["user"]["fullName"] is None
+    assert body["user"]["phone"] is None
+
+
+def test_patch_me_requires_auth(client: TestClient) -> None:
+    resp = client.patch("/api/me", json={"fullName": "No Auth"})
+    assert resp.status_code == 401
+
+
 def test_patch_me_rejects_unknown_fields(client: TestClient) -> None:
     email = _unique_email("patch-extra")
     reg = client.post(
@@ -148,3 +177,53 @@ def test_patch_me_rejects_unknown_fields(client: TestClient) -> None:
     )
     assert resp.status_code == 400
     assert resp.json()["status"] == "validation_error"
+
+
+def test_patch_me_rejects_email_and_role_updates(client: TestClient) -> None:
+    email = _unique_email("patch-protected")
+    reg = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": "PatchProt123!", "fullName": "Protected User"},
+    )
+    token = reg.json()["token"]
+
+    email_resp = client.patch(
+        "/api/me",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"email": "hacker@example.com"},
+    )
+    assert email_resp.status_code == 400
+    assert email_resp.json()["status"] == "validation_error"
+
+    role_resp = client.patch(
+        "/api/me",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"role": "admin", "isAdmin": True},
+    )
+    assert role_resp.status_code == 400
+    assert role_resp.json()["status"] == "validation_error"
+
+    me_resp = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+    assert me_resp.status_code == 200
+    body = me_resp.json()["user"]
+    assert body["email"] == email
+    assert body["isAdmin"] is False
+
+
+def test_patch_me_sanitizes_xss_in_full_name(client: TestClient) -> None:
+    reg = client.post(
+        "/api/auth/register",
+        json={
+            "email": _unique_email("patch-xss"),
+            "password": "PatchXss123!",
+            "fullName": "Before",
+        },
+    )
+    token = reg.json()["token"]
+    resp = client.patch(
+        "/api/me",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"fullName": "<script>alert(1)</script>Jane Doe"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["user"]["fullName"] == "Jane Doe"

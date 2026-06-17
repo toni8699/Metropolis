@@ -378,15 +378,17 @@ class ListingService:
     def search_listings(self, query: dict) -> dict:
         clauses = ["COALESCE(l.status, 'ACTIVE') = 'ACTIVE'"]
         params: list = []
-        if query.get("cityZone"):
+        if query.get("city_zone"):
             clauses.append("loc.city_zone = %s")
-            params.append(query["cityZone"])
+            params.append(query["city_zone"])
         if query.get("bbox"):
             min_lng, min_lat, max_lng, max_lat = (float(x) for x in query["bbox"].split(","))
             clauses.extend(["loc.lng BETWEEN %s AND %s", "loc.lat BETWEEN %s AND %s"])
             params.extend([min_lng, max_lng, min_lat, max_lat])
 
         window = _resolve_search_window(query)
+        if isinstance(window, dict):
+            return window
         if window is not None:
             start_at, end_at = window
             clauses.append(_LISTING_AVAILABLE_FOR_WINDOW_SQL)
@@ -600,6 +602,9 @@ class ListingService:
                     return {"status": "not_found", "message": "Listing not found."}
                 if not self._can_manage_listing(actor, listing):
                     return {"status": "forbidden", "message": "No listing access."}
+                from metropolis.services import uploads_service
+
+                uploads_service.delete_listing_s3_files(listing_id)
                 cur.execute("DELETE FROM vehicle_listing WHERE listing_id = %s", (listing_id,))
                 conn.commit()
         return {"status": "success"}

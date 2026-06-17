@@ -64,28 +64,13 @@ Without Stripe keys locally, checkout auto-completes payment in dev (`mock: true
 3. Port: `8080` (matches `PORT` in `Dockerfile.prod`).
 4. Health check path: `/api/health`
 
-**After Flask → FastAPI cutover:** same image name, port, and health path. CI already builds `Dockerfile.prod` with `metropolis.asgi:app`. You do **not** need a new GHCR repo or Render service type — merge to `main`, CI pushes a new tag, deploy hook pulls it.
-
-### Render env changes (one-time)
-
-If you set these for the old Flask/Eventlet stack, update or remove them:
-
-| Variable | Old (Flask) | New (FastAPI) |
-|----------|-------------|---------------|
-| `GUNICORN_WORKER_CLASS` | `eventlet` | `uvicorn.workers.UvicornWorker` (or omit — prod entrypoint defaults to this) |
-| `WEB_CONCURRENCY` | `1` (eventlet) | `2`+ with `REDIS_URL` for Socket.IO; default in `gunicorn.conf.py` is CPU-based |
-
-Keep unchanged: `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGINS`, `REDIS_URL`, Stripe/AWS keys, `RENDER_DEPLOY_HOOK` secret in GitHub.
-
-`FLASK_DEBUG=0` is still the env name for the debug flag (`settings.debug`).
-
 ### Required environment variables
 
 | Variable | Notes |
 |----------|--------|
 | `DATABASE_URL` | Neon connection string |
-| `JWT_SECRET` | `openssl rand -hex 32` — must not be dev default when `FLASK_DEBUG=0` |
-| `FLASK_DEBUG` | `0` |
+| `JWT_SECRET` | `openssl rand -hex 32` — must not be dev default when `DEBUG=0` |
+| `DEBUG` | `0` |
 | `CORS_ORIGINS` | Your Vercel SPA URL (comma-separated) |
 | `AWS_REGION`, `S3_BUCKET_NAME` | S3 uploads |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Payments |
@@ -158,7 +143,7 @@ Log in on the SPA, search with dates, complete checkout (Stripe test card `4242 
 ## 9. Security checklist
 
 - [ ] `JWT_SECRET` ≥ 32 chars, not `change-me-dev-secret`
-- [ ] `FLASK_DEBUG=0`
+- [ ] `DEBUG=0`
 - [ ] `CORS_ORIGINS` lists only your SPA origin(s)
 - [ ] S3 bucket not public; objects via presigned URLs
 - [ ] Stripe webhook secret configured; live keys only in production

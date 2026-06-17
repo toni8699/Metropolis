@@ -1,4 +1,4 @@
-"""FastAPI application factory (Phase 1 foundation)."""
+"""FastAPI application factory."""
 
 from __future__ import annotations
 
@@ -83,5 +83,3 @@ def create_app() -> FastAPI:
     app.include_router(webhooks.router)
     return app
 
-
-app = create_app()

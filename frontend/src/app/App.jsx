@@ -13,6 +13,7 @@ import AccountSettingsPage from "@/views/AccountSettingsPage";
 import LoginPage from "@/views/LoginPage";
 import Layout from "@/layout/Layout";
 import HostOnboardingFlow from "@/features/host/components/HostOnboardingFlow";
+import SuccessListingPage from "@/features/host/SuccessListingPage";
 import { RequireAuth, RequireRole } from "@/app/RouteGuards";
 
 function AppShell({ children, onSearch, onHome }) {
@@ -85,6 +86,7 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route path="/host" element={<HostEntry />} />
+        <Route path="/host/success/:listingId" element={<SuccessListingPage />} />
         <Route path="/host/dashboard" element={<HostDashboardPage mode="owner" />} />
         <Route element={<RequireRole roles={["admin"]} />}>
           <Route path="/admin" element={<HostDashboardPage mode="admin" />} />

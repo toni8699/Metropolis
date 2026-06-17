@@ -4,6 +4,7 @@ import {
   Check,
   Crosshair,
   KeyRound,
+  Loader2,
   MapPin,
   ShieldCheck,
   Smartphone,
@@ -12,9 +13,11 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
 import InstantBookToggle from "@/features/host/components/InstantBookToggle";
 import AddressPickerMapCard from "@/features/host/components/AddressPickerMapCard";
+import ListingCreatedModal from "@/features/host/components/ListingCreatedModal";
 import {
   LabeledInput,
   LabeledPriceInput,
@@ -46,7 +49,14 @@ const FEATURE_ICONS = {
   "Keyless Entry": KeyRound,
 };
 
-export default function ListingFormPanel({ form, isAdmin, companyLocations, apiKey, isMapLoaded }) {
+export default function ListingFormPanel({
+  form,
+  isAdmin,
+  companyLocations,
+  apiKey,
+  isMapLoaded,
+  listingsTabId = "listings",
+}) {
   const {
     listingForm,
     setListingForm,
@@ -56,6 +66,9 @@ export default function ListingFormPanel({ form, isAdmin, companyLocations, apiK
     isDragOver,
     setIsDragOver,
     isSavingListing,
+    createSuccessListing,
+    updateSaveSignal,
+    dismissCreateSuccess,
     addressQuery,
     setAddressQuery,
     placePredictions,
@@ -80,6 +93,33 @@ export default function ListingFormPanel({ form, isAdmin, companyLocations, apiK
     applyHubBranchSelection,
   } = form;
 
+  const [saveButtonPhase, setSaveButtonPhase] = useState("idle");
+  const [showSaveFlash, setShowSaveFlash] = useState(false);
+
+  useEffect(() => {
+    if (isSavingListing) {
+      setSaveButtonPhase("saving");
+    }
+  }, [isSavingListing]);
+
+  useEffect(() => {
+    if (updateSaveSignal === 0 || isSavingListing) return undefined;
+    setSaveButtonPhase("saved");
+    setShowSaveFlash(true);
+    const buttonTimer = window.setTimeout(() => setSaveButtonPhase("idle"), 3000);
+    const flashTimer = window.setTimeout(() => setShowSaveFlash(false), 1500);
+    return () => {
+      window.clearTimeout(buttonTimer);
+      window.clearTimeout(flashTimer);
+    };
+  }, [updateSaveSignal, isSavingListing]);
+
+  const saveButtonLabel = () => {
+    if (saveButtonPhase === "saving") return "Saving...";
+    if (saveButtonPhase === "saved") return "Changes Saved!";
+    return editingListingId ? "Save Changes" : "Save listing";
+  };
+
   return (
     <section className="pb-10">
       <div className="px-11 pt-11">
@@ -91,7 +131,11 @@ export default function ListingFormPanel({ form, isAdmin, companyLocations, apiK
               : "Create Listing"}
         </h2>
       </div>
-      <div className="max-w-4xl mx-auto mt-6 rounded-2xl border-4 border-black bg-[#f5f5d0] p-8 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+      <div
+        className={`max-w-4xl mx-auto mt-6 rounded-2xl border-4 bg-[#f5f5d0] p-8 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)] transition-colors duration-500 ${
+          showSaveFlash ? "border-[#D0F0C0]" : "border-black"
+        }`}
+      >
         <form className="space-y-6" onSubmit={createListing}>
           <section className="space-y-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Basic Info</h3>
@@ -517,14 +561,31 @@ export default function ListingFormPanel({ form, isAdmin, companyLocations, apiK
             </button>
             <button
               type="submit"
-              disabled={isSavingListing || (!editingListingId && !meetsPhotoRequirement)}
-              className="rounded-lg bg-indigo-600 px-5 py-2 font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={
+                isSavingListing ||
+                saveButtonPhase === "saved" ||
+                (!editingListingId && !meetsPhotoRequirement)
+              }
+              className={`inline-flex items-center gap-2 rounded-full border-2 border-black px-6 py-2.5 font-extrabold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                saveButtonPhase === "saved"
+                  ? "bg-[#D0F0C0] text-[#183B1E]"
+                  : "bg-[#E34B31] text-white hover:translate-y-[-2px] active:translate-y-0"
+              }`}
             >
-              {isSavingListing ? "Saving..." : editingListingId ? "Update listing" : "Save listing"}
+              {saveButtonPhase === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
+              {saveButtonPhase === "saved" && <Check className="h-4 w-4" />}
+              {saveButtonLabel()}
             </button>
           </div>
         </form>
       </div>
+
+      <ListingCreatedModal
+        listing={createSuccessListing}
+        listingsTabId={listingsTabId}
+        onViewListings={(tabId) => dismissCreateSuccess(tabId)}
+        onPreview={() => {}}
+      />
     </section>
   );
 }

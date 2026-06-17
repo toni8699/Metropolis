@@ -9,13 +9,9 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 import pytest
 import requests
-from dotenv import load_dotenv
-
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 API_URL = os.environ.get("INTEGRATION_API_URL", "http://localhost:5000").rstrip("/")
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()

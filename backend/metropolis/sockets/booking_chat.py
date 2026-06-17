@@ -1,4 +1,4 @@
-"""ASGI Socket.IO booking chat (replaces Flask-SocketIO in sockets.py)."""
+"""ASGI Socket.IO booking chat."""
 
 from __future__ import annotations
 

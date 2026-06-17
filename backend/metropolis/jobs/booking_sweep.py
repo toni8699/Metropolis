@@ -1,4 +1,4 @@
-"""ARQ worker: durable booking sweep (replaces Eventlet greenlet in booking_sweep.py)."""
+"""ARQ worker: durable booking sweep."""
 
 from __future__ import annotations
 
@@ -16,7 +16,13 @@ _logger = logging.getLogger("metropolis")
 def _sweep_enabled() -> bool:
     if settings.booking_sweep_enabled is not None:
         return settings.booking_sweep_enabled
-    # ponytail: off in FLASK_DEBUG=1 unless BOOKING_SWEEP_ENABLED set (matches old greenlet)
+    # ponytail: off when DEBUG=1 unless BOOKING_SWEEP_ENABLED is set
+    return not settings.debug
+
+
+def _upload_sweep_enabled() -> bool:
+    if settings.upload_sweep_enabled is not None:
+        return settings.upload_sweep_enabled
     return not settings.debug
 
 
@@ -53,6 +59,20 @@ async def sweep_expired_bookings(ctx: dict) -> dict:
     return result
 
 
+async def sweep_orphan_listing_uploads(ctx: dict) -> dict:
+    """Delete abandoned owner listing photos from S3."""
+    if not _upload_sweep_enabled():
+        return {"status": "skipped", "deleted": 0, "scanned": 0}
+
+    from metropolis.services import uploads_service
+
+    result = await asyncio.to_thread(uploads_service.sweep_orphan_listing_uploads)
+    deleted = int(result.get("deleted") or 0)
+    if deleted:
+        _logger.info("upload sweep removed %s orphan listing object(s)", deleted)
+    return result
+
+
 def _redis_settings() -> RedisSettings:
     dsn = settings.redis_url or "redis://127.0.0.1:6379/0"
     return RedisSettings.from_dsn(dsn)
@@ -61,8 +81,11 @@ def _redis_settings() -> RedisSettings:
 class WorkerSettings:
     """arq worker entrypoint: arq metropolis.jobs.booking_sweep.WorkerSettings"""
 
-    functions = [sweep_expired_bookings]
-    cron_jobs = [cron(sweep_expired_bookings, minute=set(range(0, 60, 15)))]
+    functions = [sweep_expired_bookings, sweep_orphan_listing_uploads]
+    cron_jobs = [
+        cron(sweep_expired_bookings, minute=set(range(0, 60, 15))),
+        cron(sweep_orphan_listing_uploads, hour={3}, minute={30}),
+    ]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = _redis_settings()

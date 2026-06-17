@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-os.environ.setdefault("FLASK_DEBUG", "1")
 
 from metropolis.services.uploads_service import UploadsService, object_key_from_file_url
 

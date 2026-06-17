@@ -1,4 +1,4 @@
-"""FastAPI auth dependencies (replaces Flask JWT decorators)."""
+"""FastAPI auth dependencies."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ class ListingAccessContext(BaseModel):
     """Verified listing ownership (or admin override) for guarded routes."""
 
     listing_id: int
-    owner_user_id: int
+    owner_user_id: int | None
     user: UserContext
 
 
@@ -117,12 +117,13 @@ def require_listing_access(
             listing = cur.fetchone()
 
     if not listing:
-        raise HTTPException(status_code=403, detail="Forbidden.")
-    if not user.is_admin and listing["owner_user_id"] != user.user_id:
+        raise HTTPException(status_code=404, detail="Listing not found.")
+    owner_id = listing["owner_user_id"]
+    if not user.is_admin and owner_id != user.user_id:
         raise HTTPException(status_code=403, detail="Forbidden.")
 
     return ListingAccessContext(
         listing_id=int(listing["listing_id"]),
-        owner_user_id=int(listing["owner_user_id"]),
+        owner_user_id=int(owner_id) if owner_id is not None else None,
         user=user,
     )

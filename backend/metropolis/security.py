@@ -13,7 +13,7 @@ MIN_JWT_SECRET_LEN = 32
 def validate_security_config(*, jwt_secret: str, debug: bool, cors_origins: list[str]) -> None:
     if not debug and jwt_secret == DEV_JWT_SECRET:
         raise RuntimeError(
-            "JWT_SECRET must not use the development default when FLASK_DEBUG=0. "
+            "JWT_SECRET must not use the development default when DEBUG=0. "
             "Generate one with: openssl rand -hex 32"
         )
 
@@ -27,5 +27,5 @@ def validate_security_config(*, jwt_secret: str, debug: bool, cors_origins: list
         joined = ",".join(cors_origins)
         if "*" in joined:
             logger.warning(
-                "CORS_ORIGINS contains a wildcard with FLASK_DEBUG=0; restrict to your SPA origin."
+                "CORS_ORIGINS contains a wildcard with DEBUG=0; restrict to your SPA origin."
             )

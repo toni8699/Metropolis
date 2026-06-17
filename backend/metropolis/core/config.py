@@ -1,4 +1,4 @@
-"""Application settings (Pydantic Settings — mirrors Flask Config env vars)."""
+"""Application settings (Pydantic Settings)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     # Server
     port: int = Field(default=8080, validation_alias="PORT")
-    debug: bool = Field(default=False, validation_alias="FLASK_DEBUG")
+    debug: bool = Field(default=False, validation_alias="DEBUG")
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default=[
             "http://localhost:5173",
@@ -60,18 +60,26 @@ class Settings(BaseSettings):
     # OAuth
     google_oauth_client_id: str = Field(default="", validation_alias="GOOGLE_OAUTH_CLIENT_ID")
 
-    # Redis (Socket.IO message queue, ARQ — Phase 4)
+    # Redis (Socket.IO message queue, ARQ worker)
     redis_url: str = Field(default="", validation_alias="REDIS_URL")
 
     # Rate limiting
     ratelimit_enabled: bool = Field(default=True, validation_alias="RATELIMIT_ENABLED")
 
-    # Booking sweep (Phase 4)
+    # Booking sweep
     booking_sweep_enabled: bool | None = Field(
         default=None, validation_alias="BOOKING_SWEEP_ENABLED"
     )
     booking_sweep_interval_sec: int = Field(
         default=900, validation_alias="BOOKING_SWEEP_INTERVAL_SEC"
+    )
+
+    # Orphan listing-upload sweeper (S3 keys with no file_asset row)
+    upload_sweep_enabled: bool | None = Field(
+        default=None, validation_alias="UPLOAD_SWEEP_ENABLED"
+    )
+    upload_sweep_orphan_grace_hours: int = Field(
+        default=24, validation_alias="UPLOAD_SWEEP_ORPHAN_GRACE_HOURS"
     )
 
     @field_validator("debug", mode="before")

@@ -3,8 +3,6 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime
 
-from werkzeug.exceptions import BadRequest
-
 LISTING_SELECT_SQL = """
     SELECT l.*,
            loc.lat,
@@ -90,16 +88,19 @@ AND NOT EXISTS (
 """
 
 
-def _resolve_search_window(query: dict) -> tuple[datetime, datetime] | None:
-    """Return (start_at, end_at) when both provided; None when neither (no date filter)."""
+def _resolve_search_window(query: dict) -> tuple[datetime, datetime] | None | dict:
+    """Return (start_at, end_at), None when no date filter, or a validation_error dict."""
     start_at = query.get("start_at") or query.get("start")
     end_at = query.get("end_at") or query.get("end")
     if start_at is None and end_at is None:
         return None
     if start_at is None or end_at is None:
-        raise BadRequest(description="Both start_at and end_at are required for date-aware search.")
+        return {
+            "status": "validation_error",
+            "message": "Both start_at and end_at are required for date-aware search.",
+        }
     if end_at <= start_at:
-        raise BadRequest(description="end_at must be after start_at.")
+        return {"status": "validation_error", "message": "end_at must be after start_at."}
     return start_at, end_at
 
 
@@ -326,7 +327,6 @@ def _to_listing_row(
         "vehicleId": row.get("vehicle_id"),
         "sourceType": row["source_type"],
         "title": row["title"],
-        "brand": row.get("make"),
         "make": row.get("make"),
         "model": row.get("model"),
         "year": row.get("year"),
@@ -340,12 +340,8 @@ def _to_listing_row(
         "doors": row.get("doors"),
         "features": row.get("features") or [],
         "images": urls,
-        "latitude": float(lat) if lat is not None else None,
-        "longitude": float(lng) if lng is not None else None,
-        "rules": guidelines,
         "pickupNotesTemplate": row.get("pickup_notes_template"),
         "pricePerDay": float(row["price_per_day"]),
-        "photos": urls,
         "active": row["active"],
         "status": row.get("status"),
         "ownerUserId": row["owner_user_id"],

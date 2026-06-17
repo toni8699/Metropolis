@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
-
-os.environ.setdefault("FLASK_DEBUG", "1")
 
 from metropolis.services.kyc_service import KycService
 

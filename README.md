@@ -32,6 +32,59 @@ Production setup: [docs/production-deployment.md](docs/production-deployment.md)
 
 ---
 
+## Testing
+
+**Do not run integration tests against Neon.** Your `.env` `DATABASE_URL` is for the dev app. Pytest integration tests create/delete rows — use an isolated Postgres instead.
+
+### Backend (full suite)
+
+Uses local Postgres via `docker-compose.test.yml` (never reads Neon):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test run --rm test
+```
+
+This spins up `postgres_test`, runs migrations, seeds CI fixtures, starts the API, and runs `pytest`.
+
+### Backend (unit tests only)
+
+Safe even when `.env` points at Neon — no DB writes:
+
+```bash
+cd backend && uv sync --extra dev
+uv run pytest tests -v -k "not integration"
+# or only *_unit.py files:
+uv run pytest tests/test_*_unit.py tests/test_auth_jwt_unit.py -v
+```
+
+### Frontend
+
+```bash
+cd frontend && npm test          # Vitest unit tests
+cd frontend && npm run lint
+```
+
+E2E (Playwright) runs on CI after merge to `main`; locally:
+
+```bash
+cd frontend && npm run test:e2e   # needs app + API running
+```
+
+### CI (GitHub Actions)
+
+On push/PR to `main` or `develop`: Ruff → backend pytest (ephemeral Postgres) → frontend lint/test/build. Push to `main` also deploys and runs Playwright smoke.
+
+### Clean test junk from Neon dev DB
+
+If you already polluted Neon with local pytest:
+
+```bash
+docker compose exec backend python scripts/purge_test_listings.py          # preview
+docker compose exec backend python scripts/purge_test_listings.py --execute
+```
+
+---
+
 ## Dev flow
 
 ### 1. One-time setup
@@ -75,11 +128,7 @@ cd frontend && npm run lint && npm run test
 # Backend deps (first time / after pyproject change)
 cd backend && uv sync --extra dev
 
-# Integration tests (backend must be running)
-docker compose --profile test run --rm test
-
-docker compose exec -e INTEGRATION_API_URL=http://127.0.0.1:5000 -e RATELIMIT_ENABLED=0 backend \
-  bash -c 'pip install -q uv && uv sync --frozen --extra dev && uv run pytest tests -v --tb=short'
+# See "Testing" section above for pytest / integration tests
 
 # Migrations
 docker compose exec backend alembic upgrade head

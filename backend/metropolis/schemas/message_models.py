@@ -1,4 +1,4 @@
-"""Pydantic inbox thread schemas (FastAPI — mirrors Marshmallow messages.py)."""
+"""Pydantic inbox thread schemas."""
 
 from __future__ import annotations
 

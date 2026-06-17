@@ -78,6 +78,13 @@ export function useHostDashboardData({ isAdmin, pathname }) {
   }, [loadAll, pathname]);
 
   const deleteListing = async (listingId) => {
+    if (
+      !window.confirm(
+        `Delete listing #${listingId}? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
     setError("");
     setSuccess("");
     try {
@@ -85,7 +92,13 @@ export function useHostDashboardData({ isAdmin, pathname }) {
       setSuccess("Listing deleted.");
       await loadAll();
     } catch (err) {
-      setError(err?.message || "Could not delete listing.");
+      const message = err?.message || "Could not delete listing.";
+      if (/not found/i.test(message)) {
+        setSuccess("Listing already removed.");
+        await loadAll();
+        return;
+      }
+      setError(message);
     }
   };
 

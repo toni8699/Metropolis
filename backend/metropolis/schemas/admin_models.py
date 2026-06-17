@@ -1,4 +1,4 @@
-"""Pydantic admin/fleet schemas (FastAPI — mirrors Marshmallow admin.py)."""
+"""Pydantic admin/fleet schemas."""
 
 from __future__ import annotations
 

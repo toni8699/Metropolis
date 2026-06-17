@@ -1,4 +1,4 @@
-"""Rate limiting (slowapi — mirrors Flask-Limiter setup)."""
+"""Rate limiting (slowapi)."""
 
 from fastapi import Request
 from slowapi import Limiter

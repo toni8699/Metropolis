@@ -22,7 +22,7 @@ COPY db/ ./db/
 WORKDIR /app/backend
 
 ENV PYTHONUNBUFFERED=1 \
-    FLASK_DEBUG=0 \
+    DEBUG=0 \
     PORT=8080
 
 EXPOSE 8080

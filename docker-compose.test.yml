@@ -1,0 +1,43 @@
+# Isolated Postgres for backend pytest — does not touch Neon from .env
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test run --rm test
+
+services:
+  postgres_test:
+    profiles: ["test"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: metropolis
+      POSTGRES_PASSWORD: metropolis
+      POSTGRES_DB: metropolis_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metropolis -d metropolis_test"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    environment:
+      DATABASE_URL: postgresql://metropolis:metropolis@postgres_test:5432/metropolis_test
+    depends_on:
+      postgres_test:
+        condition: service_healthy
+
+  test:
+    environment:
+      DATABASE_URL: postgresql://metropolis:metropolis@postgres_test:5432/metropolis_test
+      INTEGRATION_API_URL: http://backend:5000
+      RATELIMIT_ENABLED: "0"
+    depends_on:
+      postgres_test:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    command: >
+      bash -c "
+        pip install -q uv &&
+        uv sync --frozen --extra dev &&
+        uv run alembic upgrade head &&
+        uv run python scripts/seed_ci_database.py &&
+        uv run pytest tests -v --tb=short
+      "

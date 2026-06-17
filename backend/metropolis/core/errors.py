@@ -1,4 +1,4 @@
-"""FastAPI exception handlers — same JSON envelopes as Flask/Werkzeug handlers."""
+"""FastAPI exception handlers and service result mapping."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ def _validation_error_message(exc: RequestValidationError) -> str:
 
 
 def raise_for_service_result(result: dict) -> None:
-    """Map service-layer status dicts to HTTPException (same contract as Flask layer)."""
+    """Map service-layer status dicts to HTTPException."""
     status = result.get("status")
     if status in _OK_STATUSES or status is None:
         return
@@ -48,16 +48,9 @@ def raise_for_service_result(result: dict) -> None:
         raise HTTPException(status_code=404, detail=message)
     if status == "forbidden":
         raise HTTPException(status_code=403, detail=message)
+    if status == "error":
+        raise HTTPException(status_code=500, detail=message)
     raise HTTPException(status_code=400, detail=message)
-
-
-def raise_werkzeug_as_http(exc: Exception) -> None:
-    """Map werkzeug HTTPException from legacy services to FastAPI HTTPException."""
-    code = getattr(exc, "code", None)
-    if code:
-        detail = getattr(exc, "description", None) or str(exc)
-        raise HTTPException(status_code=code, detail=detail) from exc
-    raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 def register_exception_handlers(app: FastAPI) -> None:

@@ -1,11 +1,7 @@
 """Unit checks for FastAPI service-result → HTTPException mapping."""
 
-import os
-
 import pytest
 from fastapi import HTTPException
-
-os.environ.setdefault("FLASK_DEBUG", "1")
 
 from metropolis.core.errors import raise_for_service_result
 

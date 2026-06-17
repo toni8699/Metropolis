@@ -1,4 +1,4 @@
-"""Pydantic upload schemas (FastAPI — mirrors Marshmallow uploads.py)."""
+"""Pydantic upload schemas."""
 
 from __future__ import annotations
 
