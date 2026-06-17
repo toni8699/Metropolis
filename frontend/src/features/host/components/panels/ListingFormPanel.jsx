@@ -132,7 +132,7 @@ export default function ListingFormPanel({
         </h2>
       </div>
       <div
-        className={`max-w-4xl mx-auto mt-6 rounded-2xl border-4 bg-[#f5f5d0] p-8 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)] transition-colors duration-500 ${
+        className={`max-w-4xl mx-auto mt-6 rounded-2xl border-4 bg-vroom-card p-8 shadow-neo transition-colors duration-500 ${
           showSaveFlash ? "border-[#D0F0C0]" : "border-black"
         }`}
       >
@@ -568,8 +568,8 @@ export default function ListingFormPanel({
               }
               className={`inline-flex items-center gap-2 rounded-full border-2 border-black px-6 py-2.5 font-extrabold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
                 saveButtonPhase === "saved"
-                  ? "bg-[#D0F0C0] text-[#183B1E]"
-                  : "bg-[#E34B31] text-white hover:translate-y-[-2px] active:translate-y-0"
+                  ? "bg-vroom-bg text-vroom-heading"
+                  : "bg-vroom-accent text-white hover:translate-y-[-2px] active:translate-y-0"
               }`}
             >
               {saveButtonPhase === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}

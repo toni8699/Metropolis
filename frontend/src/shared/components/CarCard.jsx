@@ -41,9 +41,9 @@ export default function CarCard({ car, distanceKm }) {
     : `/app/listings/${car.id}`;
 
   return (
-    <article className="group rounded-[2rem] border-2 border-black bg-[#FCFCE5] p-3 shadow-[6px_6px_0px_0px_rgba(24,59,30,0.45)] transition-transform hover:-translate-y-2">
+    <article className="group rounded-[2rem] border-2 border-black bg-vroom-surface p-3 shadow-neoCard transition-transform hover:-translate-y-2">
       <Link to={href} className="block">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.5rem] border-2 border-black bg-[#dbe8be]">
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.5rem] border-2 border-black bg-vroom-sage">
           <img
             src={carouselImages[currentImageIndex] || fallbackPhoto}
             alt={row1Title}
@@ -60,7 +60,7 @@ export default function CarCard({ car, distanceKm }) {
                   e.stopPropagation();
                   handlePrevImage();
                 }}
-                className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-[#FCFCE5] text-black opacity-0 shadow-sm transition group-hover:opacity-100 hover:scale-105"
+                className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-vroom-surface text-black opacity-0 shadow-sm transition group-hover:opacity-100 hover:scale-105"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -72,7 +72,7 @@ export default function CarCard({ car, distanceKm }) {
                   e.stopPropagation();
                   handleNextImage();
                 }}
-                className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-[#FCFCE5] text-black opacity-0 shadow-sm transition group-hover:opacity-100 hover:scale-105"
+                className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-vroom-surface text-black opacity-0 shadow-sm transition group-hover:opacity-100 hover:scale-105"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -123,15 +123,15 @@ export default function CarCard({ car, distanceKm }) {
             </div>
           </div>
 
-          <p className="truncate text-[14px] font-semibold text-[#35593b]">{details}</p>
-          <p className="truncate text-[14px] font-medium text-[#46634b]">{distanceText}</p>
+          <p className="truncate text-[14px] font-semibold text-vroom-muted">{details}</p>
+          <p className="truncate text-[14px] font-medium text-vroom-muted2">{distanceText}</p>
 
           <div className="mt-2 flex items-center justify-between gap-2">
             <p className="text-lg text-black">
               <span className="font-extrabold">${car.pricePerDay}</span>
               <span className="font-semibold text-sm"> / day</span>
             </p>
-            <span className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-1.5 text-sm font-extrabold text-white transition group-hover:translate-y-[-1px]">
+            <span className="rounded-full border-2 border-black border-b-4 bg-vroom-accent px-4 py-1.5 text-sm font-extrabold text-white transition group-hover:translate-y-[-1px]">
               Book now
             </span>
           </div>

@@ -51,8 +51,8 @@ function PriceMarker({ car, isActive, onClick }) {
           }}
           onMouseDown={(event) => event.stopPropagation()}
           onTouchStart={(event) => event.stopPropagation()}
-          className={`cursor-pointer whitespace-nowrap rounded-full border-2 border-black px-3 py-1.5 text-sm font-extrabold shadow-[4px_4px_0px_0px_rgba(24,59,30,0.6)] transition-transform hover:scale-105 ${
-            isActive ? "bg-[#183B1E] text-white" : "bg-[#FCFCE5] text-black"
+          className={`cursor-pointer whitespace-nowrap rounded-full border-2 border-black px-3 py-1.5 text-sm font-extrabold shadow-neoSm transition-transform hover:scale-105 ${
+            isActive ? "bg-vroom-heading text-white" : "bg-vroom-surface text-black"
           }`}
         >
           ${priceLabel}
@@ -90,12 +90,12 @@ function MapPopupCard({ car }) {
       href={listingUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="group block w-[280px] cursor-pointer overflow-hidden rounded-[1.8rem] border-2 border-black bg-[#FCFCE5] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.55)]"
+      className="group block w-[280px] cursor-pointer overflow-hidden rounded-[1.8rem] border-2 border-black bg-vroom-surface shadow-neo"
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
       onTouchStart={(event) => event.stopPropagation()}
     >
-      <div className="relative h-[180px] w-full overflow-hidden rounded-b-[1.2rem] bg-[#dbe8be]">
+      <div className="relative h-[180px] w-full overflow-hidden rounded-b-[1.2rem] bg-vroom-sage">
         {currentImage ? (
           <img
             src={currentImage}
@@ -112,14 +112,14 @@ function MapPopupCard({ car }) {
           <>
             <button
               onClick={handlePrevImage}
-              className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-[#FCFCE5] text-black opacity-0 shadow-sm transition hover:scale-110 group-hover:opacity-100"
+              className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-vroom-surface text-black opacity-0 shadow-sm transition hover:scale-110 group-hover:opacity-100"
               aria-label="Previous image"
             >
               <ChevronLeft size={16} />
             </button>
             <button
               onClick={handleNextImage}
-              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-[#FCFCE5] text-black opacity-0 shadow-sm transition hover:scale-110 group-hover:opacity-100"
+              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-vroom-surface text-black opacity-0 shadow-sm transition hover:scale-110 group-hover:opacity-100"
               aria-label="Next image"
             >
               <ChevronRight size={16} />
@@ -146,7 +146,7 @@ function MapPopupCard({ car }) {
           </p>
           <ListingRatingLine listing={car} />
         </div>
-        <p className="truncate text-sm font-semibold text-[#35593b]">
+        <p className="truncate text-sm font-semibold text-vroom-muted">
           {car.details || car.sourceType || "Automatic"}
         </p>
         <p className="mt-1 text-black">
@@ -270,13 +270,13 @@ export default function SearchResultsView({
             isMapFullscreen ? "hidden" : "md:w-[55%] xl:w-[60%]"
           }`}
         >
-          <h2 className="mb-4 text-xl font-extrabold text-[#183B1E]">
+          <h2 className="mb-4 text-xl font-extrabold text-vroom-heading">
             {isLoading ? "Loading cars..." : `${cars.length} cars in ${cityLabel}`}
           </h2>
           <div className="mb-4 md:hidden">
             <button
               onClick={() => setIsMapFullscreen(true)}
-              className="mx-auto flex items-center gap-1.5 rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-2 text-sm font-extrabold text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)] active:border-b-0"
+              className="mx-auto flex items-center gap-1.5 rounded-full border-2 border-black border-b-4 bg-vroom-accent px-4 py-2 text-sm font-extrabold text-white shadow-neoSm active:border-b-0"
             >
               <MapIcon className="h-4 w-4" />
               Show map
@@ -293,9 +293,9 @@ export default function SearchResultsView({
               ))}
             </div>
           ) : cars.length === 0 ? (
-            <div className="rounded-3xl border-2 border-black bg-[#FCFCE5] p-6 text-center shadow-[6px_6px_0px_0px_rgba(24,59,30,0.5)]">
-              <p className="text-base font-extrabold text-[#183B1E]">No cars near {cityLabel}</p>
-              <p className="mt-2 text-sm text-[#35593b]">
+            <div className="rounded-3xl border-2 border-black bg-vroom-surface p-6 text-center shadow-neoCard">
+              <p className="text-base font-extrabold text-vroom-heading">No cars near {cityLabel}</p>
+              <p className="mt-2 text-sm text-vroom-muted">
                 Try another city or widen your search. Listings only show within 50 km of your
                 picked location.
               </p>
@@ -316,7 +316,7 @@ export default function SearchResultsView({
               : "hidden md:block md:w-[45%] xl:w-[40%]"
           } transition-all duration-300`}
         >
-          <div className="sticky top-[var(--app-header-offset)] h-[calc(100vh-var(--app-header-offset))] p-4">
+          <div className="sticky top-6 h-[calc(100vh-6rem)] p-4">
             {!apiKey ? (
               <div className="rounded-2xl border border-slate-300 bg-white p-4 text-sm text-slate-700">
                 Add `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env.local` to show map.
@@ -326,10 +326,10 @@ export default function SearchResultsView({
                 Loading map...
               </div>
             ) : (
-              <div className="relative h-full w-full overflow-hidden rounded-2xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(24,59,30,0.45)]">
+              <div className="relative h-full w-full overflow-hidden rounded-2xl border-2 border-black shadow-neoCard">
                 <button
                   onClick={() => setIsMapFullscreen((v) => !v)}
-                  className="absolute left-1/2 top-2.5 z-10 -translate-x-1/2 rounded-full border-2 border-black border-b-4 bg-[#FCFCE5] px-3 py-1.5 text-xs font-extrabold text-[#183B1E] shadow-md active:border-b-0"
+                  className="absolute left-1/2 top-2.5 z-10 -translate-x-1/2 rounded-full border-2 border-black border-b-4 bg-vroom-surface px-3 py-1.5 text-xs font-extrabold text-vroom-heading shadow-md active:border-b-0"
                 >
                   {isMapFullscreen ? (
                     <span className="flex items-center gap-2">

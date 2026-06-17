@@ -15,8 +15,8 @@ vi.mock("@/context/AuthContext", () => ({
   useAuth: () => mockAuth,
 }));
 
-vi.mock("@/layout/Layout", () => ({
-  default: ({ children }) => <div>{children}</div>,
+vi.mock("@/layout/VroomLogo", () => ({
+  default: () => <div data-testid="vroom-logo">VROOM</div>,
 }));
 
 vi.mock("@/shared/components/AuthModal", () => ({

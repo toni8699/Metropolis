@@ -1,6 +1,6 @@
 export default function KycPanel({ kycQueue, onDecision }) {
   return (
-    <section className="mx-11 mt-6 mb-11 rounded-2xl border-4 border-black bg-[#f5f5d0] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+    <section className="mx-11 mt-6 mb-11 rounded-2xl border-4 border-black bg-vroom-card p-6 shadow-neo">
       <h3 className="mb-4 text-lg font-semibold text-gray-900">Host identity review</h3>
       {kycQueue.length === 0 ? (
         <p className="text-sm text-gray-600">No pending verifications.</p>

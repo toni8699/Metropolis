@@ -112,10 +112,10 @@ export default function HostDashboard({ mode = "admin" }) {
 
   return (
     <Layout>
-      <div className="fixed inset-x-0 top-28 md:top-[104px] bottom-0 z-0 flex border-t-4 border-black bg-[#D0F0C0] overflow-hidden">
-        <aside className="w-64 shrink-0 border-r-4 border-black bg-[#f5f5d0] flex flex-col overflow-y-auto">
+      <div className="fixed inset-x-0 top-28 md:top-[104px] bottom-0 z-0 flex border-t-4 border-black bg-vroom-bg overflow-hidden">
+        <aside className="w-64 shrink-0 border-r-4 border-black bg-vroom-card flex flex-col overflow-y-auto">
           <div className="p-6 border-b-2 border-black">
-            <p className="text-2xl font-extrabold text-[#183B1E]">
+            <p className="text-2xl font-extrabold text-vroom-heading">
               {isAdmin ? "VROOM Admin" : "VROOM Host"}
             </p>
           </div>
@@ -129,8 +129,8 @@ export default function HostDashboard({ mode = "admin" }) {
                   onClick={() => requestTabChange(item.id)}
                   className={`w-[calc(100%-2rem)] mx-4 px-4 py-2 rounded-lg flex items-center gap-3 text-sm transition ${
                     isActive
-                      ? "border-2 border-black bg-[#dbe8be] text-[#183B1E] font-extrabold shadow-[3px_3px_0px_0px_rgba(24,59,30,0.35)]"
-                      : "text-[#35593b] hover:bg-[#f5f5d0]"
+                      ? "border-2 border-black bg-vroom-sage text-vroom-heading font-extrabold shadow-neoSm"
+                      : "text-vroom-muted hover:bg-vroom-card"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -142,13 +142,13 @@ export default function HostDashboard({ mode = "admin" }) {
         </aside>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <header className="sticky top-0 z-10 flex h-20 shrink-0 items-center justify-between border-b-4 border-black bg-[#f5f5d0] px-11">
-            <h1 className="text-3xl font-extrabold text-[#183B1E]">{activePageTitle}</h1>
+          <header className="sticky top-0 z-10 flex h-20 shrink-0 items-center justify-between border-b-4 border-black bg-vroom-card px-11">
+            <h1 className="text-3xl font-extrabold text-vroom-heading">{activePageTitle}</h1>
             {isAdmin && (
               <button
                 onClick={syncFleet}
                 disabled={isSyncingFleet}
-                className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-2 font-extrabold text-white flex items-center gap-2 transition active:border-b-0 disabled:opacity-50"
+                className="rounded-full border-2 border-black border-b-4 bg-vroom-accent px-4 py-2 font-extrabold text-white flex items-center gap-2 transition active:border-b-0 disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 ${isSyncingFleet ? "animate-spin" : ""}`} />
                 {isSyncingFleet ? "Syncing..." : "Sync Fleet Now"}
@@ -158,12 +158,12 @@ export default function HostDashboard({ mode = "admin" }) {
 
           <main className="pb-10">
             {error && (
-              <div className="mx-11 mt-6 rounded-xl border-2 border-black bg-[#ffd8cf] p-3 text-sm font-semibold text-[#7a2215]">
+              <div className="mx-11 mt-6 rounded-xl border-2 border-black bg-vroom-error p-3 text-sm font-semibold text-vroom-errorText">
                 {error}
               </div>
             )}
             {success && (
-              <div className="mx-11 mt-6 rounded-xl border-2 border-black bg-[#dbe8be] p-3 text-sm font-semibold text-[#183B1E]">
+              <div className="mx-11 mt-6 rounded-xl border-2 border-black bg-vroom-sage p-3 text-sm font-semibold text-vroom-heading">
                 {success}
               </div>
             )}

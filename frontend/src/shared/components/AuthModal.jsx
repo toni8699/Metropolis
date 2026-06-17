@@ -90,10 +90,11 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4"
-      onClick={() => onClose?.()}>
+      className="modal-enter fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4"
+      onClick={() => onClose?.()}
+    >
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-[2rem] border-4 border-black bg-[#FCFCE5] shadow-[10px_10px_0px_0px_rgba(0,0,0,1)]"
+        className="relative w-full max-w-md overflow-hidden rounded-[2rem] border-4 border-black bg-vroom-surface shadow-neoLg"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="relative border-b-2 border-black pb-4 pt-4">
@@ -104,16 +105,14 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
           >
             <X className="h-4 w-4" />
           </button>
-          <p className="text-center text-sm font-extrabold text-[#183B1E]">Log in or sign up</p>
+          <p className="text-center text-sm font-extrabold text-vroom-heading">Log in or sign up</p>
         </div>
 
         <div className="px-6 pb-6">
-          <h2 className="mb-6 mt-4 text-3xl font-extrabold text-[#183B1E]">Welcome to VROOM</h2>
+          <h2 className="mb-6 mt-4 text-3xl font-extrabold text-vroom-heading">Welcome to VROOM</h2>
           <form className="space-y-3" onSubmit={handleSubmit}>
             {error && (
-              <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
-                {error}
-              </div>
+              <div className="neo-error mb-4">{error}</div>
             )}
             <input
               type="email"
@@ -122,8 +121,8 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
               onChange={(event) =>
                 setForm((current) => ({ ...current, email: event.target.value }))
               }
+              className="neo-input"
               placeholder="Email"
-              className="w-full rounded-2xl border-2 border-black bg-white px-4 py-3 outline-none"
             />
             <input
               type="password"
@@ -133,12 +132,12 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
                 setForm((current) => ({ ...current, password: event.target.value }))
               }
               placeholder="Password"
-              className="w-full rounded-2xl border-2 border-black bg-white px-4 py-3 outline-none"
+              className="neo-input"
             />
             <button
               type="submit"
               disabled={isLoading}
-              className="mt-4 w-full rounded-full border-2 border-black border-b-4 bg-[#E34B31] py-3 font-extrabold text-white active:border-b-0 disabled:opacity-40"
+              className="neo-btn-primary mt-4 w-full border-2 py-3"
             >
               {isLoading
                 ? authMode === "login"
@@ -164,7 +163,7 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
               onClick={() =>
                 setAuthMode((current) => (current === "login" ? "signup" : "login"))
               }
-              className="font-extrabold text-[#E34B31] hover:underline"
+              className="font-extrabold text-vroom-accent hover:underline"
             >
               {authMode === "login" ? "Sign up" : "Log in"}
             </button>

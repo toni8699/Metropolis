@@ -30,7 +30,7 @@ function PickupMap({ lat, lng }) {
 
   if (!apiKey || lat == null || lng == null) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-black bg-[#f5f5d0] text-sm text-[#35593b]">
+      <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-black bg-vroom-card text-sm text-vroom-muted">
         Map unavailable
       </div>
     );
@@ -38,7 +38,7 @@ function PickupMap({ lat, lng }) {
 
   if (loadError) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-black bg-[#f5f5d0] px-4 text-center text-sm text-[#35593b]">
+      <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-black bg-vroom-card px-4 text-center text-sm text-vroom-muted">
         Could not load map
       </div>
     );
@@ -46,7 +46,7 @@ function PickupMap({ lat, lng }) {
 
   if (!isLoaded) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-black bg-[#f5f5d0] text-sm text-[#35593b]">
+      <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-black bg-vroom-card text-sm text-vroom-muted">
         Loading map...
       </div>
     );
@@ -172,7 +172,7 @@ export default function BookingDetailsPage() {
     <div className="mx-auto max-w-4xl space-y-4">
       <Link
         to={backPath}
-        className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-[#FCFCE5] px-4 py-2 text-sm font-semibold text-[#183B1E] shadow-[4px_4px_0px_0px_rgba(24,59,30,0.45)]"
+        className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-vroom-surface px-4 py-2 text-sm font-semibold text-vroom-heading shadow-neoSm"
       >
         <ChevronLeft className="h-4 w-4" />
         {backLabel}
@@ -180,7 +180,7 @@ export default function BookingDetailsPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-3">
-          <section className="overflow-hidden rounded-3xl border-2 border-black bg-[#FCFCE5] shadow-[6px_6px_0px_0px_rgba(24,59,30,0.4)]">
+          <section className="overflow-hidden rounded-3xl border-2 border-black bg-vroom-surface shadow-neoCard">
             <div className="grid md:grid-cols-[190px_1fr]">
               <div className="relative min-h-[150px] bg-gray-100 md:min-h-full">
                 {booking.listingPhoto ? (
@@ -201,7 +201,7 @@ export default function BookingDetailsPage() {
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Trip #{booking.bookingId}
                     </p>
-                    <h1 className="mt-1 text-2xl font-extrabold text-[#183B1E]">
+                    <h1 className="mt-1 text-2xl font-extrabold text-vroom-heading">
                       {booking.listingTitle || "Your trip"}
                     </h1>
                     <p className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600">
@@ -257,8 +257,8 @@ export default function BookingDetailsPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border-2 border-black bg-[#FCFCE5] p-4 shadow-[6px_6px_0px_0px_rgba(24,59,30,0.35)]">
-            <h2 className="text-lg font-extrabold text-[#183B1E]">Pickup & location</h2>
+          <section className="rounded-3xl border-2 border-black bg-vroom-surface p-4 shadow-neoCard">
+            <h2 className="text-lg font-extrabold text-vroom-heading">Pickup & location</h2>
             <p className="mt-1 text-sm text-gray-600">
               {location?.pickupAddress || cityLabel || "Pickup location shared below"}
             </p>
@@ -281,8 +281,8 @@ export default function BookingDetailsPage() {
             )}
           </section>
 
-          <section className="rounded-3xl border-2 border-black bg-[#FCFCE5] p-4 shadow-[6px_6px_0px_0px_rgba(24,59,30,0.35)]">
-            <h2 className="text-lg font-extrabold text-[#183B1E]">Trip timeline</h2>
+          <section className="rounded-3xl border-2 border-black bg-vroom-surface p-4 shadow-neoCard">
+            <h2 className="text-lg font-extrabold text-vroom-heading">Trip timeline</h2>
             {timeline.length === 0 ? (
               <p className="mt-4 text-sm text-gray-500">No activity yet.</p>
             ) : (
@@ -298,8 +298,8 @@ export default function BookingDetailsPage() {
                     <span
                       className={`relative z-10 mt-1 h-2.5 w-2.5 shrink-0 rounded-full border ${
                         item.kind === "instruction"
-                          ? "border-[#E34B31] bg-[#E34B31]"
-                          : "border-[#35593b] bg-[#FCFCE5]"
+                          ? "border-vroom-accent bg-vroom-accent"
+                          : "border-vroom-muted bg-vroom-surface"
                       }`}
                     />
                     <div>
@@ -328,8 +328,8 @@ export default function BookingDetailsPage() {
         </div>
 
         <aside className="space-y-3 lg:sticky lg:top-16 lg:self-start">
-          <section className="rounded-3xl border-2 border-black bg-[#FCFCE5] p-4 shadow-[6px_6px_0px_0px_rgba(24,59,30,0.35)]">
-            <h2 className="text-lg font-extrabold text-[#183B1E]">Actions</h2>
+          <section className="rounded-3xl border-2 border-black bg-vroom-surface p-4 shadow-neoCard">
+            <h2 className="text-lg font-extrabold text-vroom-heading">Actions</h2>
             {actionError && (
               <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</p>
             )}
@@ -349,7 +349,7 @@ export default function BookingDetailsPage() {
                   type="button"
                   disabled={isActing}
                   onClick={() => runAction({ status: "CANCELLED" })}
-                  className="rounded-full border-2 border-black border-b-4 bg-[#ffd8cf] px-3 py-1.5 text-xs font-bold text-[#7a2215] active:border-b-0 disabled:opacity-50"
+                  className="rounded-full border-2 border-black border-b-4 bg-vroom-error px-3 py-1.5 text-xs font-bold text-vroom-errorText active:border-b-0 disabled:opacity-50"
                 >
                   Reject booking
                 </button>
@@ -359,7 +359,7 @@ export default function BookingDetailsPage() {
                   type="button"
                   disabled={isActing}
                   onClick={() => runAction({ status: "CANCELLED" })}
-                  className="rounded-full border-2 border-black border-b-4 bg-[#ffd8cf] px-3 py-1.5 text-xs font-bold text-[#7a2215] active:border-b-0 disabled:opacity-50"
+                  className="rounded-full border-2 border-black border-b-4 bg-vroom-error px-3 py-1.5 text-xs font-bold text-vroom-errorText active:border-b-0 disabled:opacity-50"
                 >
                   Cancel booking
                 </button>
@@ -369,7 +369,7 @@ export default function BookingDetailsPage() {
                   type="button"
                   disabled={isActing}
                   onClick={() => runAction({ status: "IN_PROGRESS" })}
-                  className="rounded-full border-2 border-black border-b-4 bg-[#183B1E] px-3 py-1.5 text-xs font-bold text-white active:border-b-0 disabled:opacity-50"
+                  className="rounded-full border-2 border-black border-b-4 bg-vroom-heading px-3 py-1.5 text-xs font-bold text-white active:border-b-0 disabled:opacity-50"
                 >
                   Confirm pickup
                 </button>
@@ -379,7 +379,7 @@ export default function BookingDetailsPage() {
                   type="button"
                   disabled={isActing}
                   onClick={() => runAction({ status: "COMPLETED" })}
-                  className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-3 py-1.5 text-xs font-extrabold text-white active:border-b-0 disabled:opacity-50"
+                  className="rounded-full border-2 border-black border-b-4 bg-vroom-accent px-3 py-1.5 text-xs font-extrabold text-white active:border-b-0 disabled:opacity-50"
                 >
                   Complete trip
                 </button>
@@ -391,14 +391,14 @@ export default function BookingDetailsPage() {
               )}
               <Link
                 to={`/app/listings/${booking.listingId}`}
-                className="rounded-full border-2 border-black border-b-4 bg-[#dbe8be] px-3 py-1.5 text-center text-xs font-bold text-[#183B1E] active:border-b-0"
+                className="rounded-full border-2 border-black border-b-4 bg-vroom-sage px-3 py-1.5 text-center text-xs font-bold text-vroom-heading active:border-b-0"
               >
                 View listing
               </Link>
             </div>
           </section>
 
-          <section className="rounded-3xl border-2 border-black bg-[#FCFCE5] p-4 shadow-[6px_6px_0px_0px_rgba(24,59,30,0.35)]">
+          <section className="rounded-3xl border-2 border-black bg-vroom-surface p-4 shadow-neoCard">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-gray-900">
                 {isHost ? "Earnings Summary" : "Payment Summary"}

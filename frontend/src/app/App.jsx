@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { useState } from "react";
 import { AppPathRedirect } from "@/app/AppPathRedirect";
 import { useAuth } from "@/context/AuthContext";
@@ -16,8 +16,12 @@ import HostOnboardingFlow from "@/features/host/components/HostOnboardingFlow";
 import SuccessListingPage from "@/features/host/SuccessListingPage";
 import { RequireAuth, RequireRole } from "@/app/RouteGuards";
 
-function AppShell({ children, onSearch, onHome }) {
-  return <Layout onSearch={onSearch} onHome={onHome}>{children}</Layout>;
+function AppShell({ onSearch, onHome }) {
+  return (
+    <Layout onSearch={onSearch} onHome={onHome}>
+      <Outlet />
+    </Layout>
+  );
 }
 
 function HostEntry() {
@@ -26,23 +30,6 @@ function HostEntry() {
     return <Navigate to="/admin" replace />;
   }
   return <HostOnboardingFlow />;
-}
-
-function appRoutes(hasSearched, searchParams) {
-  return (
-    <>
-      <Route
-        index
-        element={<MapBrowsePage hasSearched={hasSearched} searchParams={searchParams} />}
-      />
-      <Route path="listings/:listingId" element={<ListingDetailPage />} />
-      <Route path="book/:id" element={<BookingCheckoutPage />} />
-      <Route path="bookings/:bookingId" element={<BookingDetailsPage />} />
-      <Route path="trips" element={<TripsPage />} />
-      <Route path="messages" element={<InboxPage />} />
-      <Route path="*" element={<Navigate to="/app" replace />} />
-    </>
-  );
 }
 
 export default function App() {
@@ -62,23 +49,25 @@ export default function App() {
     setHasSearched(false);
   };
 
-  const mainAppShell = (
-    <AppShell onSearch={handleSearch} onHome={handleGoHome}>
-      <Routes>{appRoutes(hasSearched, searchParams)}</Routes>
-    </AppShell>
-  );
-
-  const accountAppShell = (
-    <AppShell onSearch={handleSearch} onHome={handleGoHome}>
-      <AccountSettingsPage />
-    </AppShell>
-  );
-
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/app/account" element={accountAppShell} />
-      <Route path="/app/*" element={mainAppShell} />
+      <Route
+        path="/app"
+        element={<AppShell onSearch={handleSearch} onHome={handleGoHome} />}
+      >
+        <Route
+          index
+          element={<MapBrowsePage hasSearched={hasSearched} searchParams={searchParams} />}
+        />
+        <Route path="listings/:listingId" element={<ListingDetailPage />} />
+        <Route path="book/:id" element={<BookingCheckoutPage />} />
+        <Route path="bookings/:bookingId" element={<BookingDetailsPage />} />
+        <Route path="trips" element={<TripsPage />} />
+        <Route path="messages" element={<InboxPage />} />
+        <Route path="account" element={<AccountSettingsPage />} />
+        <Route path="*" element={<Navigate to="/app" replace />} />
+      </Route>
 
       <Route element={<RequireAuth />}>
         <Route path="/host" element={<HostEntry />} />

@@ -1,27 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { CarFront, ChevronLeft, ChevronRight, Fuel, Settings } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CarFront, Fuel, Settings } from "lucide-react";
 import UserAvatar from "@/shared/components/UserAvatar";
 import { differenceInDays, format } from "date-fns";
-import { DayPicker } from "react-day-picker";
-import "react-day-picker/style.css";
 import { useAuth } from "@/context/AuthContext";
 import AuthModal from "@/shared/components/AuthModal";
 import { useNavigate, useParams } from "react-router-dom";
 import ListingReviewsSection from "@/features/listings/components/ListingReviewsSection";
 import ListingRatingLine from "@/features/listings/components/ListingRatingLine";
-import BodyCard from "@/shared/components/BodyCard";
+import ListingPhotoGrid from "@/features/listings/components/ListingPhotoGrid";
+import ListingBookingCard from "@/features/listings/components/ListingBookingCard";
+import PageShell from "@/shared/components/PageShell";
 import { apiGet } from "@/shared/api/api";
 import { dateRangeOverlapsBooked } from "@/shared/lib/bookingDates";
 import { computeCheckoutTotals } from "@/shared/lib/checkoutPricing";
 import {
-  airbnbDayPickerClassNames,
-  bookedDayModifierClassNames,
   buildBookedModifiers,
   buildListingDatePickerDisabled,
   defaultDateRangeFromToday,
-  sanitizeDateRange,
-  startOfToday,
 } from "@/shared/lib/datePicker";
+import { listingPhotos } from "@/shared/lib/listingPhotos";
 
 export default function ListingDetailPage() {
   const navigate = useNavigate();
@@ -33,31 +30,25 @@ export default function ListingDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [bookedRanges, setBookedRanges] = useState([]);
   const [dateRange, setDateRange] = useState(defaultDateRangeFromToday);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [reserveError, setReserveError] = useState("");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [calendarMonths, setCalendarMonths] = useState(2);
-  const calendarRef = useRef(null);
+  const [calendarMonths] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches ? 2 : 1,
+  );
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     apiGet(`/api/listings/${listingId}`)
       .then((data) => {
-        if (!cancelled) {
-          setListing(data?.listing || null);
-        }
+        if (!cancelled) setListing(data?.listing || null);
       })
       .catch(() => {
-        if (!cancelled) {
-          setListing(null);
-        }
+        if (!cancelled) setListing(null);
       })
       .finally(() => {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        if (!cancelled) setIsLoading(false);
       });
     return () => {
       cancelled = true;
@@ -69,19 +60,13 @@ export default function ListingDetailPage() {
     setReviewsLoading(true);
     apiGet(`/api/listings/${listingId}/reviews`)
       .then((data) => {
-        if (!cancelled) {
-          setReviews(data?.reviews || []);
-        }
+        if (!cancelled) setReviews(data?.reviews || []);
       })
       .catch(() => {
-        if (!cancelled) {
-          setReviews([]);
-        }
+        if (!cancelled) setReviews([]);
       })
       .finally(() => {
-        if (!cancelled) {
-          setReviewsLoading(false);
-        }
+        if (!cancelled) setReviewsLoading(false);
       });
     return () => {
       cancelled = true;
@@ -92,14 +77,10 @@ export default function ListingDetailPage() {
     let cancelled = false;
     apiGet(`/api/listings/${listingId}/booked-ranges`)
       .then((data) => {
-        if (!cancelled) {
-          setBookedRanges(data?.ranges || []);
-        }
+        if (!cancelled) setBookedRanges(data?.ranges || []);
       })
       .catch(() => {
-        if (!cancelled) {
-          setBookedRanges([]);
-        }
+        if (!cancelled) setBookedRanges([]);
       });
     return () => {
       cancelled = true;
@@ -118,102 +99,47 @@ export default function ListingDetailPage() {
   useEffect(() => {
     if (!bookedRanges.length) return;
     setDateRange((prev) => {
-      if (!dateRangeOverlapsBooked(prev.from, prev.to, bookedRanges)) {
-        return prev;
-      }
+      if (!dateRangeOverlapsBooked(prev.from, prev.to, bookedRanges)) return prev;
       return { from: undefined, to: undefined };
     });
   }, [bookedRanges]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!calendarRef.current?.contains(event.target)) {
-        setIsCalendarOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const syncCalendarMonths = () => {
-      setCalendarMonths(window.innerWidth >= 1024 ? 2 : 1);
-    };
-    syncCalendarMonths();
-    window.addEventListener("resize", syncCalendarMonths);
-    return () => window.removeEventListener("resize", syncCalendarMonths);
-  }, []);
-
-  useEffect(() => {
-    if (!isGalleryOpen) return undefined;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isGalleryOpen]);
-
-  const images = useMemo(() => {
-    const raw = listing?.photos?.filter(Boolean) || [];
-    if (raw.length >= 5) return raw.slice(0, 5);
-    if (raw.length === 0) return Array.from({ length: 5 }).map(() => null);
-    const repeated = [...raw];
-    while (repeated.length < 5) {
-      repeated.push(raw[repeated.length % raw.length]);
-    }
-    return repeated.slice(0, 5);
-  }, [listing]);
+  const photoSets = useMemo(() => (listing ? listingPhotos(listing) : { grid: [], gallery: [] }), [listing]);
   const guidelinesText = useMemo(() => {
     const text = (listing?.guidelines || listing?.rules || "").trim();
     return text || null;
   }, [listing]);
 
-  const galleryImages = useMemo(() => {
-    const all = [
-      ...(Array.isArray(listing?.images) ? listing.images : []),
-      ...(Array.isArray(listing?.photos) ? listing.photos : []),
-    ].filter(Boolean);
-    return Array.from(new Set(all));
-  }, [listing?.images, listing?.photos]);
-
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-10">
-        <div className="space-y-4">
-          <div className="h-10 w-2/3 animate-pulse rounded bg-gray-200" />
-          <div className="h-5 w-1/3 animate-pulse rounded bg-gray-100" />
-          <div className="grid grid-cols-1 gap-2 overflow-hidden rounded-2xl aspect-[2/1] md:aspect-[2.1] md:grid-cols-4">
-            {Array.from({ length: 5 }).map((_, idx) => (
-              <div
-                key={idx}
-                className={`animate-pulse bg-gray-200 ${
-                  idx === 0
-                    ? "w-full h-full md:col-span-2 md:row-span-2"
-                    : "hidden w-full h-full md:block"
-                }`}
-              />
-            ))}
-          </div>
+      <PageShell maxWidth="7xl" card className="space-y-4 px-5 py-8 sm:px-7 lg:px-11">
+        <div className="h-10 w-2/3 animate-pulse rounded bg-gray-200" />
+        <div className="h-5 w-1/3 animate-pulse rounded bg-gray-100" />
+        <div className="grid aspect-[2/1] grid-cols-1 gap-2 overflow-hidden rounded-2xl md:aspect-[2.1] md:grid-cols-4">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <div
+              key={idx}
+              className={`animate-pulse bg-gray-200 ${
+                idx === 0 ? "h-full w-full md:col-span-2 md:row-span-2" : "hidden h-full w-full md:block"
+              }`}
+            />
+          ))}
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (!listing) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-10">
-        <p className="rounded-xl border-4 border-black bg-[#FCFCE5] p-4 text-sm font-semibold text-[#35593b]">
-          Listing not found.
-        </p>
-      </div>
+      <PageShell maxWidth="7xl" card className="px-5 py-8 sm:px-7 lg:px-11">
+        <p className="neo-error">Listing not found.</p>
+      </PageShell>
     );
   }
 
   const title =
     listing.title ||
-    `${listing.make || listing.brand || "Car"} ${listing.model || ""} ${
-      listing.year || ""
-    }`.trim();
+    `${listing.make || listing.brand || "Car"} ${listing.model || ""} ${listing.year || ""}`.trim();
   const locationText = listing.cityZone ? listing.cityZone.replace(/-/g, " ") : "Location";
   const isCompanyFleet = listing.isCompanyOwned || listing.sourceType === "FLEET";
   const hostedByName = listing.ownerName?.trim() || null;
@@ -227,6 +153,25 @@ export default function ListingDetailPage() {
   const pricing = hasCompleteRange
     ? computeCheckoutTotals(listing.pricePerDay, rawDayCount)
     : null;
+
+  const handleDateRangeChange = (next) => {
+    if (dateRangeOverlapsBooked(next.from, next.to, bookedRanges)) {
+      setReserveError("Those dates are already booked. Please choose different dates.");
+      return;
+    }
+    setReserveError("");
+    setDateRange(next);
+  };
+
+  const goToCheckout = () => {
+    if (!dateRange.from || !dateRange.to) return;
+    navigate(`/app/book/${listingId}`, {
+      state: {
+        startDate: format(dateRange.from, "yyyy-MM-dd"),
+        endDate: format(dateRange.to, "yyyy-MM-dd"),
+      },
+    });
+  };
 
   const handleReserveClick = () => {
     if (!dateRange.from || !dateRange.to) {
@@ -247,289 +192,108 @@ export default function ListingDetailPage() {
       setIsAuthModalOpen(true);
       return;
     }
-
     goToCheckout();
   };
 
-  const goToCheckout = () => {
-    if (!dateRange.from || !dateRange.to) return;
-    navigate(`/app/book/${listingId}`, {
-      state: {
-        startDate: format(dateRange.from, "yyyy-MM-dd"),
-        endDate: format(dateRange.to, "yyyy-MM-dd"),
-      },
-    });
-  };
-
-  const reserveButtonDisabled = !dateRange.from || !dateRange.to;
-
   return (
     <>
-      <BodyCard className="mx-auto max-w-7xl px-5 py-8 sm:px-7 lg:px-11">
-      <h1 className="mb-2 text-5xl font-black text-[#2D5A27]">{title}</h1>
-      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
-        <ListingRatingLine listing={listing} />
-        <span>·</span>
-        <span className="font-medium capitalize">{locationText}</span>
-      </div>
-
-      <div className="group relative mt-6 grid aspect-[2/1] grid-cols-1 gap-2 overflow-hidden rounded-[2rem] border-4 border-black md:aspect-[2.1] md:grid-cols-4">
-        {[0, 1, 2, 3, 4].map((index) => (
-          <div
-            key={index}
-            className={`overflow-hidden ${
-              index === 0
-                ? "md:col-span-2 md:row-span-2 w-full h-full"
-                : "hidden md:block w-full h-full"
-            }`}
-          >
-            {images[index] ? (
-              <img
-                src={images[index]}
-                alt={`${title} photo ${index + 1}`}
-                className="w-full h-full object-cover cursor-pointer transition hover:opacity-90"
-                onClick={() => setIsGalleryOpen(true)}
-              />
-            ) : (
-              <div className="h-full w-full bg-gray-200" />
-            )}
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={() => setIsGalleryOpen(true)}
-          className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full border-4 border-black border-b-4 border-r-4 bg-[#FCFCE5] px-4 py-2 text-sm font-extrabold text-[#2D5A27] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition active:translate-x-1 active:translate-y-1 active:border-0"
-        >
-          <CarFront className="h-4 w-4" />
-          Show all photos
-        </button>
-      </div>
-
-      <div className="relative mt-10 flex flex-col gap-12 md:flex-row">
-        <div className="w-full space-y-6 md:w-[65%]">
-          <div className="flex items-center gap-3 border-t-4 border-black py-6">
-            <UserAvatar user={hostUser} className="h-10 w-10 text-sm" />
-            <div>
-              <p className="text-xl font-semibold text-gray-900">
-                {isCompanyFleet
-                  ? "Company fleet"
-                  : hostedByName
-                    ? `Hosted by ${hostedByName}`
-                    : "Individual host"}
-              </p>
-              {!isCompanyFleet && hostedByName && (
-                <p className="text-sm text-gray-500">Individual host</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid gap-4 border-t-4 border-black py-6 sm:grid-cols-3">
-            <div className="flex items-center gap-2 rounded-full bg-white border-2 border-black px-4 py-2 font-bold text-[#2D5A27]">
-              <CarFront className="h-5 w-5 text-[#E34B31]" />
-              <span className="text-sm">5 seats</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-full bg-white border-2 border-black px-4 py-2 font-bold text-[#2D5A27]">
-              <Settings className="h-5 w-5 text-[#E34B31]" />
-              <span className="text-sm">Automatic</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-full bg-white border-2 border-black px-4 py-2 font-bold text-[#2D5A27]">
-              <Fuel className="h-5 w-5 text-[#E34B31]" />
-              <span className="text-sm">
-                {listing.make?.toLowerCase().includes("tesla") ? "Electric" : "Gas"}
-              </span>
-            </div>
-          </div>
-
-          <p className="text-base leading-7 text-gray-700">
-            {listing.description ||
-              "Enjoy a smooth and reliable ride. Perfect for city commutes or weekend escapes."}
-          </p>
-
-          {guidelinesText && (
-            <section className="border-t-4 border-black py-6">
-              <h2 className="mb-3 text-xl font-semibold text-gray-900">Guidelines</h2>
-              <p className="whitespace-pre-wrap text-base leading-7 text-gray-700">{guidelinesText}</p>
-            </section>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(Array.isArray(listing.features) && listing.features.length
-              ? listing.features
-              : ["Instant booking", "Free cancellation in 24h"]
-            ).map((feature) => (
-              <div key={feature} className="flex items-center gap-2 text-sm text-gray-800">
-                <span className="h-1.5 w-1.5 rounded-full bg-gray-900" />
-                {feature}
-              </div>
-            ))}
-          </div>
-
-          <ListingReviewsSection
-            listing={listing}
-            reviews={reviews}
-            isLoading={reviewsLoading}
-          />
+      <PageShell maxWidth="7xl" card className="px-5 py-8 sm:px-7 lg:px-11">
+        <h1 className="mb-2 text-5xl font-black text-vroom-text">{title}</h1>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+          <ListingRatingLine listing={listing} />
+          <span>·</span>
+          <span className="font-medium capitalize">{locationText}</span>
         </div>
 
-        <div className="w-full md:w-[35%]">
-          <div className="sticky top-[var(--app-header-offset)] rounded-[2rem] border-4 border-black bg-[#FCFCE5] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
-            <div className="flex items-baseline gap-1">
-              <p className="text-3xl font-extrabold text-black">${listing.pricePerDay}</p>
-              <p className="font-semibold text-[#35593b]">/ day</p>
-            </div>
+        <ListingPhotoGrid
+          title={title}
+          gridImages={photoSets.grid}
+          galleryImages={photoSets.gallery}
+          isGalleryOpen={isGalleryOpen}
+          onOpenGallery={() => setIsGalleryOpen(true)}
+          onCloseGallery={() => setIsGalleryOpen(false)}
+        />
 
-            <div ref={calendarRef} className="relative mt-6">
-              <div
-                className="relative flex cursor-pointer rounded-2xl border-4 border-black bg-white"
-                onClick={() => setIsCalendarOpen((open) => !open)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setIsCalendarOpen((open) => !open);
-                  }
-                }}
-              >
-                <div className="w-1/2 p-3">
-                  <p className="text-[10px] font-bold text-gray-800">CHECK-IN</p>
-                  <p className="text-sm text-gray-500">
-                    {dateRange.from ? format(dateRange.from, "MM/dd/yyyy") : "Add date"}
-                  </p>
-                </div>
-                <div className="w-1/2 border-l-2 border-black p-3">
-                  <p className="text-[10px] font-bold text-gray-800">CHECKOUT</p>
-                  <p className="text-sm text-gray-500">
-                    {dateRange.to ? format(dateRange.to, "MM/dd/yyyy") : "Add date"}
-                  </p>
-                </div>
+        <div className="relative mt-10 flex flex-col gap-12 md:flex-row">
+          <div className="w-full space-y-6 md:w-[65%]">
+            <div className="flex items-center gap-3 border-t-4 border-black py-6">
+              <UserAvatar user={hostUser} className="h-10 w-10 text-sm" />
+              <div>
+                <p className="text-xl font-semibold text-vroom-heading">
+                  {isCompanyFleet
+                    ? "Company fleet"
+                    : hostedByName
+                      ? `Hosted by ${hostedByName}`
+                      : "Individual host"}
+                </p>
+                {!isCompanyFleet && hostedByName && (
+                  <p className="text-sm text-vroom-muted">Individual host</p>
+                )}
               </div>
-
-              {isCalendarOpen && (
-                <div className="absolute right-0 top-[100%] z-50 mt-4 rounded-3xl border-4 border-black bg-[#FCFCE5] p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-                  <DayPicker
-                    mode="range"
-                    numberOfMonths={calendarMonths}
-                    startMonth={startOfToday()}
-                    disabled={calendarDisabledMatchers}
-                    modifiers={calendarBookedModifiers}
-                    modifiersClassNames={bookedDayModifierClassNames}
-                    selected={dateRange}
-                    onSelect={(range) => {
-                      const next = sanitizeDateRange(range);
-                      if (dateRangeOverlapsBooked(next.from, next.to, bookedRanges)) {
-                        setReserveError(
-                          "Those dates are already booked. Please choose different dates.",
-                        );
-                        return;
-                      }
-                      setReserveError("");
-                      setDateRange(next);
-                    }}
-                    className="rdp-airbnb"
-                    classNames={airbnbDayPickerClassNames(true)}
-                    components={{
-                      Chevron: ({ orientation, ...props }) =>
-                        orientation === "left" ? (
-                          <ChevronLeft {...props} className="h-5 w-5" />
-                        ) : (
-                          <ChevronRight {...props} className="h-5 w-5" />
-                        ),
-                    }}
-                  />
-                    <div className="mt-4 flex items-center justify-between border-t-4 border-black pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setDateRange(defaultDateRangeFromToday())}
-                      className="underline font-medium text-sm cursor-pointer hover:text-black text-gray-600"
-                    >
-                      Clear dates
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsCalendarOpen(false)}
-                      className="rounded-full border-4 border-black border-b-4 border-r-4 bg-[#2D5A27] px-4 py-2 text-sm font-bold text-white active:translate-x-1 active:translate-y-1 active:border-0"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
-            <button
-              onClick={handleReserveClick}
-              disabled={reserveButtonDisabled}
-              className="mt-4 w-full rounded-full border-4 border-black border-b-4 border-r-4 bg-[#E34B31] py-3 font-black text-white transition active:translate-x-1 active:translate-y-1 active:border-0 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Reserve
-            </button>
-            <p className="mt-3 text-center text-sm text-gray-500">
-              You won&apos;t be charged yet
+            <div className="grid gap-4 border-t-4 border-black py-6 sm:grid-cols-3">
+              <div className="flex items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 font-bold text-vroom-text">
+                <CarFront className="h-5 w-5 text-vroom-accent" />
+                <span className="text-sm">5 seats</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 font-bold text-vroom-text">
+                <Settings className="h-5 w-5 text-vroom-accent" />
+                <span className="text-sm">Automatic</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 font-bold text-vroom-text">
+                <Fuel className="h-5 w-5 text-vroom-accent" />
+                <span className="text-sm">
+                  {listing.make?.toLowerCase().includes("tesla") ? "Electric" : "Gas"}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-base leading-7 text-gray-700">
+              {listing.description ||
+                "Enjoy a smooth and reliable ride. Perfect for city commutes or weekend escapes."}
             </p>
-            {reserveError && (
-              <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-600">
-                {reserveError}
-              </div>
+
+            {guidelinesText && (
+              <section className="border-t-4 border-black py-6">
+                <h2 className="mb-3 text-xl font-semibold text-vroom-heading">Guidelines</h2>
+                <p className="whitespace-pre-wrap text-base leading-7 text-gray-700">{guidelinesText}</p>
+              </section>
             )}
-            {hasCompleteRange && pricing ? (
-              <div className="mt-5 space-y-3 border-t-4 border-black pt-4 text-sm text-[#35593b]">
-                <div className="flex items-center justify-between">
-                  <p className="underline">
-                    ${listing.pricePerDay} x {pricing.dayCount} nights
-                  </p>
-                  <p>${pricing.subtotal.toFixed(2)}</p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(Array.isArray(listing.features) && listing.features.length
+                ? listing.features
+                : ["Instant booking", "Free cancellation in 24h"]
+              ).map((feature) => (
+                <div key={feature} className="flex items-center gap-2 text-sm text-gray-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-gray-900" />
+                  {feature}
                 </div>
-                <div className="flex items-center justify-between">
-                  <p className="underline">Service fee</p>
-                  <p>${pricing.serviceFee.toFixed(2)}</p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="underline">Cleaning fee</p>
-                  <p>${pricing.cleaningFee.toFixed(2)}</p>
-                </div>
-                <div className="flex items-center justify-between border-t-4 border-black pt-3 text-base font-semibold text-black">
-                  <p>Total before taxes</p>
-                  <p>${pricing.total.toFixed(2)}</p>
-                </div>
-              </div>
-            ) : (
-              <p className="mt-4 text-center text-sm text-gray-500">Add dates to see price</p>
-            )}
+              ))}
+            </div>
+
+            <ListingReviewsSection listing={listing} reviews={reviews} isLoading={reviewsLoading} />
+          </div>
+
+          <div className="w-full md:w-[35%]">
+            <ListingBookingCard
+              pricePerDay={listing.pricePerDay}
+              dateRange={dateRange}
+              onDateRangeChange={handleDateRangeChange}
+              bookedRanges={bookedRanges}
+              calendarDisabledMatchers={calendarDisabledMatchers}
+              calendarBookedModifiers={calendarBookedModifiers}
+              calendarMonths={calendarMonths}
+              onReserve={handleReserveClick}
+              reserveButtonDisabled={!dateRange.from || !dateRange.to}
+              reserveError={reserveError}
+              pricing={pricing}
+              hasCompleteRange={hasCompleteRange}
+            />
           </div>
         </div>
-      </div>
-      </BodyCard>
-      {isGalleryOpen && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#FCFCE5]">
-          <div className="sticky top-0 z-10 flex items-center border-b-4 border-black bg-[#FCFCE5] px-6 py-4">
-            <button
-              type="button"
-              onClick={() => setIsGalleryOpen(false)}
-              className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium hover:bg-gray-100"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Back to listing
-            </button>
-          </div>
-          <div className="max-w-3xl mx-auto py-10 px-4 flex flex-col gap-4">
-            {galleryImages.length ? (
-              galleryImages.map((imageUrl, idx) => (
-                <img
-                  key={`${imageUrl}-${idx}`}
-                  src={imageUrl}
-                  alt={`${title} gallery ${idx + 1}`}
-                  className="w-full h-auto object-cover rounded-xl"
-                />
-              ))
-            ) : (
-              <div className="w-full h-80 rounded-xl bg-gray-200 flex items-center justify-center text-gray-500">
-                No photos available.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      </PageShell>
       <AuthModal
         isOpen={isAuthModalOpen}
         mode="login"

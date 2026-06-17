@@ -234,8 +234,8 @@ export default function HostOnboardingFlow() {
   };
 
   return (
-    <div className="min-h-screen bg-[#D0F0C0] text-[#183B1E] flex flex-col">
-      <header className="fixed top-0 left-0 right-0 z-50 flex h-20 items-center justify-between border-b-4 border-black bg-[#FCFCE5] px-10">
+    <div className="min-h-screen bg-vroom-bg text-vroom-heading flex flex-col">
+      <header className="fixed top-0 left-0 right-0 z-50 flex h-20 items-center justify-between border-b-4 border-black bg-vroom-surface px-10">
         <div className="flex items-center">
           <VroomLogo />
         </div>
@@ -248,9 +248,9 @@ export default function HostOnboardingFlow() {
         </button>
       </header>
 
-      <div className="fixed top-20 left-0 z-50 h-1 w-full bg-[#dbe8be]">
+      <div className="fixed top-20 left-0 z-50 h-1 w-full bg-vroom-sage">
         <div
-          className="h-full bg-[#E34B31] transition-all duration-500"
+          className="h-full bg-vroom-accent transition-all duration-500"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -304,8 +304,8 @@ export default function HostOnboardingFlow() {
                           onClick={() => setListingData((prev) => ({ ...prev, type }))}
                       className={`rounded-2xl border-2 border-black px-4 py-4 text-left font-bold transition ${
                             active
-                              ? "bg-[#183B1E] text-white"
-                              : "bg-white hover:bg-[#f5f5d0]"
+                              ? "bg-vroom-heading text-white"
+                              : "bg-white hover:bg-vroom-card"
                           }`}
                         >
                           {type}
@@ -404,7 +404,7 @@ export default function HostOnboardingFlow() {
                       e.preventDefault();
                       applyImageFiles(e.dataTransfer.files);
                     }}
-                    className="flex cursor-pointer flex-col items-center justify-center rounded-[1.5rem] border-2 border-dashed border-black bg-[#FCFCE5] p-10 transition hover:bg-[#f5f5d0]"
+                    className="flex cursor-pointer flex-col items-center justify-center rounded-[1.5rem] border-2 border-dashed border-black bg-vroom-surface p-10 transition hover:bg-vroom-card"
                   >
                     <UploadCloud className="h-10 w-10 text-gray-400 mb-2" />
                     <p className="font-semibold text-gray-900">Add photos</p>
@@ -453,7 +453,7 @@ export default function HostOnboardingFlow() {
                           price: Math.max(5, Number(prev.price) - 5),
                         }))
                       }
-                      className="h-12 w-12 rounded-full border-2 border-black bg-white text-2xl font-bold hover:bg-[#f5f5d0]"
+                      className="h-12 w-12 rounded-full border-2 border-black bg-white text-2xl font-bold hover:bg-vroom-card"
                     >
                       -
                     </button>
@@ -463,14 +463,14 @@ export default function HostOnboardingFlow() {
                         setListingData((prev) => ({ ...prev, price: Number(e.target.value) || 0 }))
                       }
                       type="number"
-                      className="w-44 bg-transparent text-center font-extrabold text-6xl text-[#183B1E] outline-none"
+                      className="w-44 bg-transparent text-center font-extrabold text-6xl text-vroom-heading outline-none"
                     />
                     <button
                       type="button"
                       onClick={() =>
                         setListingData((prev) => ({ ...prev, price: Number(prev.price) + 5 }))
                       }
-                      className="h-12 w-12 rounded-full border-2 border-black bg-white text-2xl font-bold hover:bg-[#f5f5d0]"
+                      className="h-12 w-12 rounded-full border-2 border-black bg-white text-2xl font-bold hover:bg-vroom-card"
                     >
                       +
                     </button>
@@ -494,7 +494,7 @@ export default function HostOnboardingFlow() {
         </div>
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 z-50 flex h-24 items-center justify-between border-t-4 border-black bg-[#FCFCE5] px-10">
+      <footer className="fixed bottom-0 left-0 right-0 z-50 flex h-24 items-center justify-between border-t-4 border-black bg-vroom-surface px-10">
         <button
           type="button"
           onClick={handleBack}
@@ -506,7 +506,7 @@ export default function HostOnboardingFlow() {
           type="button"
           onClick={handleNext}
           disabled={!canProceed || isPublishing}
-          className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-8 py-3 font-extrabold text-white active:border-b-0 disabled:opacity-40"
+          className="rounded-full border-2 border-black border-b-4 bg-vroom-accent px-8 py-3 font-extrabold text-white active:border-b-0 disabled:opacity-40"
         >
           {currentStep === TOTAL_STEPS ? (isPublishing ? "Publishing..." : "Publish Listing") : "Next"}
         </button>

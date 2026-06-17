@@ -37,11 +37,11 @@ export default function OptimizationChecklist({ listings = [], isAdmin = false }
 
   return (
     <section className="px-11 pt-11">
-      <BodyCard className="bg-[#dbe8be] rounded-2xl p-6 sm:p-8">
-        <h2 className="font-['Fredoka'] text-2xl font-extrabold text-[#183B1E]">
+      <BodyCard className="bg-vroom-sage rounded-2xl p-6 sm:p-8">
+        <h2 className="font-['Fredoka'] text-2xl font-extrabold text-vroom-heading">
           Boost your listing
         </h2>
-        <p className="mt-1 text-sm font-medium text-[#35593b]">
+        <p className="mt-1 text-sm font-medium text-vroom-muted">
           Quick wins while your car is fresh on the marketplace.
         </p>
         <ul className="mt-6 space-y-4">
@@ -50,14 +50,14 @@ export default function OptimizationChecklist({ listings = [], isAdmin = false }
             return (
               <li
                 key={item.title}
-                className="flex gap-4 rounded-xl border-2 border-black bg-[#FCFCE5] p-4"
+                className="flex gap-4 rounded-xl border-2 border-black bg-vroom-surface p-4"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-black bg-white">
-                  <Icon className="h-5 w-5 text-[#E34B31]" aria-hidden />
+                  <Icon className="h-5 w-5 text-vroom-accent" aria-hidden />
                 </div>
                 <div>
-                  <p className="font-bold text-[#183B1E]">{item.title}</p>
-                  <p className="mt-1 text-sm text-[#35593b]">
+                  <p className="font-bold text-vroom-heading">{item.title}</p>
+                  <p className="mt-1 text-sm text-vroom-muted">
                     {item.buildDescription(photoCount)}
                   </p>
                 </div>

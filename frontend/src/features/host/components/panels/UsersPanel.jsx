@@ -1,6 +1,6 @@
 export default function UsersPanel({ users }) {
   return (
-    <section className="mx-11 mt-6 mb-11 overflow-hidden rounded-2xl border-4 border-black bg-[#f5f5d0] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+    <section className="mx-11 mt-6 mb-11 overflow-hidden rounded-2xl border-4 border-black bg-vroom-card shadow-neo">
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">

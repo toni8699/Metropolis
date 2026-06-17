@@ -3,7 +3,7 @@ export default function VroomLogo({ className = "" }) {
     <img
       src="/vroom-logo.svg"
       alt="VROOM Logo"
-      className={`h-12 w-auto text-[#E34B31] transition-transform hover:scale-110 ${className}`}
+      className={`h-12 w-auto text-vroom-accent transition-transform hover:scale-110 ${className}`}
     />
   );
 }

@@ -28,8 +28,8 @@ function ConversationListItem({ thread, isActive, onSelect }) {
     <button
       type="button"
       onClick={() => onSelect(thread.bookingId)}
-      className={`flex w-full gap-3 border-b-2 border-black/10 px-4 py-4 text-left transition hover:bg-[#f5f5d0] ${
-        isActive ? "border-l-4 border-l-[#E34B31] bg-[#f5f5d0]" : "border-l-4 border-l-transparent"
+      className={`flex w-full gap-3 border-b-2 border-black/10 px-4 py-4 text-left transition hover:bg-vroom-card ${
+        isActive ? "border-l-4 border-l-vroom-accent bg-vroom-card" : "border-l-4 border-l-transparent"
       }`}
     >
       <UserAvatar name={otherName} className="h-11 w-11 text-xs" />
@@ -38,7 +38,7 @@ function ConversationListItem({ thread, isActive, onSelect }) {
           <p className="truncate font-semibold text-gray-900">{otherName}</p>
           <div className="flex shrink-0 items-center gap-2">
             {unreadCount > 0 && (
-              <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#E34B31] px-1.5 py-0.5 text-[10px] font-bold text-white">
+              <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-vroom-accent px-1.5 py-0.5 text-[10px] font-bold text-white">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
@@ -61,7 +61,7 @@ function ReservationSidebar({ thread }) {
 
   return (
     <div className="space-y-4 p-5">
-      <div className="overflow-hidden rounded-2xl border-2 border-black bg-[#dbe8be]">
+      <div className="overflow-hidden rounded-2xl border-2 border-black bg-vroom-sage">
         {cover ? (
           <img src={cover} alt={thread.listing?.title || "Vehicle"} className="h-40 w-full object-cover" />
         ) : (
@@ -89,7 +89,7 @@ function ReservationSidebar({ thread }) {
       </div>
 
       {thread.pricing && (
-        <dl className="space-y-2 rounded-2xl border-2 border-black bg-[#FCFCE5] p-4 text-sm">
+        <dl className="space-y-2 rounded-2xl border-2 border-black bg-vroom-surface p-4 text-sm">
           <div className="flex justify-between gap-3">
             <dt className="text-gray-600">Daily rate</dt>
             <dd className="font-medium text-gray-900">
@@ -109,7 +109,7 @@ function ReservationSidebar({ thread }) {
 
       <Link
         to={`/app/bookings/${thread.bookingId}`}
-        className="block rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-2.5 text-center text-sm font-extrabold text-white active:border-b-0"
+        className="block rounded-full border-2 border-black border-b-4 bg-vroom-accent px-4 py-2.5 text-center text-sm font-extrabold text-white active:border-b-0"
       >
         View full reservation details
       </Link>
@@ -239,21 +239,21 @@ export default function InboxPage() {
   const otherName = selectedThread?.otherParty?.name || "Guest";
 
   return (
-    <BodyCard className="grid h-[calc(100dvh-var(--app-header-offset)-var(--app-content-gap)*2-9rem)] max-h-[calc(100dvh-var(--app-header-offset)-var(--app-content-gap)*2-9rem)] grid-cols-1 grid-rows-1 overflow-hidden md:grid-cols-12">
+    <BodyCard className="grid min-h-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden md:grid-cols-12">
       <aside
         className={`col-span-12 flex min-h-0 flex-col border-r-2 border-black md:col-span-3 ${
           mobilePane === "chat" ? "hidden md:flex" : "flex"
         }`}
       >
         <div className="shrink-0 border-b-2 border-black px-4 py-4">
-          <h1 className="flex items-center gap-2 text-2xl font-extrabold text-[#183B1E]">
-            <MessageCircle className="h-6 w-6 text-[#E34B31]" />
+          <h1 className="flex items-center gap-2 text-2xl font-extrabold text-vroom-heading">
+            <MessageCircle className="h-6 w-6 text-vroom-accent" />
             Messages
           </h1>
         </div>
 
         {threadsError && (
-          <p className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{threadsError}</p>
+          <p className="neo-error mx-4 mt-3 text-xs">{threadsError}</p>
         )}
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -286,7 +286,7 @@ export default function InboxPage() {
         }`}
       >
         {!selectedThread ? (
-            <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-[#35593b]">
+            <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-vroom-muted">
             <MessageCircle className="mb-3 h-10 w-10 text-gray-300" />
             <p className="text-sm">Select a conversation to start messaging</p>
           </div>
@@ -318,10 +318,10 @@ export default function InboxPage() {
             </div>
 
             {loadError && (
-              <p className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{loadError}</p>
+              <p className="neo-error mx-4 mt-3 text-xs">{loadError}</p>
             )}
 
-            <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#f5f5d0] px-4 py-4">
+            <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-vroom-card px-4 py-4">
               <ChatMessageList
                 messages={messages}
                 currentUserId={user?.userId}
@@ -332,7 +332,7 @@ export default function InboxPage() {
             </div>
 
             {sendError && (
-              <p className="mx-4 shrink-0 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{sendError}</p>
+              <p className="neo-warn mx-4 shrink-0 text-xs">{sendError}</p>
             )}
 
             <ChatComposer
@@ -341,8 +341,8 @@ export default function InboxPage() {
               onChange={(e) => setDraft(e.target.value)}
               onSubmit={handleSend}
               isSending={isSending}
-              className="flex shrink-0 gap-2 border-t-2 border-black bg-[#FCFCE5] px-4 py-3"
-              buttonClassName="inline-flex items-center gap-1 rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-4 py-2 text-sm font-extrabold text-white active:border-b-0 disabled:opacity-50"
+              className="flex shrink-0 gap-2 border-t-2 border-black bg-vroom-surface px-4 py-3"
+              buttonClassName="inline-flex items-center gap-1 rounded-full border-2 border-black border-b-4 bg-vroom-accent px-4 py-2 text-sm font-extrabold text-white active:border-b-0 disabled:opacity-50"
             />
           </>
         )}

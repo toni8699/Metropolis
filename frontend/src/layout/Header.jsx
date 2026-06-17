@@ -1,30 +1,24 @@
-import {
-  Globe,
-  Mail,
-  Menu,
-  Search,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Globe, Mail, Search, SlidersHorizontal } from "lucide-react";
 import { addDays, format } from "date-fns";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useGoogleMaps } from "@/context/GoogleMapsProvider";
 import AuthModal from "@/shared/components/AuthModal";
-import UserAvatar from "@/shared/components/UserAvatar";
-import UserMenuDropdown from "@/layout/header/UserMenuDropdown";
+import HeaderUserMenu from "@/layout/header/HeaderUserMenu";
 import CollapsedSearchPill from "@/layout/header/CollapsedSearchPill";
 import WhereSuggestionsDropdown from "@/layout/header/WhereSuggestionsDropdown";
 import WhenDateDropdown from "@/layout/header/WhenDateDropdown";
 import VroomLogo from "@/layout/VroomLogo";
 import { defaultDateRangeFromToday, startOfToday } from "@/shared/lib/datePicker";
+import { nextWeekendRange } from "@/shared/lib/weekendDates";
+import { useClickOutside } from "@/shared/hooks/useClickOutside";
 import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
 import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 
 export default function Header({ onSearch, onHome }) {
   const navigate = useNavigate();
   const { isAuthenticated, isAdmin, user, logout } = useAuth();
-  const canAdmin = isAdmin;
   const showHostDashboard = isAuthenticated && !isAdmin;
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -52,66 +46,41 @@ export default function Header({ onSearch, onHome }) {
     placesLoadError,
   });
 
+  const closeSearch = useCallback(() => setIsSearchExpanded(false), []);
+  const closeMenu = useCallback(() => setIsUserMenuOpen(false), []);
+  const toggleMenu = useCallback(() => setIsUserMenuOpen((open) => !open), []);
+
+  useClickOutside(searchContainerRef, closeSearch, isSearchExpanded);
+
   useEffect(() => {
-    function closeOnClickOutside(event) {
-      if (!isSearchExpanded) return;
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(event.target)
-      ) {
-        setIsSearchExpanded(false);
-      }
-    }
-
-    function closeOnEsc(event) {
-      if (event.key === "Escape") {
-        setIsSearchExpanded(false);
-      }
-    }
-
-    document.addEventListener("mousedown", closeOnClickOutside);
-    document.addEventListener("keydown", closeOnEsc);
-
-    return () => {
-      document.removeEventListener("mousedown", closeOnClickOutside);
-      document.removeEventListener("keydown", closeOnEsc);
+    if (!isSearchExpanded) return undefined;
+    const onEsc = (event) => {
+      if (event.key === "Escape") closeSearch();
     };
-  }, [isSearchExpanded]);
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, [isSearchExpanded, closeSearch]);
 
   useEffect(() => {
     if (!isUserMenuOpen) return undefined;
     const onClickOutside = (event) => {
-      const isInsideMobile =
-        mobileUserMenuRef.current &&
-        mobileUserMenuRef.current.contains(event.target);
-      const isInsideDesktop =
-        desktopUserMenuRef.current &&
-        desktopUserMenuRef.current.contains(event.target);
-      if (!isInsideMobile && !isInsideDesktop) {
-        setIsUserMenuOpen(false);
-      }
+      const inMobile = mobileUserMenuRef.current?.contains(event.target);
+      const inDesktop = desktopUserMenuRef.current?.contains(event.target);
+      if (!inMobile && !inDesktop) closeMenu();
     };
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [isUserMenuOpen]);
+  }, [isUserMenuOpen, closeMenu]);
 
   const whenLabel =
     selectedRange?.from && selectedRange?.to
-      ? `${format(selectedRange.from, "MMM d")} - ${format(
-          selectedRange.to,
-          "MMM d",
-        )}`
+      ? `${format(selectedRange.from, "MMM d")} - ${format(selectedRange.to, "MMM d")}`
       : "Add dates";
   const collapsedWhenLabel =
     selectedRange?.from && selectedRange?.to ? whenLabel : "Any week";
   const todayDate = startOfToday();
   const tomorrowDate = addDays(todayDate, 1);
-  const previewNextSaturday = new Date(todayDate);
-  previewNextSaturday.setDate(
-    todayDate.getDate() + (((6 - todayDate.getDay() + 7) % 7) || 7),
-  );
-  const previewNextSunday = new Date(previewNextSaturday);
-  previewNextSunday.setDate(previewNextSaturday.getDate() + 1);
+  const { saturday: previewNextSaturday, sunday: previewNextSunday } = nextWeekendRange();
 
   const geocodeAddress = (address) =>
     new Promise((resolve, reject) => {
@@ -148,13 +117,11 @@ export default function Header({ onSearch, onHome }) {
 
     onSearch?.({
       location: trimmedLocation,
-      pickupDate: selectedRange?.from
-        ? format(selectedRange.from, "yyyy-MM-dd")
-        : "",
+      pickupDate: selectedRange?.from ? format(selectedRange.from, "yyyy-MM-dd") : "",
       returnDate: selectedRange?.to ? format(selectedRange.to, "yyyy-MM-dd") : "",
       coordinates,
     });
-    setIsSearchExpanded(false);
+    closeSearch();
     navigate("/");
   };
 
@@ -181,11 +148,7 @@ export default function Header({ onSearch, onHome }) {
   };
 
   const setNextWeekend = () => {
-    const today = startOfToday();
-    const day = today.getDay();
-    const daysUntilSaturday = (6 - day + 7) % 7 || 7;
-    const saturday = addDays(today, daysUntilSaturday);
-    const sunday = addDays(saturday, 1);
+    const { saturday, sunday } = nextWeekendRange();
     setSelectedRange({ from: saturday, to: sunday });
   };
 
@@ -193,13 +156,13 @@ export default function Header({ onSearch, onHome }) {
     "h-full flex flex-col justify-center rounded-full px-5 transition font-semibold";
   const getSectionClass = (section) =>
     activeSection === section
-      ? `${sectionBaseClass} bg-[#FCFCE5] shadow-[4px_4px_0px_0px_rgba(24,59,30,0.45)]`
-      : `${sectionBaseClass} hover:bg-[#dbe8be]`;
+      ? `${sectionBaseClass} bg-vroom-surface shadow-neoSm`
+      : `${sectionBaseClass} hover:bg-vroom-sage`;
 
   const openAuthModal = (mode = "login") => {
     setAuthModalMode(mode);
     setIsAuthModalOpen(true);
-    setIsUserMenuOpen(false);
+    closeMenu();
   };
 
   const handleHostClick = () => {
@@ -216,7 +179,7 @@ export default function Header({ onSearch, onHome }) {
 
   const handleLogout = () => {
     logout();
-    setIsUserMenuOpen(false);
+    closeMenu();
     navigate("/");
   };
 
@@ -233,84 +196,58 @@ export default function Header({ onSearch, onHome }) {
     setActiveSection("when");
   };
 
+  const menuProps = {
+    isAuthenticated,
+    user,
+    isUserMenuOpen,
+    onToggleMenu: toggleMenu,
+    onLogin: () => openAuthModal("login"),
+    onSignup: () => openAuthModal("signup"),
+    onOpenAccount: () => {
+      navigate("/app/account");
+      closeMenu();
+    },
+    onOpenTrips: () => {
+      navigate("/app/trips");
+      closeMenu();
+    },
+    onOpenMessages: () => {
+      navigate("/app/messages");
+      closeMenu();
+    },
+    onOpenHostDashboard: () => {
+      navigate("/host/dashboard");
+      closeMenu();
+    },
+    onOpenAdminDashboard: () => {
+      navigate("/admin");
+      closeMenu();
+    },
+    onLogout: handleLogout,
+    showHostDashboard,
+    isAdmin,
+  };
+
   return (
     <>
       {isSearchExpanded && (
-        <div
-          className="fixed inset-0 bg-black/25 z-40"
-          onClick={() => setIsSearchExpanded(false)}
-        />
+        <div className="fixed inset-0 z-40 bg-black/25" onClick={closeSearch} />
       )}
 
-      <header className="fixed inset-x-0 top-0 z-50 w-full border-b-4 border-black bg-[#FFFEF0] shadow-md transition-all">
-        <div className="box-border flex min-h-[calc(var(--app-header-offset)-4px)] flex-col gap-4 px-4 py-3 sm:px-5 md:flex-row md:items-center md:justify-between md:px-6 md:py-3.5 lg:px-7 xl:px-8">
+      <header className="sticky top-0 z-50 w-full border-b-4 border-black bg-vroom-surface shadow-md">
+        <div className="container-x flex flex-col gap-4 py-3 md:flex-row md:items-center md:justify-between md:py-3.5">
           <div className="flex items-center justify-between md:w-auto">
             <Link
               to="/"
               onClick={() => {
-                setIsSearchExpanded(false);
+                closeSearch();
                 onHome?.();
               }}
               className="flex items-center"
             >
               <VroomLogo />
             </Link>
-            <div ref={mobileUserMenuRef} className="relative flex items-center gap-1 md:hidden">
-              {isAuthenticated && (
-                <Link
-                  to="/app/messages"
-                  className="rounded-full border-2 border-black bg-[#F8AFA1] p-2 text-[#2D5A27] transition hover:scale-105"
-                  aria-label="Messages"
-                >
-                  <Mail className="h-6 w-6" />
-                </Link>
-              )}
-              <button
-                onClick={() => setIsUserMenuOpen((open) => !open)}
-                className="flex items-center gap-1.5 rounded-full border-2 border-black bg-[#FCFCE5] p-1 pl-2.5 transition hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                aria-label="User menu"
-              >
-                <Menu className="h-6 w-6 text-[#2D5A27]" />
-                {isAuthenticated ? (
-                  <UserAvatar user={user} className="h-9 w-9 text-sm ring-2 ring-[#E34B31]" />
-                ) : (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFD166] text-sm font-extrabold text-[#2D5A27]">
-                    G
-                  </div>
-                )}
-              </button>
-              {isUserMenuOpen && (
-                <UserMenuDropdown
-                  isAuthenticated={isAuthenticated}
-                  user={user}
-                  onLogin={() => openAuthModal("login")}
-                  onSignup={() => openAuthModal("signup")}
-                  onOpenAccount={() => {
-                    navigate("/app/account");
-                    setIsUserMenuOpen(false);
-                  }}
-                  onOpenTrips={() => {
-                    navigate("/app/trips");
-                    setIsUserMenuOpen(false);
-                  }}
-                  onOpenMessages={() => {
-                    navigate("/app/messages");
-                    setIsUserMenuOpen(false);
-                  }}
-                  onOpenHostDashboard={() => {
-                    navigate("/host/dashboard");
-                    setIsUserMenuOpen(false);
-                  }}
-                  onOpenAdminDashboard={() => {
-                    navigate("/admin");
-                    setIsUserMenuOpen(false);
-                  }}
-                  onLogout={handleLogout}
-                  showHostDashboard={showHostDashboard}
-                  canAdmin={canAdmin}
-                />
-              )}
-            </div>
+            <HeaderUserMenu menuRef={mobileUserMenuRef} variant="mobile" {...menuProps} />
           </div>
 
           <div ref={searchContainerRef} className="relative w-full md:w-auto md:px-2">
@@ -325,12 +262,13 @@ export default function Header({ onSearch, onHome }) {
                 }}
               />
             ) : (
-              <div className="relative mx-auto flex h-[4.6rem] w-full max-w-2xl items-center rounded-full border-4 border-black bg-white shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+              <div className="relative mx-auto flex h-[4.6rem] w-full max-w-2xl items-center rounded-full border-4 border-black bg-white shadow-neo">
                 <button
+                  type="button"
                   onClick={() => setActiveSection("where")}
                   className={getSectionClass("where")}
                 >
-                  <span className="text-sm font-extrabold uppercase text-[#2D5A27]">Where go?</span>
+                  <span className="text-sm font-extrabold uppercase text-vroom-text">Where go?</span>
                   <input
                     value={searchQuery}
                     onChange={(event) => {
@@ -338,23 +276,25 @@ export default function Header({ onSearch, onHome }) {
                       setSelectedCoordinates(null);
                     }}
                     placeholder="Search destinations"
-                    className="w-44 bg-transparent text-sm text-[#2D5A27] outline-none placeholder:text-[#46634b]"
+                    className="w-44 bg-transparent text-sm text-vroom-text outline-none placeholder:text-vroom-muted2"
                   />
                 </button>
 
                 <div className="h-8 w-[2px] bg-black" />
 
                 <button
+                  type="button"
                   onClick={() => setActiveSection("when")}
                   className={getSectionClass("when")}
                 >
-                  <span className="text-sm font-extrabold uppercase text-[#2D5A27]">Select dates</span>
-                  <span className="text-xs text-[#35593b]">{whenLabel}</span>
+                  <span className="text-sm font-extrabold uppercase text-vroom-text">Select dates</span>
+                  <span className="text-xs text-vroom-muted">{whenLabel}</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleSearch}
-                  className="mr-2 flex items-center gap-1.5 rounded-full border-4 border-black border-b-4 border-r-4 bg-[#E34B31] px-4 py-2 text-sm font-extrabold text-white transition hover:scale-110 active:translate-x-1 active:translate-y-1 active:border-0"
+                  className="neo-btn-primary mr-2 flex items-center gap-1.5 px-4 py-2 text-sm hover:scale-110"
                 >
                   <Search className="h-4 w-4" />
                   <span>Go</span>
@@ -388,78 +328,33 @@ export default function Header({ onSearch, onHome }) {
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
-            <button className="hidden cursor-pointer items-center gap-1.5 rounded-full border-4 border-black border-b-4 border-r-4 bg-[#FCFCE5] px-3 py-1.5 text-xs font-bold transition hover:translate-y-[-1px] active:translate-x-1 active:translate-y-1 active:border-0 md:flex">
-              <SlidersHorizontal className="h-4 w-4 text-[#2D5A27]" />
+            <button
+              type="button"
+              className="neo-btn-secondary flex cursor-pointer items-center gap-1.5 px-3 py-1.5 text-xs"
+            >
+              <SlidersHorizontal className="h-4 w-4 text-vroom-text" />
               Filters
             </button>
-            <button
-              onClick={handleHostClick}
-              className="rounded-full border-4 border-black border-b-4 border-r-4 bg-[#E34B31] px-4 py-2 text-sm font-extrabold text-white transition hover:translate-y-[-1px] hover:scale-105 active:translate-x-1 active:translate-y-1 active:border-0"
-            >
+            <button type="button" onClick={handleHostClick} className="neo-btn-primary px-4 py-2 text-sm hover:scale-105">
               {isAdmin ? "Admin dashboard" : "Host your car"}
             </button>
             <button
-              className="rounded-full border-2 border-black bg-[#FFD166] p-2.5 hover:scale-105"
+              type="button"
+              className="rounded-full border-2 border-black bg-vroom-gold p-2.5 hover:scale-105"
               aria-label="Language selector"
             >
-              <Globe className="h-5 w-5 text-[#2D5A27]" />
+              <Globe className="h-5 w-5 text-vroom-text" />
             </button>
             {isAuthenticated && (
               <Link
                 to="/app/messages"
-                className="rounded-full border-2 border-black bg-[#F8AFA1] p-2.5 text-[#2D5A27] transition hover:scale-105"
+                className="rounded-full border-2 border-black bg-vroom-coral p-2.5 text-vroom-text transition hover:scale-105"
                 aria-label="Messages"
               >
                 <Mail className="h-5 w-5" />
               </Link>
             )}
-            <div ref={desktopUserMenuRef} className="relative">
-              <button
-                onClick={() => setIsUserMenuOpen((open) => !open)}
-                className="flex items-center gap-1.5 rounded-full border-2 border-black bg-[#FCFCE5] p-1.5 pl-2.5 transition hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                aria-label="User menu"
-              >
-                <Menu className="h-6 w-6 text-[#2D5A27]" />
-                {isAuthenticated ? (
-                  <UserAvatar user={user} className="h-9 w-9 text-sm ring-2 ring-[#E34B31]" />
-                ) : (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFD166] text-sm font-extrabold text-[#2D5A27]">
-                    G
-                  </div>
-                )}
-              </button>
-              {isUserMenuOpen && (
-                <UserMenuDropdown
-                  isAuthenticated={isAuthenticated}
-                  user={user}
-                  onLogin={() => openAuthModal("login")}
-                  onSignup={() => openAuthModal("signup")}
-                  onOpenAccount={() => {
-                    navigate("/app/account");
-                    setIsUserMenuOpen(false);
-                  }}
-                  onOpenTrips={() => {
-                    navigate("/app/trips");
-                    setIsUserMenuOpen(false);
-                  }}
-                  onOpenMessages={() => {
-                    navigate("/app/messages");
-                    setIsUserMenuOpen(false);
-                  }}
-                  onOpenHostDashboard={() => {
-                    navigate("/host/dashboard");
-                    setIsUserMenuOpen(false);
-                  }}
-                  onOpenAdminDashboard={() => {
-                    navigate("/admin");
-                    setIsUserMenuOpen(false);
-                  }}
-                  onLogout={handleLogout}
-                  showHostDashboard={showHostDashboard}
-                  canAdmin={canAdmin}
-                />
-              )}
-            </div>
+            <HeaderUserMenu menuRef={desktopUserMenuRef} variant="desktop" {...menuProps} />
           </div>
         </div>
       </header>

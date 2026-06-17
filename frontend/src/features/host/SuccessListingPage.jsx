@@ -66,8 +66,8 @@ export default function SuccessListingPage() {
   const previewHref = `/app/listings/${listingId}`;
 
   return (
-    <div className="min-h-screen bg-[#D0F0C0] text-[#183B1E] flex flex-col">
-      <header className="flex h-20 items-center justify-between border-b-4 border-black bg-[#FCFCE5] px-6 sm:px-10">
+    <div className="min-h-screen bg-vroom-bg text-vroom-heading flex flex-col">
+      <header className="flex h-20 items-center justify-between border-b-4 border-black bg-vroom-surface px-6 sm:px-10">
         <VroomLogo />
         <Link
           to="/host/dashboard"
@@ -79,15 +79,15 @@ export default function SuccessListingPage() {
 
       <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6">
         {isLoading && (
-          <p className="text-sm font-semibold text-[#35593b]">Loading your listing...</p>
+          <p className="text-sm font-semibold text-vroom-muted">Loading your listing...</p>
         )}
 
         {!isLoading && loadError && (
-          <BodyCard className="max-w-lg bg-[#FCFCE5] rounded-2xl p-8 text-center">
-            <p className="text-sm font-semibold text-[#7a2215]">{loadError}</p>
+          <BodyCard className="max-w-lg bg-vroom-surface rounded-2xl p-8 text-center">
+            <p className="text-sm font-semibold text-vroom-errorText">{loadError}</p>
             <Link
               to="/host/dashboard"
-              className="mt-6 inline-block rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-6 py-2.5 font-extrabold text-white active:border-b-0"
+              className="mt-6 inline-block rounded-full border-2 border-black border-b-4 bg-vroom-accent px-6 py-2.5 font-extrabold text-white active:border-b-0"
             >
               Go to My Host Dashboard
             </Link>
@@ -96,9 +96,9 @@ export default function SuccessListingPage() {
 
         {!isLoading && listing && isOwner && (
           <div className="success-enter w-full max-w-2xl">
-            <BodyCard className="bg-[#FCFCE5] rounded-2xl p-8 sm:p-10">
+            <BodyCard className="bg-vroom-surface rounded-2xl p-8 sm:p-10">
               <div className="space-y-6 text-center">
-                <h1 className="font-['Fredoka'] text-4xl font-extrabold text-[#183B1E] leading-tight">
+                <h1 className="font-['Fredoka'] text-4xl font-extrabold text-vroom-heading leading-tight">
                   It&apos;s Official! Your {make} {model} is Live.
                 </h1>
 
@@ -111,13 +111,13 @@ export default function SuccessListingPage() {
                     />
                   </div>
                 ) : (
-                  <div className="mx-auto flex aspect-[4/3] max-w-md items-center justify-center rounded-xl border-4 border-black bg-[#f5f5d0] text-sm font-semibold text-[#35593b]">
+                  <div className="mx-auto flex aspect-[4/3] max-w-md items-center justify-center rounded-xl border-4 border-black bg-vroom-card text-sm font-semibold text-vroom-muted">
                     Photos processing...
                   </div>
                 )}
 
                 <div>
-                  <span className="inline-flex rounded-full bg-[#dbe8be] px-4 py-1.5 text-sm font-bold text-[#183B1E]">
+                  <span className="inline-flex rounded-full bg-vroom-sage px-4 py-1.5 text-sm font-bold text-vroom-heading">
                     Status: {listing.status || "ACTIVE"}
                   </span>
                 </div>
@@ -125,7 +125,7 @@ export default function SuccessListingPage() {
                 <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
                   <Link
                     to="/host/dashboard"
-                    className="rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-8 py-3 font-extrabold text-white transition active:border-b-0"
+                    className="rounded-full border-2 border-black border-b-4 bg-vroom-accent px-8 py-3 font-extrabold text-white transition active:border-b-0"
                   >
                     Go to My Host Dashboard
                   </Link>
@@ -133,13 +133,13 @@ export default function SuccessListingPage() {
                     href={previewHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-bold text-[#183B1E] underline underline-offset-4 hover:text-[#35593b]"
+                    className="text-sm font-bold text-vroom-heading underline underline-offset-4 hover:text-vroom-muted"
                   >
                     Preview public listing
                   </a>
                 </div>
 
-                <div className="rounded-xl border-2 border-black bg-[#dbe8be] px-4 py-3 text-left text-sm font-medium text-[#183B1E]">
+                <div className="rounded-xl border-2 border-black bg-vroom-sage px-4 py-3 text-left text-sm font-medium text-vroom-heading">
                   Most new hosts get their first booking request within 48 hours. Keep an eye on
                   your phone!
                 </div>

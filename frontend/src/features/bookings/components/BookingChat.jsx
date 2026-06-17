@@ -26,15 +26,15 @@ export default function BookingChat({ bookingId, renterUserId, hostUserId, curre
   };
 
   return (
-    <section className="rounded-3xl border-2 border-black bg-[#FCFCE5] p-4 shadow-[6px_6px_0px_0px_rgba(24,59,30,0.35)]">
+    <section className="rounded-3xl border-2 border-black bg-vroom-surface p-4 shadow-neoCard">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg font-extrabold text-[#183B1E]">
-          <MessageCircle className="h-5 w-5 text-[#E34B31]" />
+        <h2 className="flex items-center gap-2 text-lg font-extrabold text-vroom-heading">
+          <MessageCircle className="h-5 w-5 text-vroom-accent" />
           Messages
         </h2>
         <span
           className={`rounded-full border-2 border-black px-2.5 py-0.5 text-[10px] font-bold ${
-            isJoined ? "bg-[#dbe8be] text-[#183B1E]" : "bg-white text-[#35593b]"
+            isJoined ? "bg-vroom-sage text-vroom-heading" : "bg-white text-vroom-muted"
           }`}
         >
           {isJoined ? "Live" : isConnected ? "Joining…" : "Connecting…"}
@@ -50,7 +50,7 @@ export default function BookingChat({ bookingId, renterUserId, hostUserId, curre
           )}
 
           <div
-            className="mt-3 max-h-72 overflow-y-auto rounded-2xl border-2 border-black bg-[#f5f5d0] p-3"
+            className="mt-3 max-h-72 overflow-y-auto rounded-2xl border-2 border-black bg-vroom-card p-3"
             aria-live="polite"
             aria-label="Trip messages"
           >

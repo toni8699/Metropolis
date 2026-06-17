@@ -12,7 +12,7 @@ export default function MapPickerModal({
 }) {
   return (
     <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
-      <div className="relative flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border-4 border-black bg-[#f5f5d0] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+      <div className="relative flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border-4 border-black bg-vroom-card shadow-neo">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Drag the pin to your exact location</h3>

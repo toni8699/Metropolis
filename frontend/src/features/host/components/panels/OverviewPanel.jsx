@@ -61,7 +61,7 @@ export default function OverviewPanel({ analytics, bookings, listings = [], isAd
       </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-11 mt-2">
-        <div className="lg:col-span-2 rounded-2xl border-4 border-black bg-[#f5f5d0] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+        <div className="lg:col-span-2 rounded-2xl border-4 border-black bg-vroom-card p-6 shadow-neo">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue (Past 30 Days)</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={revenueSeries}>
@@ -87,7 +87,7 @@ export default function OverviewPanel({ analytics, bookings, listings = [], isAd
           </ResponsiveContainer>
         </div>
 
-        <div className="rounded-2xl border-4 border-black bg-[#f5f5d0] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+        <div className="rounded-2xl border-4 border-black bg-vroom-card p-6 shadow-neo">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Bookings by Location</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -109,7 +109,7 @@ export default function OverviewPanel({ analytics, bookings, listings = [], isAd
         </div>
       </section>
 
-      <section className="mx-11 mt-6 overflow-hidden rounded-2xl border-4 border-black bg-[#f5f5d0] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+      <section className="mx-11 mt-6 overflow-hidden rounded-2xl border-4 border-black bg-vroom-card shadow-neo">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Recent Bookings</h3>
         </div>

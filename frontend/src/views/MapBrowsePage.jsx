@@ -119,9 +119,7 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
 
   if (fetchError && !isLoading) {
     return (
-      <div className="rounded-3xl border-2 border-black bg-[#ffd8cf] p-4 text-sm font-semibold text-[#7a2215]">
-        {fetchError}
-      </div>
+      <div className="neo-error text-sm font-semibold">{fetchError}</div>
     );
   }
 
@@ -135,9 +133,9 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
       />
     ) : (
       <BodyCard className="relative space-y-5 overflow-hidden px-6 py-6">
-        <div className="pointer-events-none absolute -left-12 -top-12 h-28 w-28 rounded-full bg-[#E34B31]/20" />
-        <div className="pointer-events-none absolute -bottom-10 right-10 h-24 w-24 rounded-full bg-[#183B1E]/15" />
-        <h2 className="relative text-2xl font-extrabold text-[#183B1E]">
+        <div className="pointer-events-none absolute -left-12 -top-12 h-28 w-28 rounded-full bg-vroom-accent/20" />
+        <div className="pointer-events-none absolute -bottom-10 right-10 h-24 w-24 rounded-full bg-vroom-heading/15" />
+        <h2 className="relative text-2xl font-extrabold text-vroom-heading">
           Popular Locations and Vehicles
         </h2>
         {isLoading ? (

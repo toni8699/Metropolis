@@ -1,6 +1,6 @@
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthModal from "@/shared/components/AuthModal";
-import Layout from "@/layout/Layout";
+import VroomLogo from "@/layout/VroomLogo";
 import { useAuth } from "@/context/AuthContext";
 import { safeRedirectPath } from "@/shared/lib/redirectPath";
 
@@ -19,13 +19,16 @@ export default function LoginPage() {
   };
 
   return (
-    <Layout onSearch={() => {}} onHome={() => navigate("/")}>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-vroom-bg px-4 py-10">
+      <Link to="/app" className="mb-8">
+        <VroomLogo />
+      </Link>
       <AuthModal
         isOpen
         mode="login"
         onClose={() => navigate("/app", { replace: true })}
         onSuccess={handleSuccess}
       />
-    </Layout>
+    </div>
   );
 }

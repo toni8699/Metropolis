@@ -9,74 +9,53 @@ export default function UserMenuDropdown({
   onOpenHostDashboard,
   onOpenAdminDashboard,
   onLogout,
-  canAdmin,
+  isAdmin,
   showHostDashboard,
 }) {
+  const itemClass =
+    "w-full rounded-xl border-2 border-transparent px-3 py-2 text-left text-sm font-medium text-vroom-heading hover:border-black hover:bg-vroom-sage";
+
   return (
-    <div className="absolute right-0 top-full z-[70] mt-2 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl">
+    <div className="absolute right-0 top-full z-[70] mt-2 w-56 rounded-2xl border-2 border-black bg-vroom-surface p-2 shadow-neo">
       {!isAuthenticated ? (
         <>
-          <button
-            onClick={onLogin}
-            className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium hover:bg-gray-50"
-          >
+          <button type="button" onClick={onLogin} className={itemClass}>
             Log in
           </button>
-          <button
-            onClick={onSignup}
-            className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
-          >
+          <button type="button" onClick={onSignup} className={itemClass}>
             Sign up
           </button>
         </>
       ) : (
         <>
-          <div className="border-b border-gray-100 px-3 py-2">
-            <p className="truncate text-sm font-semibold text-gray-900">
+          <div className="border-b-2 border-black px-3 py-2">
+            <p className="truncate text-sm font-semibold text-vroom-heading">
               {user?.fullName || user?.email || "Your account"}
             </p>
             {user?.fullName && (
-              <p className="mt-0.5 truncate text-xs text-gray-500">{user.email}</p>
+              <p className="mt-0.5 truncate text-xs text-vroom-muted">{user.email}</p>
             )}
           </div>
-          <button
-            onClick={onOpenAccount}
-            className="mt-1 w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
-          >
+          <button type="button" onClick={onOpenAccount} className={`mt-1 ${itemClass}`}>
             Account settings
           </button>
-          <button
-            onClick={onOpenMessages}
-            className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
-          >
+          <button type="button" onClick={onOpenMessages} className={itemClass}>
             Messages
           </button>
-          <button
-            onClick={onOpenTrips}
-            className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
-          >
+          <button type="button" onClick={onOpenTrips} className={itemClass}>
             Trips
           </button>
           {showHostDashboard && (
-            <button
-              onClick={onOpenHostDashboard}
-              className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
-            >
+            <button type="button" onClick={onOpenHostDashboard} className={itemClass}>
               Host Dashboard
             </button>
           )}
-          {canAdmin && (
-            <button
-              onClick={onOpenAdminDashboard}
-              className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
-            >
+          {isAdmin && (
+            <button type="button" onClick={onOpenAdminDashboard} className={itemClass}>
               Admin Dashboard
             </button>
           )}
-          <button
-            onClick={onLogout}
-            className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-gray-50"
-          >
+          <button type="button" onClick={onLogout} className={itemClass}>
             Log out
           </button>
         </>

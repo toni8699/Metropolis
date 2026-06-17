@@ -3,6 +3,8 @@ import { ChevronLeft } from "lucide-react";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import ListingRatingLine from "@/features/listings/components/ListingRatingLine";
+import PageShell from "@/shared/components/PageShell";
+import PricingBreakdown from "@/shared/components/PricingBreakdown";
 import StripePaymentForm from "@/features/bookings/components/StripePaymentForm";
 import { differenceInDays, format, parseISO } from "date-fns";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -115,38 +117,34 @@ export default function BookingCheckoutPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl">
-        <div className="space-y-5">
-          <div className="h-6 w-40 animate-pulse rounded bg-gray-200" />
-          <div className="h-10 w-56 animate-pulse rounded bg-gray-200" />
-          <div className="grid gap-12 md:grid-cols-[1.2fr_1fr]">
-            <div className="space-y-4">
-              <div className="h-20 animate-pulse rounded bg-gray-100" />
-              <div className="h-20 animate-pulse rounded bg-gray-100" />
-              <div className="h-20 animate-pulse rounded bg-gray-100" />
-            </div>
-            <div className="h-80 animate-pulse rounded-2xl bg-gray-100" />
+      <PageShell maxWidth="6xl" card className="space-y-5 p-6">
+        <div className="h-6 w-40 animate-pulse rounded bg-gray-200" />
+        <div className="h-10 w-56 animate-pulse rounded bg-gray-200" />
+        <div className="grid gap-12 md:grid-cols-[1.2fr_1fr]">
+          <div className="space-y-4">
+            <div className="h-20 animate-pulse rounded bg-gray-100" />
+            <div className="h-20 animate-pulse rounded bg-gray-100" />
+            <div className="h-20 animate-pulse rounded bg-gray-100" />
           </div>
+          <div className="h-80 animate-pulse rounded-2xl bg-gray-100" />
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (!listing) {
     return (
-      <div className="mx-auto max-w-6xl">
-        <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
-          Could not load listing for checkout.
-        </p>
-      </div>
+      <PageShell maxWidth="6xl" card className="p-6">
+        <p className="neo-error">Could not load listing for checkout.</p>
+      </PageShell>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <PageShell maxWidth="6xl" card className="p-6">
       <Link
         to={`/app/listings/${id}`}
-        className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-[#FCFCE5] px-4 py-2 text-sm font-semibold text-[#183B1E] shadow-[4px_4px_0px_0px_rgba(24,59,30,0.45)] hover:underline"
+        className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-vroom-surface px-4 py-2 text-sm font-semibold text-vroom-heading shadow-neoSm hover:underline"
       >
         <ChevronLeft className="h-4 w-4" />
         back to listing
@@ -154,10 +152,10 @@ export default function BookingCheckoutPage() {
 
       <div className="relative mt-6 flex flex-col-reverse gap-12 md:flex-row">
         <section className="w-full md:w-[55%]">
-          <h1 className="mb-8 text-4xl font-extrabold text-[#183B1E]">Confirm and pay</h1>
+          <h1 className="mb-8 text-4xl font-extrabold text-vroom-heading">Confirm and pay</h1>
 
           <div className="pb-6">
-            <h2 className="mb-4 text-2xl font-extrabold text-[#183B1E]">Your trip</h2>
+            <h2 className="mb-4 text-2xl font-extrabold text-vroom-heading">Your trip</h2>
             <div className="flex items-center justify-between">
               <p className="font-medium text-gray-900">Dates</p>
               <p className="text-sm text-gray-700">{formattedDateRange}</p>
@@ -165,7 +163,7 @@ export default function BookingCheckoutPage() {
           </div>
 
           <div className="border-t-2 border-black py-6">
-            <h2 className="mb-4 text-2xl font-extrabold text-[#183B1E]">Pay with</h2>
+            <h2 className="mb-4 text-2xl font-extrabold text-vroom-heading">Pay with</h2>
             {clientSecret && stripePromise ? (
               <Elements stripe={stripePromise} options={{ clientSecret }}>
                 <StripePaymentForm
@@ -188,17 +186,13 @@ export default function BookingCheckoutPage() {
               Ground rules for guests, and VROOM&apos;s policies.
             </p>
 
-            {submitError && (
-              <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
-                {submitError}
-              </div>
-            )}
+            {submitError && <p className="neo-error mt-4">{submitError}</p>}
 
             {!clientSecret && (
               <button
                 onClick={handleRequestBooking}
                 disabled={isSubmitting}
-                className="mt-6 w-full rounded-full border-2 border-black border-b-4 bg-[#E34B31] px-8 py-4 text-lg font-extrabold text-white transition hover:translate-y-[-1px] active:translate-y-1 active:border-b-0 disabled:cursor-not-allowed disabled:opacity-40 md:w-auto"
+                className="neo-btn-primary mt-6 w-full border-2 px-8 py-4 text-lg md:w-auto"
               >
                 {isSubmitting ? "Confirming..." : "Confirm and pay"}
               </button>
@@ -207,7 +201,7 @@ export default function BookingCheckoutPage() {
         </section>
 
         <aside className="w-full md:w-[45%]">
-          <div className="sticky top-[var(--app-header-offset)] h-fit rounded-[2rem] border-2 border-black bg-[#FCFCE5] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.5)]">
+          <div className="sticky top-6 h-fit rounded-[2rem] border-2 border-black bg-vroom-surface p-6 shadow-neo">
             <div className="flex gap-4">
               <img
                 src={listing.photos?.[0] || "https://placehold.co/240x180?text=Car"}
@@ -229,32 +223,18 @@ export default function BookingCheckoutPage() {
 
             <div className="my-6 border-b-2 border-black" />
 
-            <div className="space-y-3 text-sm text-gray-800">
-              <div className="flex items-center justify-between">
-                <p>
-                  ${pricePerDay.toFixed(2)} CAD x {dayCount} days
-                </p>
-                <p>${subtotal.toFixed(2)}</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <p>Cleaning fee</p>
-                <p>${cleaningFee.toFixed(2)}</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <p>VROOM service fee</p>
-                <p>${serviceFee.toFixed(2)}</p>
-              </div>
-            </div>
-
-            <div className="my-4 border-b-2 border-black" />
-
-            <div className="flex items-center justify-between text-lg font-bold text-gray-900">
-              <p>Total (CAD)</p>
-              <p>${total.toFixed(2)}</p>
-            </div>
+            <PricingBreakdown
+              pricePerDay={pricePerDay}
+              dayCount={dayCount}
+              subtotal={subtotal}
+              cleaningFee={cleaningFee}
+              serviceFee={serviceFee}
+              total={total}
+              showNightsLabel={false}
+            />
           </div>
         </aside>
       </div>
-    </div>
+    </PageShell>
   );
 }

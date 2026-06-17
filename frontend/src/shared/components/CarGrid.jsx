@@ -2,11 +2,11 @@ import CarCard from "@/shared/components/CarCard";
 
 export default function CarGrid({ cars = [], distanceById = null, compact = false }) {
   const gridClass = compact
-    ? "grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-10"
-    : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-x-8 gap-y-12";
+    ? "grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2"
+    : "grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6";
 
   return (
-    <section className={`mx-auto w-full max-w-screen-2xl px-4 py-10 md:px-6 lg:px-8 ${gridClass}`}>
+    <div className={gridClass}>
       {cars.map((car) => (
         <CarCard
           key={car.id}
@@ -14,6 +14,6 @@ export default function CarGrid({ cars = [], distanceById = null, compact = fals
           distanceKm={distanceById?.[car.id] ?? car.distanceKm ?? null}
         />
       ))}
-    </section>
+    </div>
   );
 }

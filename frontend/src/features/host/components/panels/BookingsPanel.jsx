@@ -68,7 +68,7 @@ export default function BookingsPanel({ isAdmin, bookings, bookingActionId, onDe
         </section>
       )}
 
-      <section className="overflow-hidden rounded-2xl border-4 border-black bg-[#f5f5d0] shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
+      <section className="overflow-hidden rounded-2xl border-4 border-black bg-vroom-card shadow-neo">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
