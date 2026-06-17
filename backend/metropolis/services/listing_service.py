@@ -9,7 +9,6 @@ from metropolis.core.db import get_connection
 from metropolis.services.marketplace_common import (
     _BOOKING_HOLD_STATUSES,
     LISTING_SELECT_SQL,
-    listing_available_for_window_sql,
     _associate_listing_image_urls,
     _fetch_dashboard_analytics,
     _listing_image_urls,
@@ -17,6 +16,7 @@ from metropolis.services.marketplace_common import (
     _resolve_search_window,
     _upsert_listing_location,
     hydrate_listing_rows,
+    listing_available_for_window_sql,
 )
 
 
