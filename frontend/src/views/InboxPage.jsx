@@ -239,7 +239,7 @@ export default function InboxPage() {
   const otherName = selectedThread?.otherParty?.name || "Guest";
 
   return (
-    <BodyCard className="grid h-[calc(100dvh-16rem)] max-h-[calc(100dvh-16rem)] grid-cols-1 grid-rows-1 overflow-hidden md:grid-cols-12">
+    <BodyCard className="grid h-[calc(100dvh-var(--app-header-offset)-var(--app-content-gap)*2-9rem)] max-h-[calc(100dvh-var(--app-header-offset)-var(--app-content-gap)*2-9rem)] grid-cols-1 grid-rows-1 overflow-hidden md:grid-cols-12">
       <aside
         className={`col-span-12 flex min-h-0 flex-col border-r-2 border-black md:col-span-3 ${
           mobilePane === "chat" ? "hidden md:flex" : "flex"

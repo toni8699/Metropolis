@@ -20,14 +20,12 @@ export default function LoginPage() {
 
   return (
     <Layout onSearch={() => {}} onHome={() => navigate("/")}>
-      <div className="w-full px-3 py-3 sm:px-4 md:px-5 lg:px-6 xl:px-7">
-        <AuthModal
-          isOpen
-          mode="login"
-          onClose={() => navigate("/app", { replace: true })}
-          onSuccess={handleSuccess}
-        />
-      </div>
+      <AuthModal
+        isOpen
+        mode="login"
+        onClose={() => navigate("/app", { replace: true })}
+        onSuccess={handleSuccess}
+      />
     </Layout>
   );
 }

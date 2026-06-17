@@ -316,7 +316,7 @@ export default function SearchResultsView({
               : "hidden md:block md:w-[45%] xl:w-[40%]"
           } transition-all duration-300`}
         >
-          <div className="sticky top-[64px] h-[calc(100vh-64px)] p-4">
+          <div className="sticky top-[var(--app-header-offset)] h-[calc(100vh-var(--app-header-offset))] p-4">
             {!apiKey ? (
               <div className="rounded-2xl border border-slate-300 bg-white p-4 text-sm text-slate-700">
                 Add `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env.local` to show map.

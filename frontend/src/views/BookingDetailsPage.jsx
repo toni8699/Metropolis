@@ -169,7 +169,7 @@ export default function BookingDetailsPage() {
   const backLabel = isHost ? "Host bookings" : "Your trips";
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 pb-6 pt-1">
+    <div className="mx-auto max-w-4xl space-y-4">
       <Link
         to={backPath}
         className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-[#FCFCE5] px-4 py-2 text-sm font-semibold text-[#183B1E] shadow-[4px_4px_0px_0px_rgba(24,59,30,0.45)]"

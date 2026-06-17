@@ -17,11 +17,7 @@ import SuccessListingPage from "@/features/host/SuccessListingPage";
 import { RequireAuth, RequireRole } from "@/app/RouteGuards";
 
 function AppShell({ children, onSearch, onHome }) {
-  return (
-    <Layout onSearch={onSearch} onHome={onHome}>
-      <div className="w-full px-4 py-4 sm:px-5 md:px-6 lg:px-7 xl:px-8">{children}</div>
-    </Layout>
-  );
+  return <Layout onSearch={onSearch} onHome={onHome}>{children}</Layout>;
 }
 
 function HostEntry() {

@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Fixed header height (mobile = logo row + search pill). */
+  --app-header-offset: 10rem;
+  /* Equal breathing room above and below BodyCard. */
+  --app-content-gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --app-header-offset: 104px;
+  }
+}
+
 html {
   font-size: 85%;
 }

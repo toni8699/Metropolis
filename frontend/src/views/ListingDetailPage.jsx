@@ -372,7 +372,7 @@ export default function ListingDetailPage() {
         </div>
 
         <div className="w-full md:w-[35%]">
-          <div className="sticky top-28 rounded-[2rem] border-4 border-black bg-[#FCFCE5] p-6 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
+          <div className="sticky top-[var(--app-header-offset)] rounded-[2rem] border-4 border-black bg-[#FCFCE5] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.45)]">
             <div className="flex items-baseline gap-1">
               <p className="text-3xl font-extrabold text-black">${listing.pricePerDay}</p>
               <p className="font-semibold text-[#35593b]">/ day</p>

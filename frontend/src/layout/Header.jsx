@@ -243,7 +243,7 @@ export default function Header({ onSearch, onHome }) {
       )}
 
       <header className="fixed inset-x-0 top-0 z-50 w-full border-b-4 border-black bg-[#FFFEF0] shadow-md transition-all">
-        <div className="flex flex-col gap-4 px-4 py-3 sm:px-5 md:flex-row md:items-center md:justify-between md:px-6 md:py-3.5 lg:px-7 xl:px-8">
+        <div className="box-border flex min-h-[calc(var(--app-header-offset)-4px)] flex-col gap-4 px-4 py-3 sm:px-5 md:flex-row md:items-center md:justify-between md:px-6 md:py-3.5 lg:px-7 xl:px-8">
           <div className="flex items-center justify-between md:w-auto">
             <Link
               to="/"

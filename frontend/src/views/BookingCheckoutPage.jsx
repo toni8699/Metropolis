@@ -115,7 +115,7 @@ export default function BookingCheckoutPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 pb-12 pt-24 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-6xl">
         <div className="space-y-5">
           <div className="h-6 w-40 animate-pulse rounded bg-gray-200" />
           <div className="h-10 w-56 animate-pulse rounded bg-gray-200" />
@@ -134,7 +134,7 @@ export default function BookingCheckoutPage() {
 
   if (!listing) {
     return (
-      <div className="mx-auto max-w-6xl px-4 pb-12 pt-24 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-6xl">
         <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
           Could not load listing for checkout.
         </p>
@@ -143,7 +143,7 @@ export default function BookingCheckoutPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-12 pt-24 sm:px-6 lg:px-10">
+    <div className="mx-auto max-w-6xl">
       <Link
         to={`/app/listings/${id}`}
         className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-[#FCFCE5] px-4 py-2 text-sm font-semibold text-[#183B1E] shadow-[4px_4px_0px_0px_rgba(24,59,30,0.45)] hover:underline"
@@ -207,7 +207,7 @@ export default function BookingCheckoutPage() {
         </section>
 
         <aside className="w-full md:w-[45%]">
-          <div className="sticky top-28 h-fit rounded-[2rem] border-2 border-black bg-[#FCFCE5] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.5)]">
+          <div className="sticky top-[var(--app-header-offset)] h-fit rounded-[2rem] border-2 border-black bg-[#FCFCE5] p-6 shadow-[8px_8px_0px_0px_rgba(24,59,30,0.5)]">
             <div className="flex gap-4">
               <img
                 src={listing.photos?.[0] || "https://placehold.co/240x180?text=Car"}
