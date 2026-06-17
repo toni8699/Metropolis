@@ -39,7 +39,8 @@ def _integration_db_skip_reason() -> str | None:
         return None
     return (
         "Integration tests skip remote DATABASE_URL (Neon). "
-        "Use: docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test run --rm test"
+        "Use: docker compose -f docker-compose.yml -f docker-compose.test.yml "
+        "--profile test run --rm test"
     )
 
 

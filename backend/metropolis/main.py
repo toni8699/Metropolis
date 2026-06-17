@@ -82,4 +82,3 @@ def create_app() -> FastAPI:
     app.include_router(uploads.router)
     app.include_router(webhooks.router)
     return app
-

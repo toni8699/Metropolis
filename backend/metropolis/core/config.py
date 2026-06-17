@@ -75,9 +75,7 @@ class Settings(BaseSettings):
     )
 
     # Orphan listing-upload sweeper (S3 keys with no file_asset row)
-    upload_sweep_enabled: bool | None = Field(
-        default=None, validation_alias="UPLOAD_SWEEP_ENABLED"
-    )
+    upload_sweep_enabled: bool | None = Field(default=None, validation_alias="UPLOAD_SWEEP_ENABLED")
     upload_sweep_orphan_grace_hours: int = Field(
         default=24, validation_alias="UPLOAD_SWEEP_ORPHAN_GRACE_HOURS"
     )

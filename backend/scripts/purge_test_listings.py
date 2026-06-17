@@ -37,7 +37,9 @@ def main() -> int:
         print("DATABASE_URL is required", file=sys.stderr)
         return 1
 
-    where = TEST_TITLE_SQL if not args.all_p2p else "source_type = 'OWNER' AND is_company_owned = FALSE"
+    where = (
+        TEST_TITLE_SQL if not args.all_p2p else "source_type = 'OWNER' AND is_company_owned = FALSE"
+    )
 
     with psycopg2.connect(database_url) as conn:
         with conn.cursor() as cur:

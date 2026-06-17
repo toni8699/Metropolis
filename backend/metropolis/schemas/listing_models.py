@@ -51,12 +51,8 @@ class ListingCreateRequest(CamelModel):
     images: list[str] | None = Field(
         default=None, validation_alias=AliasChoices("images", "photos")
     )
-    lat: float | None = Field(
-        default=None, validation_alias=AliasChoices("lat", "latitude")
-    )
-    lng: float | None = Field(
-        default=None, validation_alias=AliasChoices("lng", "longitude")
-    )
+    lat: float | None = Field(default=None, validation_alias=AliasChoices("lat", "latitude"))
+    lng: float | None = Field(default=None, validation_alias=AliasChoices("lng", "longitude"))
     pickup_notes_template: str | None = None
     price_per_day: float
     city_zone: str | None = None
@@ -95,12 +91,8 @@ class ListingUpdateRequest(CamelModel):
     images: list[str] | None = Field(
         default=None, validation_alias=AliasChoices("images", "photos")
     )
-    lat: float | None = Field(
-        default=None, validation_alias=AliasChoices("lat", "latitude")
-    )
-    lng: float | None = Field(
-        default=None, validation_alias=AliasChoices("lng", "longitude")
-    )
+    lat: float | None = Field(default=None, validation_alias=AliasChoices("lat", "latitude"))
+    lng: float | None = Field(default=None, validation_alias=AliasChoices("lng", "longitude"))
     pickup_notes_template: str | None = None
     pickup_address: str | None = None
     price_per_day: float | None = None
