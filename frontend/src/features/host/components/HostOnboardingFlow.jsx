@@ -15,6 +15,12 @@ import {
   REQUIRED_SPEC_FIELDS,
   TRANSMISSION_OPTIONS,
 } from "@/features/host/constants/bodyTypeDefaults";
+import {
+  controlBorderClass,
+  FormFieldLabel,
+  LabeledInput,
+  NeoSelect,
+} from "@/features/host/components/form/Fields";
 import InstantBookToggle from "@/features/host/components/InstantBookToggle";
 import { markRecentListingCreated } from "@/features/host/lib/recentListing";
 
@@ -84,48 +90,80 @@ function SpecConfirmField({
 }) {
   const missing = required && (value == null || String(value).trim() === "");
   const estimated = meta?.source === "default";
+  const borderState = missing ? "error" : estimated ? "estimate" : "default";
 
-  let borderClass = "border-gray-300";
-  if (missing) borderClass = "border-red-500 ring-1 ring-red-200";
-  else if (estimated) borderClass = "border-amber-400 ring-1 ring-amber-100";
-
-  const controlClass = `w-full rounded-xl border px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900 ${borderClass}`;
+  const badge = missing ? (
+    <span className="rounded-full border-2 border-black bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">
+      Required
+    </span>
+  ) : estimated ? (
+    <span className="rounded-full border-2 border-black bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">
+      Estimate
+    </span>
+  ) : null;
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between gap-2">
-        <label className="text-sm font-medium text-gray-700">{label}</label>
-        {missing && (
-          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-            Required
-          </span>
-        )}
-        {!missing && estimated && (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-            Estimate
-          </span>
-        )}
-      </div>
+    <div>
+      <FormFieldLabel badge={badge}>{label}</FormFieldLabel>
       {options ? (
-        <select
+        <NeoSelect
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={controlClass}
-        >
-          <option value="">{placeholder || `Select ${label.toLowerCase()}`}</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={onChange}
+          options={options}
+          placeholder={placeholder || `Select ${label.toLowerCase()}`}
+          borderState={borderState}
+        />
       ) : (
         <input
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={controlClass}
+          className={controlBorderClass(borderState)}
         />
+      )}
+    </div>
+  );
+}
+
+function BodyTypeFields({
+  bodyTypes,
+  bodyTypeId,
+  bodyTypeOther,
+  onBodyTypeChange,
+  onBodyTypeOtherChange,
+}) {
+  const selected = bodyTypes.find((type) => String(type.bodyTypeId) === String(bodyTypeId));
+  const isOther = selected?.code === "OTHER";
+  const bodyTypeOptions = bodyTypes.map((type) => ({
+    value: String(type.bodyTypeId),
+    label: type.displayName,
+  }));
+
+  return (
+    <div className="space-y-4">
+      <label className="block">
+        <FormFieldLabel>Body type</FormFieldLabel>
+        <NeoSelect
+          value={bodyTypeId}
+          onChange={onBodyTypeChange}
+          options={bodyTypeOptions}
+          placeholder="Select body type"
+          borderState={bodyTypeId ? "default" : "error"}
+        />
+      </label>
+      {isOther && (
+        <>
+          <LabeledInput
+            label="Describe body type"
+            value={bodyTypeOther}
+            onChange={onBodyTypeOtherChange}
+            placeholder="e.g. Convertible, Van, Limousine"
+            borderState={bodyTypeOther.trim() ? "default" : "error"}
+          />
+          {!bodyTypeOther.trim() && (
+            <p className="text-xs font-bold text-red-600">Required when Other is selected</p>
+          )}
+        </>
       )}
     </div>
   );
@@ -139,7 +177,6 @@ export default function HostOnboardingFlow() {
   const [bodyTypes, setBodyTypes] = useState([]);
   const [listingData, setListingData] = useState({
     vin: "",
-    mileage: "",
     make: "",
     model: "",
     year: "",
@@ -148,6 +185,7 @@ export default function HostOnboardingFlow() {
     seats: "",
     doors: "",
     bodyTypeId: "",
+    bodyTypeOther: "",
     listingTitle: "",
     address: "",
     lat: null,
@@ -204,12 +242,17 @@ export default function HostOnboardingFlow() {
 
   const progress = (currentStep / TOTAL_STEPS) * 100;
   const assetLabel = formatAssetLabel(listingData);
+  const selectedBodyType = useMemo(
+    () => bodyTypes.find((type) => String(type.bodyTypeId) === String(listingData.bodyTypeId)),
+    [bodyTypes, listingData.bodyTypeId],
+  );
+  const isOtherBodyType = selectedBodyType?.code === "OTHER";
+  const bodyTypeOk =
+    Boolean(listingData.bodyTypeId) &&
+    (!isOtherBodyType || Boolean(listingData.bodyTypeOther.trim()));
 
   const canProceed = useMemo(() => {
-    const mileage = Number(listingData.mileage);
-    const mileageOk = Number.isFinite(mileage) && mileage >= 0;
     if (currentStep === 1) {
-      if (!mileageOk) return false;
       if (entryMode === "manual") return true;
       return VIN_PATTERN.test(String(listingData.vin).trim());
     }
@@ -220,13 +263,11 @@ export default function HostOnboardingFlow() {
           listingData.make &&
             listingData.model &&
             listingData.year &&
-            listingData.bodyTypeId &&
+            bodyTypeOk &&
             specsOk,
         );
       }
-      return Boolean(
-        listingData.make && listingData.model && listingData.bodyTypeId && specsOk,
-      );
+      return Boolean(listingData.make && listingData.model && bodyTypeOk && specsOk);
     }
     if (currentStep === 3) {
       return (
@@ -239,7 +280,7 @@ export default function HostOnboardingFlow() {
       return imageFiles.length >= MIN_LISTING_PHOTOS;
     }
     return Number(listingData.price) > 0 && Boolean(listingData.listingTitle.trim());
-  }, [currentStep, listingData, imageFiles.length, entryMode]);
+  }, [currentStep, listingData, imageFiles.length, entryMode, bodyTypeOk]);
 
   const stepHeadline = {
     1: "Start with your VIN",
@@ -262,6 +303,9 @@ export default function HostOnboardingFlow() {
     const defaults = BODY_TYPE_DEFAULTS[type?.code] || {};
     setListingData((prev) => {
       const next = { ...prev, bodyTypeId };
+      if (type?.code !== "OTHER") {
+        next.bodyTypeOther = "";
+      }
       if (specMeta.seats.source !== "nhtsa" && specMeta.seats.source !== "user") {
         next.seats = defaults.seats != null ? String(defaults.seats) : prev.seats;
       }
@@ -313,6 +357,7 @@ export default function HostOnboardingFlow() {
       seats: "",
       doors: "",
       bodyTypeId: "",
+      bodyTypeOther: "",
     }));
     setSpecMeta(EMPTY_SPEC_META);
     setCurrentStep(2);
@@ -439,8 +484,8 @@ export default function HostOnboardingFlow() {
       const payload = {
         listingTitle,
         title: listingTitle,
-        mileage: Number(listingData.mileage),
         bodyTypeId: Number(listingData.bodyTypeId),
+        bodyTypeOther: isOtherBodyType ? listingData.bodyTypeOther.trim() : undefined,
         make: listingData.make,
         model: listingData.model,
         year: listingData.year ? Number(listingData.year) : undefined,
@@ -556,100 +601,88 @@ export default function HostOnboardingFlow() {
               {currentStep === 1 && (
                 <div className="space-y-4">
                   {entryMode === "vin" && (
-                    <input
-                      value={listingData.vin}
-                      onChange={(e) =>
-                        setListingData((prev) => ({
-                          ...prev,
-                          vin: e.target.value.toUpperCase(),
-                        }))
-                      }
-                      placeholder="Vehicle VIN"
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 uppercase outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                    />
+                    <label className="block">
+                      <FormFieldLabel>Vehicle VIN</FormFieldLabel>
+                      <input
+                        value={listingData.vin}
+                        onChange={(e) =>
+                          setListingData((prev) => ({
+                            ...prev,
+                            vin: e.target.value.toUpperCase(),
+                          }))
+                        }
+                        placeholder="11–17 characters"
+                        className={`${controlBorderClass("default")} uppercase`}
+                      />
+                    </label>
                   )}
-                  <input
-                    value={listingData.mileage}
-                    onChange={(e) =>
-                      setListingData((prev) => ({ ...prev, mileage: e.target.value }))
-                    }
-                    type="number"
-                    min="0"
-                    placeholder="Current mileage (km)"
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-                  />
                   {entryMode === "vin" ? (
                     <>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm font-semibold text-vroom-muted">
                         We decode make, model, and specs from your VIN automatically.
                       </p>
                       <button
                         type="button"
                         onClick={skipVinEntry}
-                        disabled={!Number.isFinite(Number(listingData.mileage)) || Number(listingData.mileage) < 0}
-                        className="text-sm font-semibold text-gray-700 underline disabled:opacity-40"
+                        className="text-sm font-bold text-vroom-heading underline decoration-2 underline-offset-2"
                       >
                         I don&apos;t have my VIN handy
                       </button>
                     </>
                   ) : (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-sm font-semibold text-vroom-muted">
                       Manual entry — you&apos;ll add make, model, and year on the next step.
                     </p>
                   )}
-                  {decodeError && <p className="text-sm text-red-600">{decodeError}</p>}
+                  {decodeError && <p className="text-sm font-bold text-red-600">{decodeError}</p>}
                 </div>
               )}
 
               {currentStep === 2 && entryMode === "manual" && (
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-                    <p className="font-semibold">Trust notice</p>
-                    <p className="mt-1">
+                  <div className="rounded-2xl border-2 border-black bg-vroom-card p-4 text-sm text-vroom-heading">
+                    <p className="font-extrabold">Trust notice</p>
+                    <p className="mt-1 font-semibold text-vroom-muted">
                       Listings without a verified VIN may be hidden from search results until
                       you add and verify your VIN later.
                     </p>
                   </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <input
+                    <LabeledInput
+                      label="Make"
                       value={listingData.make}
-                      onChange={(e) =>
-                        setListingData((prev) => ({ ...prev, make: e.target.value }))
+                      onChange={(value) =>
+                        setListingData((prev) => ({ ...prev, make: value }))
                       }
-                      placeholder="Make"
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="Toyota"
                     />
-                    <input
+                    <LabeledInput
+                      label="Model"
                       value={listingData.model}
-                      onChange={(e) =>
-                        setListingData((prev) => ({ ...prev, model: e.target.value }))
+                      onChange={(value) =>
+                        setListingData((prev) => ({ ...prev, model: value }))
                       }
-                      placeholder="Model"
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="Corolla"
                     />
-                    <input
+                    <LabeledInput
+                      label="Year"
                       value={listingData.year}
-                      onChange={(e) =>
-                        setListingData((prev) => ({ ...prev, year: e.target.value }))
+                      onChange={(value) =>
+                        setListingData((prev) => ({ ...prev, year: value }))
                       }
                       type="number"
-                      placeholder="Year"
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="2020"
                     />
                   </div>
-                  <label className="block text-sm font-medium text-gray-700">Body type</label>
-                  <select
-                    value={listingData.bodyTypeId}
-                    onChange={(e) => handleBodyTypeChange(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
-                  >
-                    <option value="">Select body type</option>
-                    {bodyTypes.map((type) => (
-                      <option key={type.bodyTypeId} value={String(type.bodyTypeId)}>
-                        {type.displayName}
-                      </option>
-                    ))}
-                  </select>
+                  <BodyTypeFields
+                    bodyTypes={bodyTypes}
+                    bodyTypeId={listingData.bodyTypeId}
+                    bodyTypeOther={listingData.bodyTypeOther}
+                    onBodyTypeChange={handleBodyTypeChange}
+                    onBodyTypeOtherChange={(value) =>
+                      setListingData((prev) => ({ ...prev, bodyTypeOther: value }))
+                    }
+                  />
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <SpecConfirmField
                       label="Seats"
@@ -688,27 +721,27 @@ export default function HostOnboardingFlow() {
 
               {currentStep === 2 && entryMode === "vin" && (
                 <div className="space-y-4">
-                  <div className="rounded-2xl border-2 border-black bg-white p-5 space-y-2">
-                    <p className="text-sm font-semibold text-gray-500">Decoded vehicle</p>
-                    <p className="text-2xl font-bold">{assetLabel || "Your vehicle"}</p>
-                    <p className="text-sm text-gray-700">VIN: {listingData.vin}</p>
-                    <p className="text-xs text-gray-500">
-                      Confirm specs below. Yellow = estimate from body type — change if wrong.
+                  <div className="rounded-2xl border-2 border-black bg-white p-5 shadow-neo space-y-2">
+                    <p className="text-sm font-bold text-vroom-muted uppercase tracking-wider">
+                      Decoded vehicle
+                    </p>
+                    <p className="text-2xl font-extrabold text-vroom-heading">
+                      {assetLabel || "Your vehicle"}
+                    </p>
+                    <p className="text-sm font-semibold text-vroom-heading">VIN: {listingData.vin}</p>
+                    <p className="text-sm font-semibold text-vroom-muted">
+                      Amber border = estimate from body type — change if wrong.
                     </p>
                   </div>
-                  <label className="block text-sm font-medium text-gray-700">Body type</label>
-                  <select
-                    value={listingData.bodyTypeId}
-                    onChange={(e) => handleBodyTypeChange(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
-                  >
-                    <option value="">Select body type</option>
-                    {bodyTypes.map((type) => (
-                      <option key={type.bodyTypeId} value={String(type.bodyTypeId)}>
-                        {type.displayName}
-                      </option>
-                    ))}
-                  </select>
+                  <BodyTypeFields
+                    bodyTypes={bodyTypes}
+                    bodyTypeId={listingData.bodyTypeId}
+                    bodyTypeOther={listingData.bodyTypeOther}
+                    onBodyTypeChange={handleBodyTypeChange}
+                    onBodyTypeOtherChange={(value) =>
+                      setListingData((prev) => ({ ...prev, bodyTypeOther: value }))
+                    }
+                  />
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <SpecConfirmField
                       label="Seats"
@@ -747,38 +780,43 @@ export default function HostOnboardingFlow() {
 
               {currentStep === 3 && (
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-gray-300 px-4 py-3">
-                    <input
-                      value={listingData.address}
-                      onChange={(e) =>
-                        setListingData((prev) => ({ ...prev, address: e.target.value }))
-                      }
-                      placeholder="Type your address"
-                      className="w-full bg-transparent outline-none"
-                    />
-                  </div>
-                  {isPlacesLoading && <p className="text-xs text-gray-500">Loading suggestions...</p>}
+                  <label className="block">
+                    <FormFieldLabel>Pickup address</FormFieldLabel>
+                    <div className="border-2 border-black rounded-2xl bg-white px-4 py-3 focus-within:ring-2 focus-within:ring-vroom-accent focus-within:ring-offset-1">
+                      <input
+                        value={listingData.address}
+                        onChange={(e) =>
+                          setListingData((prev) => ({ ...prev, address: e.target.value }))
+                        }
+                        placeholder="Type your address"
+                        className="w-full bg-transparent text-vroom-heading outline-none"
+                      />
+                    </div>
+                  </label>
+                  {isPlacesLoading && (
+                    <p className="text-sm font-semibold text-vroom-muted">Loading suggestions...</p>
+                  )}
                   {placePredictions.length > 0 && (
-                    <div className="rounded-xl border border-gray-200 p-2 max-h-52 overflow-y-auto">
+                    <div className="rounded-2xl border-2 border-black bg-white p-2 max-h-52 overflow-y-auto shadow-neo">
                       {placePredictions.map((prediction) => (
                         <button
                           key={prediction.placeId || prediction.place_id}
                           type="button"
                           onClick={() => selectAddressPrediction(prediction)}
-                          className="w-full text-left rounded-lg px-3 py-2 hover:bg-gray-50"
+                          className="w-full text-left rounded-xl px-3 py-2 transition hover:bg-vroom-card"
                         >
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-bold text-vroom-heading">
                             {prediction.structured_formatting?.main_text || prediction.description}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs font-semibold text-vroom-muted">
                             {prediction.structured_formatting?.secondary_text || ""}
                           </p>
                         </button>
                       ))}
                     </div>
                   )}
-                  {placesError && <p className="text-xs text-red-600">{placesError}</p>}
-                  <p className="text-xs text-gray-500">
+                  {placesError && <p className="text-sm font-bold text-red-600">{placesError}</p>}
+                  <p className="text-sm font-semibold text-vroom-muted">
                     Choose one suggested address so coordinates save correctly.
                   </p>
                 </div>
@@ -859,20 +897,17 @@ export default function HostOnboardingFlow() {
 
               {currentStep === 5 && (
                 <div className="mx-auto w-full max-w-md space-y-8">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Listing title</label>
-                    <input
-                      value={listingData.listingTitle}
-                      onChange={(e) =>
-                        setListingData((prev) => ({ ...prev, listingTitle: e.target.value }))
-                      }
-                      placeholder="Perfect AWD for your weekend ski trip"
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
-                    />
-                    {assetLabel && (
-                      <p className="text-xs text-gray-500">Vehicle: {assetLabel}</p>
-                    )}
-                  </div>
+                  <LabeledInput
+                    label="Listing title"
+                    value={listingData.listingTitle}
+                    onChange={(value) =>
+                      setListingData((prev) => ({ ...prev, listingTitle: value }))
+                    }
+                    placeholder="Perfect AWD for your weekend ski trip"
+                  />
+                  {assetLabel && (
+                    <p className="text-sm font-semibold text-vroom-muted">Vehicle: {assetLabel}</p>
+                  )}
                   <div className="flex items-center justify-center gap-8">
                     <button
                       type="button"

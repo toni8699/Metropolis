@@ -1,4 +1,54 @@
-import { BarChart3, DollarSign } from "lucide-react";
+import { BarChart3, ChevronDown, DollarSign } from "lucide-react";
+
+export function controlBorderClass(state = "default") {
+  const base =
+    "w-full border-2 rounded-2xl bg-white px-4 py-3 text-vroom-heading outline-none transition focus:ring-2 focus:ring-vroom-accent focus:ring-offset-1";
+  if (state === "error") return `${base} border-red-500`;
+  if (state === "estimate") return `${base} border-amber-500`;
+  return `${base} border-black`;
+}
+
+export function FormFieldLabel({ children, badge = null }) {
+  return (
+    <div className="mb-2 flex items-center justify-between gap-2">
+      <span className="text-sm font-bold text-vroom-muted">{children}</span>
+      {badge}
+    </div>
+  );
+}
+
+export function NeoSelect({
+  value,
+  onChange,
+  options,
+  placeholder = "Select option",
+  borderState = "default",
+  required = false,
+  disabled = false,
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required={required}
+        disabled={disabled}
+        className={`${controlBorderClass(borderState)} appearance-none pr-10 disabled:bg-gray-100 disabled:text-gray-500`}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-vroom-muted"
+        aria-hidden
+      />
+    </div>
+  );
+}
 
 export function AnalyticsCard({ label, value }) {
   return (
@@ -20,10 +70,11 @@ export function LabeledInput({
   placeholder,
   required = false,
   disabled = false,
+  borderState = "default",
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-bold text-vroom-muted">{label}</span>
+      <FormFieldLabel>{label}</FormFieldLabel>
       <input
         type={type}
         value={value}
@@ -31,7 +82,7 @@ export function LabeledInput({
         placeholder={placeholder}
         required={required}
         disabled={disabled}
-        className="w-full border-2 border-black rounded-2xl bg-white px-4 py-3 text-vroom-heading outline-none transition disabled:bg-gray-100 disabled:text-gray-500"
+        className={`${controlBorderClass(borderState)} disabled:bg-gray-100 disabled:text-gray-500`}
       />
     </label>
   );
@@ -40,12 +91,12 @@ export function LabeledInput({
 export function LabeledTextarea({ label, value, onChange, placeholder }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-bold text-vroom-muted">{label}</span>
+      <FormFieldLabel>{label}</FormFieldLabel>
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full min-h-28 border-2 border-black rounded-2xl bg-white px-4 py-3 text-vroom-heading outline-none transition resize-y"
+        className="w-full min-h-28 border-2 border-black rounded-2xl bg-white px-4 py-3 text-vroom-heading outline-none transition resize-y focus:ring-2 focus:ring-vroom-accent focus:ring-offset-1"
       />
     </label>
   );
@@ -56,26 +107,23 @@ export function LabeledSelect({
   value,
   onChange,
   options,
+  placeholder = "Select option",
   required = false,
   disabled = false,
+  borderState = "default",
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-bold text-vroom-muted">{label}</span>
-      <select
+      <FormFieldLabel>{label}</FormFieldLabel>
+      <NeoSelect
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={onChange}
+        options={options}
+        placeholder={placeholder}
         required={required}
         disabled={disabled}
-        className="w-full border-2 border-black rounded-2xl bg-white px-4 py-3 text-vroom-heading outline-none transition disabled:bg-gray-100 disabled:text-gray-500"
-      >
-        <option value="">Select option</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        borderState={borderState}
+      />
     </label>
   );
 }
@@ -83,7 +131,7 @@ export function LabeledSelect({
 export function LabeledPriceInput({ label, value, onChange }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-bold text-vroom-muted">{label}</span>
+      <FormFieldLabel>{label}</FormFieldLabel>
       <div className="relative">
         <DollarSign className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-vroom-accent" />
         <input
@@ -91,7 +139,7 @@ export function LabeledPriceInput({ label, value, onChange }) {
           value={value}
           onChange={(event) => onChange(event.target.value)}
           required
-          className="w-full border-2 border-black rounded-2xl bg-white py-3 pl-10 pr-4 text-vroom-heading outline-none transition"
+          className="w-full border-2 border-black rounded-2xl bg-white py-3 pl-10 pr-4 text-vroom-heading outline-none transition focus:ring-2 focus:ring-vroom-accent focus:ring-offset-1"
         />
       </div>
     </label>

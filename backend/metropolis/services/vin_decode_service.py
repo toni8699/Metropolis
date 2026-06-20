@@ -24,6 +24,7 @@ BODY_TYPE_DEFAULTS: dict[str, dict[str, str | int]] = {
     "TRUCK": {"seats": 5, "doors": 4, "transmission": "Automatic"},
     "WAGON": {"seats": 5, "doors": 4, "transmission": "Automatic"},
     "EV": {"seats": 5, "doors": 4, "transmission": "Automatic"},
+    "OTHER": {"seats": 5, "doors": 4, "transmission": "Automatic"},
 }
 
 

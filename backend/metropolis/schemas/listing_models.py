@@ -41,9 +41,11 @@ class ListingCreateRequest(CamelModel):
     make: str | None = Field(default=None, validation_alias=AliasChoices("make", "brand"))
     model: str | None = None
     year: int | None = None
-    mileage: int | None = None
     body_type_id: int | None = Field(
         default=None, validation_alias=AliasChoices("bodyTypeId", "body_type_id")
+    )
+    body_type_other: str | None = Field(
+        default=None, validation_alias=AliasChoices("bodyTypeOther", "body_type_other")
     )
     vehicle_class_id: int | None = None
     description: str | None = None
@@ -91,9 +93,11 @@ class ListingUpdateRequest(CamelModel):
     make: str | None = Field(default=None, validation_alias=AliasChoices("make", "brand"))
     model: str | None = None
     year: int | None = None
-    mileage: int | None = None
     body_type_id: int | None = Field(
         default=None, validation_alias=AliasChoices("bodyTypeId", "body_type_id")
+    )
+    body_type_other: str | None = Field(
+        default=None, validation_alias=AliasChoices("bodyTypeOther", "body_type_other")
     )
     vehicle_class_id: int | None = None
     description: str | None = None
@@ -130,7 +134,6 @@ class ListingUpdateRequest(CamelModel):
         cleaned = dict(data)
         for key in (
             "year",
-            "mileage",
             "vehicleClassId",
             "vehicle_class_id",
             "bodyTypeId",
@@ -174,8 +177,8 @@ class ListingResponse(CamelModel):
     make: str | None = None
     model: str | None = None
     year: int | None = None
-    mileage: int | None = None
     body_type_id: int | None = Field(default=None, serialization_alias="bodyTypeId")
+    body_type_other: str | None = Field(default=None, serialization_alias="bodyTypeOther")
     vehicle_class_id: int | None = None
     description: str | None = None
     guidelines: str | None = None

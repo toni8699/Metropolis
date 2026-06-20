@@ -31,7 +31,10 @@ vi.mock("@/context/AuthContext", () => ({
 
 vi.mock("@/shared/api/api", () => ({
   apiGet: vi.fn().mockResolvedValue({
-    bodyTypes: [{ bodyTypeId: 1, code: "SEDAN", displayName: "Sedan" }],
+    bodyTypes: [
+      { bodyTypeId: 1, code: "SEDAN", displayName: "Sedan" },
+      { bodyTypeId: 8, code: "OTHER", displayName: "Other" },
+    ],
   }),
   apiPost: vi.fn().mockImplementation((path) => {
     if (String(path).includes("/vin/decode")) {
@@ -67,6 +70,9 @@ vi.mock("@/features/host/components/InstantBookToggle", () => ({
 vi.mock("lucide-react", () => ({
   UploadCloud: () => <span />,
   X: () => <span />,
+  ChevronDown: () => <span />,
+  BarChart3: () => <span />,
+  DollarSign: () => <span />,
 }));
 
 function renderFlow() {
@@ -78,11 +84,8 @@ function renderFlow() {
 }
 
 function fillStep1() {
-  fireEvent.change(screen.getByPlaceholderText(/vehicle vin/i), {
+  fireEvent.change(screen.getByPlaceholderText(/11–17 characters/i), {
     target: { value: "1HGCM82633A004352" },
-  });
-  fireEvent.change(screen.getByPlaceholderText(/mileage/i), {
-    target: { value: "42000" },
   });
 }
 
@@ -94,7 +97,7 @@ describe("HostOnboardingFlow — VIN step", () => {
     expect(screen.getByText(/start with your vin/i)).toBeDefined();
   });
 
-  it("Next stays disabled until VIN and mileage are valid", () => {
+  it("Next stays disabled until VIN is valid", () => {
     renderFlow();
     expect(screen.getByRole("button", { name: /next/i }).disabled).toBe(true);
     fillStep1();
@@ -103,9 +106,6 @@ describe("HostOnboardingFlow — VIN step", () => {
 
   it("manual skip shows trust warning on step 2", async () => {
     renderFlow();
-    fireEvent.change(screen.getByPlaceholderText(/mileage/i), {
-      target: { value: "42000" },
-    });
     fireEvent.click(screen.getByRole("button", { name: /don't have my vin/i }));
     await vi.waitFor(() =>
       expect(screen.getByText(/trust notice/i)).toBeDefined(),

@@ -161,6 +161,7 @@ CREATE TABLE vehicle_asset
   vin VARCHAR(17) UNIQUE,
   vehicle_category vehicle_category NOT NULL DEFAULT 'STANDARD',
   body_type_id INT REFERENCES ref_body_type(body_type_id),
+  body_type_other VARCHAR(80),
   estimated_value DECIMAL(12,2) CHECK (estimated_value IS NULL OR estimated_value >= 0),
   owner_type vehicle_owner_type NOT NULL,
   owner_party_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
@@ -173,7 +174,6 @@ CREATE TABLE vehicle_asset
   transmission VARCHAR(30),
   seats INT CHECK (seats IS NULL OR seats > 0),
   branch_id INT REFERENCES branch(branchid) ON DELETE SET NULL,
-  odometer_km INT CHECK (odometer_km IS NULL OR odometer_km >= 0),
   fleet_status VARCHAR(30),
   is_vin_verified BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -215,7 +215,6 @@ BEGIN
     make = va.make,
     model = va.model,
     year = va.model_year,
-    mileage = va.odometer_km,
     transmission = va.transmission,
     fuel_type = va.fuel_type,
     seats = va.seats,
@@ -237,7 +236,7 @@ END;
 $$;
 
 CREATE TRIGGER trg_vehicle_asset_sync_listing
-AFTER INSERT OR UPDATE OF make, model, model_year, vin, fuel_type, transmission, seats, odometer_km, body_type_id
+AFTER INSERT OR UPDATE OF make, model, model_year, vin, fuel_type, transmission, seats, body_type_id
 ON vehicle_asset
 FOR EACH ROW
 EXECUTE FUNCTION trg_sync_listing_cache_from_asset();
@@ -278,7 +277,6 @@ CREATE TABLE vehicle_listing
   make VARCHAR(80),
   model VARCHAR(80),
   year INT,
-  mileage INT CHECK (mileage IS NULL OR mileage >= 0),
   description TEXT,
   guidelines TEXT,
   transmission VARCHAR(30),

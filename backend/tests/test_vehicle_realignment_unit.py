@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 
-from metropolis.services.listing_service import ListingService, _management_mode
+from metropolis.services.listing_service import (
+    ListingService,
+    _management_mode,
+    _normalize_body_type_other,
+)
 from metropolis.services.vin_decode_service import (
     BODY_TYPE_DEFAULTS,
     enrich_with_spec_fields,
@@ -43,7 +47,7 @@ def test_build_asset_facts_manual_self_allowed() -> None:
     cur = _FakeCursor(None)
     result = service._build_asset_facts(
         cur,
-        {"make": "Toyota", "model": "Corolla", "year": 2020, "mileage": 10000},
+        {"make": "Toyota", "model": "Corolla", "year": 2020},
         is_company_owned=False,
     )
     assert result["status"] == "success"
@@ -56,7 +60,7 @@ def test_build_asset_facts_company_requires_vin() -> None:
     cur = _FakeCursor(None)
     result = service._build_asset_facts(
         cur,
-        {"make": "Toyota", "model": "Corolla", "year": 2020, "mileage": 10000},
+        {"make": "Toyota", "model": "Corolla", "year": 2020},
         is_company_owned=True,
     )
     assert result["status"] == "validation_error"
@@ -125,6 +129,22 @@ def test_enrich_applies_body_type_defaults_when_nhtsa_null() -> None:
     assert enriched["transmission"]["source"] == "default"
     assert spec_value(enriched["fuel_type"]) is None
     assert enriched["fuel_type"]["source"] == "missing"
+
+
+def test_normalize_body_type_other_requires_label_for_other_code() -> None:
+    cur = _FakeCursor({"code": "OTHER"})
+    missing = _normalize_body_type_other(cur, 8, "")
+    assert missing["status"] == "validation_error"
+    ok = _normalize_body_type_other(cur, 8, "  Limousine ")
+    assert ok["status"] == "success"
+    assert ok["value"] == "Limousine"
+
+
+def test_normalize_body_type_other_clears_for_non_other() -> None:
+    cur = _FakeCursor({"code": "SEDAN"})
+    result = _normalize_body_type_other(cur, 1, "should not store")
+    assert result["status"] == "success"
+    assert result["value"] is None
 
 
 def test_enrich_keeps_nhtsa_values_verified() -> None:

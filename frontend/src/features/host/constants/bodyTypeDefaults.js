@@ -7,6 +7,7 @@ export const BODY_TYPE_DEFAULTS = {
   TRUCK: { seats: 5, doors: 4, transmission: "Automatic" },
   WAGON: { seats: 5, doors: 4, transmission: "Automatic" },
   EV: { seats: 5, doors: 4, transmission: "Automatic" },
+  OTHER: { seats: 5, doors: 4, transmission: "Automatic" },
 };
 
 export const REQUIRED_SPEC_FIELDS = ["seats", "fuelType", "transmission"];

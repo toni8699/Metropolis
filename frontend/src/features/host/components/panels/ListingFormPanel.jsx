@@ -211,7 +211,7 @@ export default function ListingFormPanel({
                 disabled={metalReadOnly}
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <LabeledInput
                 label="Year"
                 value={listingForm.year}
@@ -223,15 +223,6 @@ export default function ListingFormPanel({
                 label="Price per day"
                 value={listingForm.pricePerDay}
                 onChange={(value) => setListingForm((prev) => ({ ...prev, pricePerDay: value }))}
-              />
-              <LabeledInput
-                label="Mileage (km)"
-                value={listingForm.mileage}
-                onChange={(value) => setListingForm((prev) => ({ ...prev, mileage: value }))}
-                type="number"
-                placeholder="24500"
-                required={isAdmin}
-                disabled={metalReadOnly}
               />
               {bodyTypes.length > 0 && (
                 <LabeledSelect

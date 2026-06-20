@@ -34,12 +34,33 @@ _METAL_PAYLOAD_KEYS = {
     "make": "make",
     "model": "model",
     "year": "model_year",
-    "mileage": "odometer_km",
     "transmission": "transmission",
     "fuelType": "fuel_type",
     "seats": "seats",
     "bodyTypeId": "body_type_id",
+    "bodyTypeOther": "body_type_other",
 }
+
+
+def _normalize_body_type_other(cur, body_type_id: int | None, body_type_other: object) -> dict:
+    if body_type_id is None:
+        return {"status": "success", "value": None}
+    cur.execute(
+        "SELECT code FROM ref_body_type WHERE body_type_id = %s",
+        (body_type_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return {"status": "validation_error", "message": "Invalid body type."}
+    label = str(body_type_other or "").strip() or None
+    if row["code"] == "OTHER":
+        if not label:
+            return {
+                "status": "validation_error",
+                "message": "Describe your body type when Other is selected.",
+            }
+        return {"status": "success", "value": label}
+    return {"status": "success", "value": None}
 
 
 def _management_mode(*, is_company_owned: bool) -> str:
@@ -104,7 +125,6 @@ class ListingService:
             "fuel_type": payload.get("fuelType"),
             "seats": payload.get("seats"),
             "body_type_id": payload.get("bodyTypeId") or payload.get("body_type_id"),
-            "odometer_km": payload.get("mileage"),
             "is_vin_verified": False,
         }
         if normalized_vin:
@@ -130,14 +150,20 @@ class ListingService:
                     "status": "validation_error",
                     "message": "make, model, and year are required when VIN is not provided.",
                 }
-        if facts.get("odometer_km") is not None:
-            facts["odometer_km"] = int(facts["odometer_km"])
         if facts.get("seats") is not None:
             facts["seats"] = int(facts["seats"])
         if facts.get("body_type_id") is not None:
             facts["body_type_id"] = int(facts["body_type_id"])
         if facts.get("model_year") is not None:
             facts["model_year"] = int(facts["model_year"])
+        other_check = _normalize_body_type_other(
+            cur,
+            facts.get("body_type_id"),
+            payload.get("bodyTypeOther") or payload.get("body_type_other"),
+        )
+        if other_check.get("status") != "success":
+            return other_check
+        facts["body_type_other"] = other_check.get("value")
         return {"status": "success", "facts": facts}
 
     def create_listing(self, actor: dict, payload: dict) -> dict:
@@ -249,11 +275,6 @@ class ListingService:
                             "status": "validation_error",
                             "message": "make and model are required for company-owned listings.",
                         }
-                    if facts.get("odometer_km") is None:
-                        return {
-                            "status": "validation_error",
-                            "message": "mileage is required for company-owned listings.",
-                        }
 
                 if feature_ids is not None:
                     validated = validate_feature_ids(cur, feature_ids)
@@ -277,6 +298,7 @@ class ListingService:
                       vin,
                       vehicle_category,
                       body_type_id,
+                      body_type_other,
                       owner_type,
                       owner_party_user_id,
                       owner_party_name,
@@ -287,12 +309,12 @@ class ListingService:
                       fuel_type,
                       transmission,
                       seats,
-                      odometer_km,
                       is_vin_verified
                     )
                     VALUES (
                       %s,
                       'STANDARD'::vehicle_category,
+                      %s,
                       %s,
                       %s::vehicle_owner_type,
                       %s,
@@ -304,15 +326,15 @@ class ListingService:
                       %s,
                       %s,
                       %s,
-                      %s,
                       %s
                     )
                     RETURNING vehicle_id, make, model, model_year,
-                      odometer_km, transmission, fuel_type, seats
+                      transmission, fuel_type, seats
                     """,
                     (
                         facts.get("vin"),
                         facts.get("body_type_id"),
+                        facts.get("body_type_other"),
                         owner_type,
                         owner_user_id,
                         owner_party_name,
@@ -323,7 +345,6 @@ class ListingService:
                         facts.get("fuel_type"),
                         facts.get("transmission"),
                         facts.get("seats"),
-                        facts.get("odometer_km"),
                         bool(facts.get("is_vin_verified")),
                     ),
                 )
@@ -343,7 +364,7 @@ class ListingService:
                     INSERT INTO vehicle_listing
                     (
                       owner_user_id, created_by_user_id, vehicle_id, source_type, title,
-                      listing_title, make, model, year, mileage,
+                      listing_title, make, model, year,
                       description, guidelines, transmission, fuel_type, seats, doors,
                       features, pickup_notes_template, price_per_day, active, status,
                       is_company_owned, instant_book, location_source_type, branch_id,
@@ -351,7 +372,7 @@ class ListingService:
                     )
                     VALUES (
                       %s, %s, %s, %s::listing_source_type, %s,
-                      %s, %s, %s, %s, %s,
+                      %s, %s, %s, %s,
                       %s, %s, %s, %s, %s, %s,
                       %s::jsonb,
                       %s, %s, TRUE, 'ACTIVE',
@@ -369,7 +390,6 @@ class ListingService:
                         asset_row["make"],
                         asset_row["model"],
                         asset_row["model_year"],
-                        asset_row["odometer_km"],
                         payload.get("description"),
                         guidelines,
                         asset_row["transmission"],
@@ -545,8 +565,6 @@ class ListingService:
             if payload_key not in payload:
                 continue
             value = payload[payload_key]
-            if payload_key == "mileage":
-                value = int(value) if value is not None else None
             if payload_key in {"year", "seats", "bodyTypeId"} and value is not None:
                 value = int(value)
             fields.append(f"{column} = %s")
@@ -646,20 +664,21 @@ class ListingService:
                         cur.execute(
                             """
                             INSERT INTO vehicle_asset (
-                              vin, vehicle_category, body_type_id, owner_type,
+                              vin, vehicle_category, body_type_id, body_type_other, owner_type,
                               owner_party_user_id, asset_status, make, model, model_year,
-                              fuel_type, transmission, seats, odometer_km, is_vin_verified
+                              fuel_type, transmission, seats, is_vin_verified
                             )
                             VALUES (
-                              %s, 'STANDARD'::vehicle_category, %s,
+                              %s, 'STANDARD'::vehicle_category, %s, %s,
                               'INDEPENDENT_HOST'::vehicle_owner_type, %s,
-                              'ACTIVE'::vehicle_asset_status, %s, %s, %s, %s, %s, %s, %s, %s
+                              'ACTIVE'::vehicle_asset_status, %s, %s, %s, %s, %s, %s, %s
                             )
                             RETURNING vehicle_id
                             """,
                             (
                                 facts.get("vin"),
                                 facts.get("body_type_id"),
+                                facts.get("body_type_other"),
                                 listing["owner_user_id"],
                                 facts.get("make"),
                                 facts.get("model"),
@@ -667,7 +686,6 @@ class ListingService:
                                 facts.get("fuel_type"),
                                 facts.get("transmission"),
                                 facts.get("seats"),
-                                facts.get("odometer_km"),
                                 bool(facts.get("is_vin_verified")),
                             ),
                         )

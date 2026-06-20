@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CarFront, Fuel, Settings } from "lucide-react";
+import { BadgeCheck, CarFront, Fuel, Settings } from "lucide-react";
 import UserAvatar from "@/shared/components/UserAvatar";
 import { differenceInDays, format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
@@ -250,6 +250,25 @@ export default function ListingDetailPage() {
                 <span className="text-sm">{listing.fuelType || "Fuel N/A"}</span>
               </div>
             </div>
+
+            {listing.isVinVerified && (
+              <section className="border-t-4 border-black py-6">
+                <div className="rounded-2xl border-2 border-black bg-vroom-card p-5 shadow-neo">
+                  <div className="flex items-start gap-4">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-black bg-white">
+                      <BadgeCheck className="h-7 w-7 text-emerald-600" aria-hidden />
+                    </span>
+                    <div>
+                      <h2 className="text-xl font-extrabold text-vroom-heading">Verified by Vroom</h2>
+                      <p className="mt-1 text-sm font-semibold leading-6 text-vroom-muted">
+                        This vehicle&apos;s VIN was decoded and its specs are trusted in search.
+                        Guests see accurate make, model, and vehicle details.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
 
             <p className="text-base leading-7 text-gray-700">
               {listing.description ||
