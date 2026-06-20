@@ -91,6 +91,31 @@ def _register_user(prefix: str) -> str:
     )
 
 
+def _test_vin_for_listing(listing_id: int) -> str:
+    """Unique 17-char VIN for integration tests (vehicle_asset.vin is UNIQUE)."""
+    return f"TEST{listing_id:012d}"[:17]
+
+
+def _mark_listing_search_visible(listing_id: int) -> None:
+    """Peer listings need is_vin_verified=TRUE to appear in public search."""
+    test_vin = _test_vin_for_listing(listing_id)
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE vehicle_asset va
+                SET
+                  is_vin_verified = TRUE,
+                  vin = COALESCE(va.vin, %s)
+                FROM vehicle_listing vl
+                WHERE vl.vehicle_id = va.vehicle_id
+                  AND vl.listing_id = %s
+                """,
+                (test_vin, listing_id),
+            )
+        conn.commit()
+
+
 def _create_instant_book_listing(host_token: str) -> int:
     resp = _api(
         "POST",
@@ -117,6 +142,7 @@ def _create_instant_book_listing(host_token: str) -> int:
                 (listing_id,),
             )
         conn.commit()
+    _mark_listing_search_visible(listing_id)
     return listing_id
 
 
@@ -131,6 +157,7 @@ def _prepare_listing_for_booking(host_token: str) -> tuple[int, bool]:
                     (listing_id,),
                 )
             conn.commit()
+        _mark_listing_search_visible(listing_id)
         return listing_id, False
     return _create_instant_book_listing(host_token), True
 
@@ -148,11 +175,25 @@ def _delete_listing(listing_id: int) -> None:
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
             cur.execute(
+                "SELECT vehicle_id FROM vehicle_listing WHERE listing_id = %s",
+                (listing_id,),
+            )
+            row = cur.fetchone()
+            vehicle_id = row[0] if row else None
+            cur.execute(
                 "DELETE FROM booking WHERE listing_id = %s",
                 (listing_id,),
             )
             cur.execute("DELETE FROM listing_image WHERE listing_id = %s", (listing_id,))
+            cur.execute("DELETE FROM listing_location WHERE listing_id = %s", (listing_id,))
+            cur.execute("DELETE FROM listing_availability WHERE listing_id = %s", (listing_id,))
             cur.execute("DELETE FROM vehicle_listing WHERE listing_id = %s", (listing_id,))
+            if vehicle_id:
+                cur.execute(
+                    "DELETE FROM vehicle_vin_metadata WHERE vehicle_id = %s",
+                    (vehicle_id,),
+                )
+                cur.execute("DELETE FROM vehicle_asset WHERE vehicle_id = %s", (vehicle_id,))
         conn.commit()
 
 
@@ -177,15 +218,15 @@ def listing_with_confirmed_booking():
     pay_resp = _api("POST", f"/api/bookings/{booking_id}/payments", token=renter_token)
     assert pay_resp.status_code == 200, _error_message(pay_resp)
     pay_body = pay_resp.json()
-    assert pay_body.get("mock") is True, (
-        "integration tests expect mock payment (unset STRIPE_SECRET_KEY in CI)"
-    )
+    assert (
+        pay_body.get("mock") is True
+    ), "integration tests expect mock payment (unset STRIPE_SECRET_KEY in CI)"
     detail_resp = _api("GET", f"/api/bookings/{booking_id}", token=renter_token)
     assert detail_resp.status_code == 200, _error_message(detail_resp)
     booking_status = detail_resp.json()["booking"]["status"]
-    assert booking_status == "CONFIRMED", (
-        f"expected instant-book payment to confirm booking, got {booking_status}"
-    )
+    assert (
+        booking_status == "CONFIRMED"
+    ), f"expected instant-book payment to confirm booking, got {booking_status}"
     yield listing_id, booking_id
     _delete_booking(booking_id)
     if delete_listing:

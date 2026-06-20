@@ -18,9 +18,10 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    # ponytail: idempotent — 000001 may already bootstrap from db/schema.sql
     op.execute(
         """
-        CREATE TABLE ref_body_type (
+        CREATE TABLE IF NOT EXISTS ref_body_type (
           body_type_id SERIAL PRIMARY KEY,
           code VARCHAR(40) NOT NULL UNIQUE,
           display_name VARCHAR(80) NOT NULL,
@@ -34,9 +35,10 @@ def upgrade() -> None:
           ('EV', 'Electric', 40),
           ('MINIVAN', 'Minivan', 50),
           ('COUPE', 'Coupe', 60),
-          ('WAGON', 'Wagon', 70);
+          ('WAGON', 'Wagon', 70)
+        ON CONFLICT (code) DO NOTHING;
 
-        CREATE TABLE ref_nhtsa_body_class_map (
+        CREATE TABLE IF NOT EXISTS ref_nhtsa_body_class_map (
           map_id SERIAL PRIMARY KEY,
           nhtsa_body_class VARCHAR(120) NOT NULL UNIQUE,
           body_type_id INT NOT NULL REFERENCES ref_body_type(body_type_id)
@@ -59,7 +61,8 @@ def upgrade() -> None:
           ('CONVERTIBLE', 'COUPE'),
           ('CROSSOVER UTILITY VEHICLE (CUV)', 'SUV')
         ) AS v(nhtsa_body_class, code)
-        JOIN ref_body_type bt ON bt.code = v.code;
+        JOIN ref_body_type bt ON bt.code = v.code
+        ON CONFLICT (nhtsa_body_class) DO NOTHING;
 
         ALTER TABLE vehicle_asset
           ADD COLUMN IF NOT EXISTS body_type_id INT REFERENCES ref_body_type(body_type_id),
@@ -74,17 +77,41 @@ def upgrade() -> None:
         SET listing_title = title
         WHERE listing_title IS NULL;
 
-        UPDATE vehicle_asset va
-        SET
-          make = COALESCE(va.make, vl.make),
-          model = COALESCE(va.model, vl.model),
-          model_year = COALESCE(va.model_year, vl.year),
-          odometer_km = COALESCE(va.odometer_km, vl.mileage),
-          transmission = COALESCE(va.transmission, vl.transmission),
-          fuel_type = COALESCE(va.fuel_type, vl.fuel_type),
-          seats = COALESCE(va.seats, vl.seats)
-        FROM vehicle_listing vl
-        WHERE vl.vehicle_id = va.vehicle_id;
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'vehicle_asset'
+              AND column_name = 'odometer_km'
+          ) AND EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'vehicle_listing'
+              AND column_name = 'mileage'
+          ) THEN
+            UPDATE vehicle_asset va
+            SET
+              make = COALESCE(va.make, vl.make),
+              model = COALESCE(va.model, vl.model),
+              model_year = COALESCE(va.model_year, vl.year),
+              odometer_km = COALESCE(va.odometer_km, vl.mileage),
+              transmission = COALESCE(va.transmission, vl.transmission),
+              fuel_type = COALESCE(va.fuel_type, vl.fuel_type),
+              seats = COALESCE(va.seats, vl.seats)
+            FROM vehicle_listing vl
+            WHERE vl.vehicle_id = va.vehicle_id;
+          ELSE
+            UPDATE vehicle_asset va
+            SET
+              make = COALESCE(va.make, vl.make),
+              model = COALESCE(va.model, vl.model),
+              model_year = COALESCE(va.model_year, vl.year),
+              transmission = COALESCE(va.transmission, vl.transmission),
+              fuel_type = COALESCE(va.fuel_type, vl.fuel_type),
+              seats = COALESCE(va.seats, vl.seats)
+            FROM vehicle_listing vl
+            WHERE vl.vehicle_id = va.vehicle_id;
+          END IF;
+        END $$;
 
         UPDATE vehicle_asset va
         SET body_type_id = bt.body_type_id
@@ -103,7 +130,7 @@ def upgrade() -> None:
         )
         WHERE description ~ '^Vehicle type: ';
 
-        CREATE TABLE vehicle_vin_metadata (
+        CREATE TABLE IF NOT EXISTS vehicle_vin_metadata (
           metadata_id BIGSERIAL PRIMARY KEY,
           vehicle_id BIGINT NOT NULL UNIQUE REFERENCES vehicle_asset(vehicle_id) ON DELETE CASCADE,
           vin VARCHAR(17) NOT NULL,
@@ -115,7 +142,7 @@ def upgrade() -> None:
           )
         );
 
-        CREATE INDEX idx_vehicle_vin_metadata_vin ON vehicle_vin_metadata(vin);
+        CREATE INDEX IF NOT EXISTS idx_vehicle_vin_metadata_vin ON vehicle_vin_metadata(vin);
 
         CREATE OR REPLACE FUNCTION sync_listing_cache_from_asset(p_vehicle_id BIGINT)
         RETURNS void
@@ -127,7 +154,6 @@ def upgrade() -> None:
             make = va.make,
             model = va.model,
             year = va.model_year,
-            mileage = va.odometer_km,
             transmission = va.transmission,
             fuel_type = va.fuel_type,
             seats = va.seats,
@@ -151,7 +177,7 @@ def upgrade() -> None:
         DROP TRIGGER IF EXISTS trg_vehicle_asset_sync_listing ON vehicle_asset;
         CREATE TRIGGER trg_vehicle_asset_sync_listing
         AFTER INSERT OR UPDATE OF
-          make, model, model_year, vin, fuel_type, transmission, seats, odometer_km, body_type_id
+          make, model, model_year, vin, fuel_type, transmission, seats, body_type_id
         ON vehicle_asset
         FOR EACH ROW
         EXECUTE FUNCTION trg_sync_listing_cache_from_asset();

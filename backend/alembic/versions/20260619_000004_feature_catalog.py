@@ -20,7 +20,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.execute(
         """
-        CREATE TABLE ref_feature (
+        CREATE TABLE IF NOT EXISTS ref_feature (
           feature_id SERIAL PRIMARY KEY,
           code VARCHAR(64) NOT NULL UNIQUE,
           name VARCHAR(120) NOT NULL UNIQUE,
@@ -39,15 +39,16 @@ def upgrade() -> None:
           ('AWD', 'AWD', 'ShieldCheck', 'Safety', 60),
           ('BACKUP_CAMERA', 'Backup Camera', 'UploadCloud', 'Safety', 70),
           ('BLIND_SPOT_WARNING', 'Blind Spot Warning', 'ShieldCheck', 'Safety', 80),
-          ('KEYLESS_ENTRY', 'Keyless Entry', 'KeyRound', 'Comfort', 90);
+          ('KEYLESS_ENTRY', 'Keyless Entry', 'KeyRound', 'Comfort', 90)
+        ON CONFLICT (code) DO NOTHING;
 
-        CREATE TABLE listing_feature (
+        CREATE TABLE IF NOT EXISTS listing_feature (
           listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
           feature_id INT NOT NULL REFERENCES ref_feature(feature_id) ON DELETE CASCADE,
           PRIMARY KEY (listing_id, feature_id)
         );
 
-        CREATE INDEX idx_listing_feature_feature ON listing_feature(feature_id);
+        CREATE INDEX IF NOT EXISTS idx_listing_feature_feature ON listing_feature(feature_id);
 
         INSERT INTO listing_feature (listing_id, feature_id)
         SELECT DISTINCT vl.listing_id, rf.feature_id
