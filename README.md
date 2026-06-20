@@ -66,8 +66,8 @@ edit  →  lint / test  →  PR to main or develop  →  CI  →  merge main  �
 
 ```bash
 # Backend
-cd backend && uv run ruff check metropolis tests scripts
-cd backend && uv run ruff format --check metropolis tests scripts
+cd backend && uv run ruff check .
+cd backend && uv run ruff format --check .
 cd backend && uv run pytest tests -v
 
 # Frontend
@@ -90,7 +90,7 @@ More detail: [CONTRIBUTING.md](CONTRIBUTING.md)
 | What | Command |
 |------|---------|
 | Backend (day to day) | `cd backend && uv run pytest tests -v` |
-| Backend lint | `cd backend && uv run ruff check metropolis tests scripts` |
+| Backend lint | `cd backend && uv run ruff check .` |
 | Frontend | `cd frontend && npm test` |
 | Frontend lint | `cd frontend && npm run lint` |
 | Full backend suite + integration | see below |

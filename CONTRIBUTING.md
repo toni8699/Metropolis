@@ -93,8 +93,8 @@ docker compose up --build
 ### Before a PR
 
 ```bash
-cd backend && uv run ruff check metropolis tests scripts
-cd backend && uv run ruff format --check metropolis tests scripts
+cd backend && uv run ruff check .
+cd backend && uv run ruff format --check .
 cd backend && uv run pytest tests -v
 
 cd frontend && npm run lint && npm test

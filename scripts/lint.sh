@@ -17,13 +17,13 @@ fi
 echo "==> ruff check"
 (
   cd backend
-  uv run ruff check --fix metropolis tests scripts
+  uv run ruff check --fix .
 )
 
 echo "==> ruff format"
 (
   cd backend
-  uv run ruff format metropolis tests scripts
+  uv run ruff format .
 )
 
 echo "OK"

@@ -44,11 +44,11 @@ jobs:
 
       - name: Ruff check
         working-directory: backend
-        run: uv run ruff check metropolis tests scripts
+        run: uv run ruff check .
 
       - name: Ruff format check
         working-directory: backend
-        run: uv run ruff format --check metropolis tests scripts
+        run: uv run ruff format --check .
 
   backend-test:
     name: Backend tests
