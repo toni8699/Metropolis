@@ -63,8 +63,9 @@ function requiredSpecsFilled(data) {
 function normalizeTransmission(value) {
   if (!value) return "";
   const text = String(value).toLowerCase();
-  if (text.includes("manual")) return "Manual";
-  if (text.includes("auto") || text.includes("cvt")) return "Automatic";
+  if (text.includes("manual")) return "MANUAL";
+  if (text.includes("auto") || text.includes("cvt")) return "AUTOMATIC";
+  if (value === "AUTOMATIC" || value === "MANUAL") return value;
   return "";
 }
 
@@ -74,7 +75,10 @@ function normalizeFuelType(value) {
   if (text.includes("electric") || text === "ev") return "Electric";
   if (text.includes("hybrid")) return "Hybrid";
   if (text.includes("diesel")) return "Diesel";
-  if (text.includes("gas") || text.includes("petrol")) return "Gas";
+  if (text.includes("gas") || text.includes("petrol")) return "Gasoline";
+  if (value === "Gasoline" || value === "Electric" || value === "Hybrid" || value === "Diesel") {
+    return value;
+  }
   return "";
 }
 

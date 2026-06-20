@@ -14,10 +14,10 @@ from metropolis.services.marketplace_common import (
     _listing_image_urls,
     _resolve_guidelines,
     _resolve_listing_title,
-    _resolve_search_window,
     _upsert_listing_location,
+    build_listing_search_filters,
+    count_listing_search_matches,
     hydrate_listing_rows,
-    listing_available_for_window_sql,
     replace_listing_features,
     resolve_company_location,
     sync_listing_cache_from_asset,
@@ -25,6 +25,8 @@ from metropolis.services.marketplace_common import (
 )
 from metropolis.services.vin_decode_service import (
     decode_and_map_for_asset,
+    normalize_fuel_type,
+    normalize_transmission,
     normalize_vin,
     upsert_vin_metadata,
 )
@@ -156,6 +158,10 @@ class ListingService:
             facts["body_type_id"] = int(facts["body_type_id"])
         if facts.get("model_year") is not None:
             facts["model_year"] = int(facts["model_year"])
+        if facts.get("transmission") is not None:
+            facts["transmission"] = normalize_transmission(facts["transmission"])
+        if facts.get("fuel_type") is not None:
+            facts["fuel_type"] = normalize_fuel_type(facts["fuel_type"])
         other_check = _normalize_body_type_other(
             cur,
             facts.get("body_type_id"),
@@ -518,45 +524,49 @@ class ListingService:
         return {"status": "success", "listings": listings}
 
     def search_listings(self, query: dict) -> dict:
-        clauses = [
-            "COALESCE(l.status, 'ACTIVE') = 'ACTIVE'",
-            """(
-              l.is_company_owned = TRUE
-              OR l.source_type = 'FLEET'::listing_source_type
-              OR COALESCE(va.is_vin_verified, FALSE) = TRUE
-            )""",
-        ]
-        params: list = []
-        if query.get("city_zone"):
-            clauses.append("loc.city_zone = %s")
-            params.append(query["city_zone"])
-        if query.get("bbox"):
-            min_lng, min_lat, max_lng, max_lat = (float(x) for x in query["bbox"].split(","))
-            clauses.extend(["loc.lng BETWEEN %s AND %s", "loc.lat BETWEEN %s AND %s"])
-            params.extend([min_lng, max_lng, min_lat, max_lat])
+        clauses, params, error = build_listing_search_filters(
+            query,
+            booking_hold_statuses=_BOOKING_HOLD_STATUSES,
+        )
+        if error:
+            return error
 
-        window = _resolve_search_window(query)
-        if isinstance(window, dict):
-            return window
-        if window is not None:
-            start_at, end_at = window
-            clauses.append(listing_available_for_window_sql(_BOOKING_HOLD_STATUSES))
-            params.extend([*_BOOKING_HOLD_STATUSES, end_at, start_at, end_at, start_at])
-
+        limit = int(query.get("limit") or 24)
+        offset = int(query.get("offset") or 0)
         where_sql = " AND ".join(clauses)
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                total_count = count_listing_search_matches(cur, clauses, params)
                 cur.execute(
                     f"""
                     {LISTING_SELECT_SQL}
                     WHERE {where_sql}
                     ORDER BY l.updated_at DESC
-                    LIMIT 500
+                    LIMIT %s OFFSET %s
                     """,
-                    tuple(params),
+                    (*params, limit, offset),
                 )
                 listings = hydrate_listing_rows(cur, cur.fetchall())
-        return {"status": "success", "listings": listings}
+        return {
+            "status": "success",
+            "listings": listings,
+            "totalCount": total_count,
+            "limit": limit,
+            "offset": offset,
+        }
+
+    def count_listings(self, query: dict) -> dict:
+        clauses, params, error = build_listing_search_filters(
+            query,
+            booking_hold_statuses=_BOOKING_HOLD_STATUSES,
+        )
+        if error:
+            return error
+
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                total_count = count_listing_search_matches(cur, clauses, params)
+        return {"status": "success", "totalCount": total_count}
 
     def _update_vehicle_asset(self, cur, vehicle_id: int, payload: dict) -> dict | None:
         fields = []
@@ -567,6 +577,10 @@ class ListingService:
             value = payload[payload_key]
             if payload_key in {"year", "seats", "bodyTypeId"} and value is not None:
                 value = int(value)
+            if payload_key == "transmission" and value is not None:
+                value = normalize_transmission(value)
+            if payload_key == "fuelType" and value is not None:
+                value = normalize_fuel_type(value)
             fields.append(f"{column} = %s")
             params.append(value)
         if not fields:

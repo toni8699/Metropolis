@@ -5,6 +5,7 @@ export default function UserMenuDropdown({
   onSignup,
   onOpenAccount,
   onOpenTrips,
+  onOpenSaved,
   onOpenMessages,
   onOpenHostDashboard,
   onOpenAdminDashboard,
@@ -44,6 +45,9 @@ export default function UserMenuDropdown({
           </button>
           <button type="button" onClick={onOpenTrips} className={itemClass}>
             Trips
+          </button>
+          <button type="button" onClick={onOpenSaved} className={itemClass}>
+            Saved listings
           </button>
           {showHostDashboard && (
             <button type="button" onClick={onOpenHostDashboard} className={itemClass}>

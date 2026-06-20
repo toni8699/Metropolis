@@ -6,6 +6,7 @@ from metropolis.services.listing_service import ListingService, listing_service
 from metropolis.services.message_service import MessageService
 from metropolis.services.payment_service import PaymentService, payment_service
 from metropolis.services.review_service import ReviewService
+from metropolis.services.saved_listing_service import SavedListingService, saved_listing_service
 from metropolis.services.uploads_service import UploadsService
 
 auth_service = AuthService()
@@ -22,6 +23,7 @@ __all__ = [
     "message_service",
     "payment_service",
     "review_service",
+    "saved_listing_service",
     "uploads_service",
     "AuthService",
     "BookingService",
@@ -31,5 +33,6 @@ __all__ = [
     "MessageService",
     "PaymentService",
     "ReviewService",
+    "SavedListingService",
     "UploadsService",
 ]

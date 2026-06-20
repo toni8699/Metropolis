@@ -14,6 +14,7 @@ export default function HeaderUserMenu({
   onSignup,
   onOpenAccount,
   onOpenTrips,
+  onOpenSaved,
   onOpenMessages,
   onOpenHostDashboard,
   onOpenAdminDashboard,
@@ -59,6 +60,7 @@ export default function HeaderUserMenu({
           onSignup={onSignup}
           onOpenAccount={onOpenAccount}
           onOpenTrips={onOpenTrips}
+          onOpenSaved={onOpenSaved}
           onOpenMessages={onOpenMessages}
           onOpenHostDashboard={onOpenHostDashboard}
           onOpenAdminDashboard={onOpenAdminDashboard}

@@ -3,8 +3,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
-from pydantic import AliasChoices, ConfigDict, Field, computed_field, model_validator
+from pydantic import (
+    AliasChoices,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 from pydantic.alias_generators import to_camel
 
 from metropolis.schemas.camel import CamelModel
@@ -164,6 +172,53 @@ class ListingListQuery(CamelModel):
         default=None,
         validation_alias=AliasChoices("city_zone", "cityZone"),
     )
+    min_price: float | None = Field(
+        default=None,
+        validation_alias=AliasChoices("min_price", "minPrice"),
+    )
+    max_price: float | None = Field(
+        default=None,
+        validation_alias=AliasChoices("max_price", "maxPrice"),
+    )
+    body_type_ids: list[int] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("body_type_ids", "bodyTypeIds"),
+    )
+    transmission: Literal["AUTOMATIC", "MANUAL"] | None = None
+    fuel_types: list[str] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("fuel_types", "fuelTypes"),
+    )
+    seats: list[int] | None = None
+    seats_gte: int | None = Field(
+        default=None,
+        validation_alias=AliasChoices("seats_gte", "seatsGte"),
+    )
+    feature_ids: list[int] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("feature_ids", "featureIds"),
+    )
+    limit: int = Field(default=24, ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
+
+    @field_validator("body_type_ids", "seats", "feature_ids", mode="before")
+    @classmethod
+    def parse_comma_separated_ints(cls, value: object) -> object:
+        if value is None or isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            parts = [part.strip() for part in value.split(",") if part.strip()]
+            return [int(part) for part in parts if part.isdigit()]
+        return value
+
+    @field_validator("fuel_types", mode="before")
+    @classmethod
+    def parse_comma_separated_strings(cls, value: object) -> object:
+        if value is None or isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            return [part.strip() for part in value.split(",") if part.strip()]
+        return value
 
 
 class ListingResponse(CamelModel):
@@ -244,7 +299,15 @@ class ListingCollectionResponse(CamelModel):
     status: str
     scope: str | None = None
     listings: list[ListingResponse] | None = None
+    total_count: int | None = Field(default=None, serialization_alias="totalCount")
+    limit: int | None = None
+    offset: int | None = None
     links: dict[str, LinkResponse] | None = Field(default=None, alias="_links")
+
+
+class ListingCountResponse(CamelModel):
+    status: str
+    total_count: int = Field(serialization_alias="totalCount")
 
 
 class ListingItemResponse(CamelModel):
@@ -286,3 +349,16 @@ class ReviewResponse(CamelModel):
 class ReviewCollectionResponse(CamelModel):
     status: str
     reviews: list[ReviewResponse]
+
+
+class SavedListingsResponse(CamelModel):
+    status: str
+    saved_listing_ids: list[int] = Field(serialization_alias="savedListingIds")
+    listings: list[ListingResponse]
+
+
+class SavedListingToggleResponse(CamelModel):
+    status: str
+    listing_id: int = Field(serialization_alias="listingId")
+    saved: bool
+    saved_listing_ids: list[int] = Field(serialization_alias="savedListingIds")

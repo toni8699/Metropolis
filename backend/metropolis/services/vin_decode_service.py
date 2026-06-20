@@ -17,15 +17,51 @@ _NHTSA_URL = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?form
 
 # ponytail: static map by ref_body_type.code; upgrade path = admin-editable ref table
 BODY_TYPE_DEFAULTS: dict[str, dict[str, str | int]] = {
-    "SUV": {"seats": 5, "doors": 5, "transmission": "Automatic"},
-    "MINIVAN": {"seats": 7, "doors": 5, "transmission": "Automatic"},
-    "COUPE": {"seats": 4, "doors": 2, "transmission": "Automatic"},
-    "SEDAN": {"seats": 5, "doors": 4, "transmission": "Automatic"},
-    "TRUCK": {"seats": 5, "doors": 4, "transmission": "Automatic"},
-    "WAGON": {"seats": 5, "doors": 4, "transmission": "Automatic"},
-    "EV": {"seats": 5, "doors": 4, "transmission": "Automatic"},
-    "OTHER": {"seats": 5, "doors": 4, "transmission": "Automatic"},
+    "SUV": {"seats": 5, "doors": 5, "transmission": "AUTOMATIC"},
+    "MINIVAN": {"seats": 7, "doors": 5, "transmission": "AUTOMATIC"},
+    "COUPE": {"seats": 4, "doors": 2, "transmission": "AUTOMATIC"},
+    "SEDAN": {"seats": 5, "doors": 4, "transmission": "AUTOMATIC"},
+    "TRUCK": {"seats": 5, "doors": 4, "transmission": "AUTOMATIC"},
+    "WAGON": {"seats": 5, "doors": 4, "transmission": "AUTOMATIC"},
+    "EV": {"seats": 5, "doors": 4, "transmission": "AUTOMATIC"},
+    "OTHER": {"seats": 5, "doors": 4, "transmission": "AUTOMATIC"},
 }
+
+
+def normalize_transmission(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    lowered = text.lower()
+    if "manual" in lowered:
+        return "MANUAL"
+    if "auto" in lowered or "cvt" in lowered:
+        return "AUTOMATIC"
+    if text in {"AUTOMATIC", "MANUAL"}:
+        return text
+    return None
+
+
+def normalize_fuel_type(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    lowered = text.lower()
+    if "electric" in lowered or lowered == "ev":
+        return "Electric"
+    if "hybrid" in lowered:
+        return "Hybrid"
+    if "diesel" in lowered:
+        return "Diesel"
+    if "gas" in lowered or "petrol" in lowered:
+        return "Gasoline"
+    if text in {"Gasoline", "Electric", "Hybrid", "Diesel"}:
+        return text
+    return None
 
 
 def normalize_vin(vin: str | None) -> str | None:
@@ -134,10 +170,11 @@ def map_nhtsa_result(cur, result: dict) -> dict:
     make = _clean_nhtsa_value(result.get("Make"))
     model = _clean_nhtsa_value(result.get("Model"))
     model_year = _parse_model_year(result.get("ModelYear"))
-    transmission = _clean_nhtsa_value(result.get("TransmissionStyle")) or _clean_nhtsa_value(
-        result.get("TransmissionSpeeds")
+    transmission = normalize_transmission(
+        _clean_nhtsa_value(result.get("TransmissionStyle"))
+        or _clean_nhtsa_value(result.get("TransmissionSpeeds"))
     )
-    fuel_type = _clean_nhtsa_value(result.get("FuelTypePrimary"))
+    fuel_type = normalize_fuel_type(_clean_nhtsa_value(result.get("FuelTypePrimary")))
     seats = _parse_positive_int(result.get("Seats"))
     doors = _parse_positive_int(result.get("Doors"))
     body_class = _clean_nhtsa_value(result.get("BodyClass"))

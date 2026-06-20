@@ -1,15 +1,9 @@
 import {
-  Bluetooth,
   Building2,
   Check,
   Crosshair,
-  KeyRound,
   Loader2,
   MapPin,
-  ShieldCheck,
-  Smartphone,
-  Snowflake,
-  Sun,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -24,21 +18,7 @@ import {
   LabeledSelect,
   LabeledTextarea,
 } from "@/features/host/components/form/Fields";
-
-const FEATURE_ICONS = {
-  Smartphone,
-  Bluetooth,
-  Sun,
-  Snowflake,
-  ShieldCheck,
-  UploadCloud,
-  KeyRound,
-  Check,
-};
-
-function featureIcon(iconKey) {
-  return FEATURE_ICONS[iconKey] || Check;
-}
+import { featureIcon } from "@/shared/lib/featureIcon";
 
 function assetLabel(form) {
   return [form.make, form.model, form.year].filter(Boolean).join(" ").trim();
@@ -278,8 +258,8 @@ export default function ListingFormPanel({
                 onChange={(value) => setListingForm((prev) => ({ ...prev, transmission: value }))}
                 disabled={metalReadOnly}
                 options={[
-                  { value: "Automatic", label: "Automatic" },
-                  { value: "Manual", label: "Manual" },
+                  { value: "AUTOMATIC", label: "Automatic" },
+                  { value: "MANUAL", label: "Manual" },
                 ]}
               />
               <LabeledSelect
@@ -288,7 +268,7 @@ export default function ListingFormPanel({
                 onChange={(value) => setListingForm((prev) => ({ ...prev, fuelType: value }))}
                 disabled={metalReadOnly}
                 options={[
-                  { value: "Gas", label: "Gas" },
+                  { value: "Gasoline", label: "Gasoline" },
                   { value: "Electric", label: "Electric" },
                   { value: "Hybrid", label: "Hybrid" },
                   { value: "Diesel", label: "Diesel" },

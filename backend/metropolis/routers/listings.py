@@ -18,6 +18,7 @@ from metropolis.schemas.listing_models import (
     ListingAvailabilityRequest,
     ListingAvailabilityResponse,
     ListingCollectionResponse,
+    ListingCountResponse,
     ListingCreateRequest,
     ListingItemResponse,
     ListingListQuery,
@@ -42,22 +43,43 @@ def _actor_from_user(user: UserContext) -> dict:
     }
 
 
+_QUERY_FIELD_ALIASES = {
+    "scope": "scope",
+    "bbox": "bbox",
+    "city_zone": "city_zone",
+    "cityZone": "city_zone",
+    "start_at": "start_at",
+    "start": "start_at",
+    "startAt": "start_at",
+    "end_at": "end_at",
+    "end": "end_at",
+    "endAt": "end_at",
+    "min_price": "min_price",
+    "minPrice": "min_price",
+    "max_price": "max_price",
+    "maxPrice": "max_price",
+    "body_type_ids": "body_type_ids",
+    "bodyTypeIds": "body_type_ids",
+    "transmission": "transmission",
+    "fuel_types": "fuel_types",
+    "fuelTypes": "fuel_types",
+    "seats": "seats",
+    "seats_gte": "seats_gte",
+    "seatsGte": "seats_gte",
+    "feature_ids": "feature_ids",
+    "featureIds": "feature_ids",
+    "limit": "limit",
+    "offset": "offset",
+}
+
+
 def parse_listing_list_query(request: Request) -> ListingListQuery:
     """Read listing search query params (FastAPI CamelModel only binds camelCase aliases)."""
-    qp = request.query_params
-    payload: dict = {}
-    if scope := qp.get("scope"):
-        payload["scope"] = scope
-    if bbox := qp.get("bbox"):
-        payload["bbox"] = bbox
-    if city_zone := qp.get("city_zone") or qp.get("cityZone"):
-        payload["city_zone"] = city_zone
-    start_s = qp.get("start_at") or qp.get("start") or qp.get("startAt")
-    end_s = qp.get("end_at") or qp.get("end") or qp.get("endAt")
-    if start_s:
-        payload["start_at"] = start_s
-    if end_s:
-        payload["end_at"] = end_s
+    payload = {
+        field: value
+        for key, value in request.query_params.items()
+        if (field := _QUERY_FIELD_ALIASES.get(key)) is not None
+    }
     return ListingListQuery.model_validate(payload)
 
 
@@ -101,6 +123,22 @@ def list_listings(
         status_code=400,
         detail="Unsupported scope. Use mine, fleet, or host.",
     )
+
+
+@router.get("/count", response_model=ListingCountResponse)
+def count_listings(request: Request) -> dict:
+    """Count public listings matching search filters."""
+    query = parse_listing_list_query(request)
+    if query.scope:
+        raise HTTPException(
+            status_code=400,
+            detail="Count endpoint supports public search only (no scope).",
+        )
+    result = listing_service.count_listings(
+        query.model_dump(exclude_none=True, by_alias=False),
+    )
+    raise_for_service_result(result)
+    return result
 
 
 @router.get("/{listing_id}", response_model=ListingItemResponse)

@@ -90,6 +90,8 @@ def test_map_nhtsa_result_maps_mpv_to_body_type() -> None:
     assert mapped["make"] == "Honda"
     assert mapped["model"] == "Odyssey"
     assert mapped["model_year"] == 2018
+    assert mapped["transmission"] == "AUTOMATIC"
+    assert mapped["fuel_type"] == "Gasoline"
     assert mapped["body_type_id"] == 5
     assert mapped["suggested_body_type"]["display_name"] == "Minivan"
 
@@ -152,7 +154,7 @@ def test_enrich_keeps_nhtsa_values_verified() -> None:
     mapped = {
         "seats": 7,
         "doors": 5,
-        "transmission": "Automatic",
+        "transmission": "AUTOMATIC",
         "fuel_type": "Gasoline",
         "suggested_body_type": {"code": "MINIVAN"},
     }
@@ -160,3 +162,11 @@ def test_enrich_keeps_nhtsa_values_verified() -> None:
     assert enriched["seats"]["value"] == 7
     assert enriched["seats"]["is_verified"] is True
     assert enriched["seats"]["source"] == "nhtsa"
+
+
+def test_normalize_fuel_type_keeps_diesel_separate() -> None:
+    from metropolis.services.vin_decode_service import normalize_fuel_type
+
+    assert normalize_fuel_type("Diesel") == "Diesel"
+    assert normalize_fuel_type("diesel fuel") == "Diesel"
+    assert normalize_fuel_type("Gasoline") == "Gasoline"

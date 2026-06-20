@@ -15,6 +15,7 @@ import { nextWeekendRange } from "@/shared/lib/weekendDates";
 import { useClickOutside } from "@/shared/hooks/useClickOutside";
 import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
 import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
+import { useOptionalBrowseFilters } from "@/features/browse/hooks/useBrowseFilters.jsx";
 
 export default function Header({ onSearch, onHome }) {
   const navigate = useNavigate();
@@ -45,6 +46,7 @@ export default function Header({ onSearch, onHome }) {
     mapsReady: isPlacesLoaded,
     placesLoadError,
   });
+  const browseFilters = useOptionalBrowseFilters();
 
   const closeSearch = useCallback(() => setIsSearchExpanded(false), []);
   const closeMenu = useCallback(() => setIsUserMenuOpen(false), []);
@@ -214,6 +216,10 @@ export default function Header({ onSearch, onHome }) {
       navigate("/app/trips");
       closeMenu();
     },
+    onOpenSaved: () => {
+      navigate("/app/saved");
+      closeMenu();
+    },
     onOpenMessages: () => {
       navigate("/app/messages");
       closeMenu();
@@ -331,13 +337,21 @@ export default function Header({ onSearch, onHome }) {
           </div>
 
           <div className="hidden items-center gap-2 md:flex">
-            <button
-              type="button"
-              className="neo-btn-secondary flex cursor-pointer items-center gap-1.5 px-3 py-1.5 text-xs"
-            >
-              <SlidersHorizontal className="h-4 w-4 text-vroom-text" />
-              Filters
-            </button>
+            {browseFilters ? (
+              <button
+                type="button"
+                onClick={browseFilters.openFilterModal}
+                className="neo-btn-secondary relative flex cursor-pointer items-center gap-1.5 px-3 py-1.5 text-xs"
+              >
+                <SlidersHorizontal className="h-4 w-4 text-vroom-text" />
+                Filters
+                {browseFilters.filtersActive ? (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-black bg-vroom-coral px-1 text-[10px] font-bold">
+                    !
+                  </span>
+                ) : null}
+              </button>
+            ) : null}
             <button type="button" onClick={handleHostClick} className="neo-btn-primary px-4 py-2 text-sm hover:scale-105">
               {isAdmin ? "Admin dashboard" : "Host your car"}
             </button>

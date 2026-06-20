@@ -191,6 +191,8 @@ export default function SearchResultsView({
   cityLabel = "Toronto",
   searchCenter = null,
   isLoading = false,
+  filtersActive = false,
+  totalCount = null,
 }) {
   const [activeId, setActiveId] = useState(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
@@ -271,7 +273,9 @@ export default function SearchResultsView({
           }`}
         >
           <h2 className="mb-4 text-xl font-extrabold text-vroom-heading">
-            {isLoading ? "Loading cars..." : `${cars.length} cars in ${cityLabel}`}
+            {isLoading
+              ? "Loading cars..."
+              : `${totalCount ?? cars.length} cars in ${cityLabel}`}
           </h2>
           <div className="mb-4 md:hidden">
             <button
@@ -294,10 +298,13 @@ export default function SearchResultsView({
             </div>
           ) : cars.length === 0 ? (
             <div className="rounded-3xl border-2 border-black bg-vroom-surface p-6 text-center shadow-neoCard">
-              <p className="text-base font-extrabold text-vroom-heading">No cars near {cityLabel}</p>
+              <p className="text-base font-extrabold text-vroom-heading">
+                {filtersActive ? "No results found" : `No cars near ${cityLabel}`}
+              </p>
               <p className="mt-2 text-sm text-vroom-muted">
-                Try another city or widen your search. Listings only show within 50 km of your
-                picked location.
+                {filtersActive
+                  ? "Try clearing filters or widening your price range."
+                  : "Try another city or widen your search. Listings only show within 50 km of your picked location."}
               </p>
             </div>
           ) : (

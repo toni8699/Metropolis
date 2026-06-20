@@ -95,7 +95,6 @@ More detail: [CONTRIBUTING.md](CONTRIBUTING.md)
 | Frontend lint | `cd frontend && npm run lint` |
 | Full backend suite + integration | see below |
 
-`pytest` runs unit tests locally. Integration tests need a running API and Postgres — they auto-skip when those are not available (normal when you only run pytest on your laptop).
 
 **Full backend suite** (migrations, seed, API, all tests) — ephemeral local Postgres via Docker:
 

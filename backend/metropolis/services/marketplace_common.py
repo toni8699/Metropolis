@@ -22,6 +22,12 @@ LISTING_SELECT_SQL = """
     LEFT JOIN app_user u ON u.user_id = l.owner_user_id
 """
 
+LISTING_SEARCH_FROM_SQL = """
+    FROM vehicle_listing l
+    LEFT JOIN vehicle_asset va ON va.vehicle_id = l.vehicle_id
+    LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
+"""
+
 # Admin dashboard: company fleet only (not third-party host listings).
 _COMPANY_FLEET_FILTER = "l.is_company_owned = TRUE"
 _HOST_LISTING_FILTER = "l.source_type = 'OWNER' AND l.is_company_owned = FALSE"
@@ -112,6 +118,103 @@ def _resolve_search_window(query: dict) -> tuple[datetime, datetime] | None | di
     if end_at <= start_at:
         return {"status": "validation_error", "message": "end_at must be after start_at."}
     return start_at, end_at
+
+
+def build_listing_search_filters(
+    query: dict,
+    *,
+    booking_hold_statuses: tuple[str, ...],
+) -> tuple[list[str], list, dict | None]:
+    """Build WHERE clauses for public listing search. Returns (clauses, params, error)."""
+    clauses = ["COALESCE(l.status, 'ACTIVE') = 'ACTIVE'"]
+    params: list = []
+
+    if query.get("city_zone"):
+        clauses.append("loc.city_zone = %s")
+        params.append(query["city_zone"])
+    if query.get("bbox"):
+        min_lng, min_lat, max_lng, max_lat = (float(x) for x in query["bbox"].split(","))
+        clauses.extend(["loc.lng BETWEEN %s AND %s", "loc.lat BETWEEN %s AND %s"])
+        params.extend([min_lng, max_lng, min_lat, max_lat])
+
+    window = _resolve_search_window(query)
+    if isinstance(window, dict):
+        return clauses, params, window
+    if window is not None:
+        start_at, end_at = window
+        clauses.append(listing_available_for_window_sql(booking_hold_statuses))
+        params.extend([*booking_hold_statuses, end_at, start_at, end_at, start_at])
+
+    min_price = query.get("min_price")
+    if min_price is not None:
+        clauses.append("l.price_per_day >= %s")
+        params.append(float(min_price))
+    max_price = query.get("max_price")
+    if max_price is not None:
+        clauses.append("l.price_per_day <= %s")
+        params.append(float(max_price))
+
+    body_type_ids = query.get("body_type_ids")
+    if body_type_ids:
+        clauses.append("va.body_type_id = ANY(%s)")
+        params.append(body_type_ids)
+
+    transmission = query.get("transmission")
+    if transmission:
+        clauses.append("va.transmission = %s::transmission_type")
+        params.append(str(transmission))
+
+    fuel_types = query.get("fuel_types")
+    if fuel_types:
+        clauses.append("va.fuel_type = ANY(%s::fuel_type_enum[])")
+        params.append(fuel_types)
+
+    seats = list(query.get("seats") or [])
+    seats_gte = query.get("seats_gte")
+    if seats_gte is None and seats and 7 in seats:
+        seats_gte = 7
+        seats = [value for value in seats if value != 7]
+    seat_parts: list[str] = []
+    seat_params: list = []
+    if seats:
+        seat_parts.append("va.seats = ANY(%s)")
+        seat_params.append(seats)
+    if seats_gte is not None:
+        seat_parts.append("va.seats >= %s")
+        seat_params.append(int(seats_gte))
+    if seat_parts:
+        clauses.append(f"({' OR '.join(seat_parts)})")
+        params.extend(seat_params)
+
+    feature_ids = query.get("feature_ids")
+    if feature_ids:
+        clauses.append(
+            """
+            l.listing_id IN (
+                SELECT lf.listing_id
+                FROM listing_feature lf
+                WHERE lf.feature_id = ANY(%s)
+                GROUP BY lf.listing_id
+                HAVING COUNT(DISTINCT lf.feature_id) = %s
+            )
+            """
+        )
+        params.extend([feature_ids, len(feature_ids)])
+
+    return clauses, params, None
+
+
+def count_listing_search_matches(cur, clauses: list[str], params: list) -> int:
+    where_sql = " AND ".join(clauses)
+    cur.execute(
+        f"""
+        SELECT COUNT(*) AS total_count
+        {LISTING_SEARCH_FROM_SQL}
+        WHERE {where_sql}
+        """,
+        tuple(params),
+    )
+    return int(cur.fetchone()["total_count"] or 0)
 
 
 def _fetch_dashboard_analytics(cur, listing_where: str, params: tuple = ()) -> dict:

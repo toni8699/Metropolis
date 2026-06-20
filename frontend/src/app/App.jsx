@@ -9,6 +9,7 @@ import MapBrowsePage from "@/views/MapBrowsePage";
 import HostDashboardPage from "@/views/HostDashboardPage";
 import TripsPage from "@/views/TripsPage";
 import InboxPage from "@/views/InboxPage";
+import SavedListingsPage from "@/views/SavedListingsPage";
 import AccountSettingsPage from "@/views/AccountSettingsPage";
 import LoginPage from "@/views/LoginPage";
 import VerifyEmailPage from "@/views/VerifyEmailPage";
@@ -16,12 +17,15 @@ import Layout from "@/layout/Layout";
 import HostOnboardingFlow from "@/features/host/components/HostOnboardingFlow";
 import SuccessListingPage from "@/features/host/SuccessListingPage";
 import { RequireAuth, RequireRole } from "@/app/RouteGuards";
+import { BrowseFiltersProvider } from "@/features/browse/hooks/useBrowseFilters.jsx";
 
-function AppShell({ onSearch, onHome }) {
+function AppShell({ onSearch, onHome, hasSearched, searchParams }) {
   return (
-    <Layout onSearch={onSearch} onHome={onHome}>
-      <Outlet />
-    </Layout>
+    <BrowseFiltersProvider searchContext={{ hasSearched, searchParams }}>
+      <Layout onSearch={onSearch} onHome={onHome}>
+        <Outlet />
+      </Layout>
+    </BrowseFiltersProvider>
   );
 }
 
@@ -69,7 +73,14 @@ export default function App() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route
         path="/app"
-        element={<AppShell onSearch={handleSearch} onHome={handleGoHome} />}
+        element={
+          <AppShell
+            onSearch={handleSearch}
+            onHome={handleGoHome}
+            hasSearched={hasSearched}
+            searchParams={searchParams}
+          />
+        }
       >
         <Route
           index
@@ -79,6 +90,7 @@ export default function App() {
         <Route path="book/:id" element={<BookingCheckoutPage />} />
         <Route path="bookings/:bookingId" element={<BookingDetailsPage />} />
         <Route path="trips" element={<TripsPage />} />
+        <Route path="saved" element={<SavedListingsPage />} />
         <Route path="messages" element={<InboxPage />} />
         <Route path="account" element={<AccountSettingsPage />} />
         <Route path="*" element={<Navigate to="/app" replace />} />
@@ -95,6 +107,7 @@ export default function App() {
 
       <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="/trips" element={<Navigate to="/app/trips" replace />} />
+      <Route path="/saved" element={<Navigate to="/app/saved" replace />} />
       <Route path="/messages" element={<Navigate to="/app/messages" replace />} />
       <Route path="/account" element={<Navigate to="/app/account" replace />} />
       <Route path="/book/:id" element={<AppPathRedirect prefix="/app/book" />} />

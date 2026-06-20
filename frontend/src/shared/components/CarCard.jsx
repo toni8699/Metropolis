@@ -1,13 +1,20 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Heart } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useSavedListings } from "@/context/SavedListingsContext";
 import ListingRatingLine from "@/features/listings/components/ListingRatingLine";
 
 const fallbackPhoto =
   "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1200&q=80";
 
 export default function CarCard({ car, distanceKm }) {
-  const [isFavorite, setIsFavorite] = useState(Boolean(car.favorite));
+  const { isAuthenticated } = useAuth();
+  const { isSaved, toggleSaved } = useSavedListings();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const listingId = car.listingId || car.id;
+  const favorite = isSaved(listingId);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const row1Title = `${car.make || car.brand || "Car"} ${car.model || ""} ${car.year || ""}`.trim();
   const details = car.details || "Automatic • 5 Seats";
@@ -39,6 +46,21 @@ export default function CarCard({ car, distanceKm }) {
   const href = car.listingId
     ? `/app/listings/${car.listingId}`
     : `/app/listings/${car.id}`;
+
+  const handleFavoriteClick = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!isAuthenticated) {
+      const redirectTo = encodeURIComponent(`${location.pathname}${location.search}`);
+      navigate(`/login?redirect_to=${redirectTo}`);
+      return;
+    }
+    try {
+      await toggleSaved(listingId);
+    } catch {
+      // ponytail: heart revert handled in context
+    }
+  };
 
   return (
     <article className="group rounded-[2rem] border-2 border-black bg-vroom-surface p-3 shadow-neoCard transition-transform hover:-translate-y-2">
@@ -81,16 +103,14 @@ export default function CarCard({ car, distanceKm }) {
 
           <button
             type="button"
-            aria-label="Toggle favorite"
-            onClick={(e) => {
-              e.preventDefault();
-              setIsFavorite((v) => !v);
-            }}
+            aria-label={favorite ? "Remove from saved listings" : "Save listing"}
+            aria-pressed={favorite}
+            onClick={handleFavoriteClick}
             className="absolute right-3 top-3 z-10 rounded-full border-2 border-black bg-white/80 p-1 transition hover:scale-110"
           >
             <Heart
               className={`h-6 w-6 transition ${
-                isFavorite ? "fill-red-500 text-red-500" : "fill-black/20 text-white stroke-[2.25]"
+                favorite ? "fill-red-500 text-red-500" : "fill-black/20 text-white stroke-[2.25]"
               }`}
             />
           </button>

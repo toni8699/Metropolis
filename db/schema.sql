@@ -45,6 +45,8 @@ CREATE TYPE vehicle_category AS ENUM ('STANDARD', 'LUXURY', 'TRUCK', 'EV');
 CREATE TYPE vehicle_owner_type AS ENUM ('INDEPENDENT_HOST', 'FLEET_OWNER', 'COMPANY');
 CREATE TYPE vehicle_asset_status AS ENUM ('ONBOARDING', 'ACTIVE', 'MAINTENANCE', 'RETIRED');
 CREATE TYPE management_assignment_status AS ENUM ('PENDING', 'ACTIVE', 'TERMINATED');
+CREATE TYPE transmission_type AS ENUM ('AUTOMATIC', 'MANUAL');
+CREATE TYPE fuel_type_enum AS ENUM ('Gasoline', 'Electric', 'Hybrid', 'Diesel');
 CREATE TYPE compliance_event_type AS ENUM (
   'PHYSICAL_INSPECTION',
   'DOCUMENT_VERIFICATION',
@@ -170,8 +172,8 @@ CREATE TABLE vehicle_asset
   make VARCHAR(80),
   model VARCHAR(80),
   model_year INT,
-  fuel_type VARCHAR(30),
-  transmission VARCHAR(30),
+  fuel_type fuel_type_enum,
+  transmission transmission_type,
   seats INT CHECK (seats IS NULL OR seats > 0),
   branch_id INT REFERENCES branch(branchid) ON DELETE SET NULL,
   fleet_status VARCHAR(30),
@@ -189,6 +191,10 @@ CREATE TABLE vehicle_asset
 CREATE INDEX idx_vehicle_asset_owner ON vehicle_asset(owner_type, owner_party_user_id);
 CREATE INDEX idx_vehicle_asset_status ON vehicle_asset(asset_status);
 CREATE INDEX idx_vehicle_asset_fleet_branch_status ON vehicle_asset(branch_id, fleet_status);
+CREATE INDEX idx_vehicle_asset_body_type ON vehicle_asset(body_type_id);
+CREATE INDEX idx_vehicle_asset_transmission ON vehicle_asset(transmission);
+CREATE INDEX idx_vehicle_asset_fuel_type ON vehicle_asset(fuel_type);
+CREATE INDEX idx_vehicle_asset_seats ON vehicle_asset(seats);
 
 CREATE TABLE vehicle_vin_metadata
 (
@@ -279,8 +285,8 @@ CREATE TABLE vehicle_listing
   year INT,
   description TEXT,
   guidelines TEXT,
-  transmission VARCHAR(30),
-  fuel_type VARCHAR(30),
+  transmission transmission_type,
+  fuel_type fuel_type_enum,
   seats INT CHECK (seats IS NULL OR seats > 0),
   doors INT CHECK (doors IS NULL OR doors > 0),
   features JSONB,
@@ -315,6 +321,9 @@ CREATE TABLE vehicle_listing
 CREATE INDEX idx_vehicle_listing_vehicle_id ON vehicle_listing(vehicle_id);
 CREATE INDEX idx_vehicle_listing_fleet_vin ON vehicle_listing(fleet_vehicle_vin);
 CREATE INDEX idx_vehicle_listing_owner_source ON vehicle_listing(owner_user_id, source_type);
+CREATE INDEX idx_vehicle_listing_price_active
+  ON vehicle_listing(price_per_day)
+  WHERE COALESCE(status, 'ACTIVE') = 'ACTIVE';
 
 ALTER TABLE file_asset
   ADD CONSTRAINT file_asset_listing_id_fkey
@@ -599,3 +608,13 @@ CREATE TABLE vehicle_membership_eligibility
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (vehicle_id, tier_id)
 );
+
+CREATE TABLE saved_listing
+(
+  user_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
+  listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, listing_id)
+);
+
+CREATE INDEX idx_saved_listing_user_created ON saved_listing(user_id, created_at DESC);
