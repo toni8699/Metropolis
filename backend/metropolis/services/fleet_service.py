@@ -16,6 +16,7 @@ from metropolis.services.marketplace_common import (
     _simple_geohash,
     _upsert_listing_location,
     hydrate_listing_rows,
+    sync_listing_cache_from_asset,
 )
 
 _VEHICLE_CATEGORY_OPTIONS = [
@@ -36,88 +37,6 @@ def _fleet_coords(city: str, vin: str) -> tuple[float, float]:
 
 
 class FleetService:
-    def _resolve_company_location(self, cur, payload: dict) -> dict:
-        source_type = str(payload.get("locationSourceType") or "").upper()
-        branch_id = payload.get("branchId")
-        parking_spot_id = payload.get("parkingSpotId")
-        selected_area_id = payload.get("areaId")
-        if source_type not in {"BRANCH", "PARKING_SPOT"}:
-            return {
-                "status": "validation_error",
-                "message": "locationSourceType must be BRANCH or PARKING_SPOT.",
-            }
-
-        if source_type == "BRANCH":
-            if not branch_id:
-                return {
-                    "status": "validation_error",
-                    "message": "branchId required for BRANCH source.",
-                }
-            cur.execute(
-                """
-                SELECT b.branchid, b.areaid, b.address, b.lat, b.lng, a.areaname
-                FROM branch b
-                JOIN area a ON a.areaid = b.areaid
-                WHERE b.branchid = %s
-                """,
-                (int(branch_id),),
-            )
-            row = cur.fetchone()
-            if not row:
-                return {"status": "not_found", "message": "Branch not found."}
-            if selected_area_id and int(selected_area_id) != int(row["areaid"]):
-                return {
-                    "status": "validation_error",
-                    "message": "Selected branch is not in selected area.",
-                }
-            if row["lat"] is None or row["lng"] is None:
-                return {
-                    "status": "validation_error",
-                    "message": "Selected branch missing coordinates.",
-                }
-            return {
-                "status": "success",
-                "locationSourceType": "BRANCH",
-                "branchId": int(row["branchid"]),
-                "parkingSpotId": None,
-                "pickupAddress": row["address"],
-                "lat": float(row["lat"]),
-                "lng": float(row["lng"]),
-                "cityZone": str(row["areaname"]).lower().replace(" ", "-"),
-            }
-
-        if not parking_spot_id:
-            return {
-                "status": "validation_error",
-                "message": "parkingSpotId required for PARKING_SPOT source.",
-            }
-        cur.execute(
-            """
-            SELECT id, area_id, branch_id, address, lat, lng, city_zone
-            FROM company_parking_spot
-            WHERE id = %s AND is_active = TRUE
-            """,
-            (int(parking_spot_id),),
-        )
-        row = cur.fetchone()
-        if not row:
-            return {"status": "not_found", "message": "Parking spot not found."}
-        if selected_area_id and int(selected_area_id) != int(row["area_id"]):
-            return {
-                "status": "validation_error",
-                "message": "Selected parking spot is not in selected area.",
-            }
-        return {
-            "status": "success",
-            "locationSourceType": "PARKING_SPOT",
-            "branchId": None,
-            "parkingSpotId": int(row["id"]),
-            "pickupAddress": row["address"],
-            "lat": float(row["lat"]),
-            "lng": float(row["lng"]),
-            "cityZone": row["city_zone"],
-        }
-
     def admin_listings(self) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -291,6 +210,7 @@ class FleetService:
                                 """,
                                 (vehicle_id, hit["listing_id"]),
                             )
+                        sync_listing_cache_from_asset(cur, vehicle_id)
                         cur.execute(
                             """
                             UPDATE listing_location
@@ -329,6 +249,7 @@ class FleetService:
                         ),
                     )
                     listing_id = cur.fetchone()["listing_id"]
+                    sync_listing_cache_from_asset(cur, vehicle_id)
                     _upsert_listing_location(
                         cur,
                         listing_id,

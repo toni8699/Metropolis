@@ -18,6 +18,7 @@ if _test_db:
 
 os.environ.setdefault("DEBUG", "1")
 os.environ["RATELIMIT_ENABLED"] = "0"
+os.environ.setdefault("REQUIRE_VIN_FOR_P2P", "0")
 
 _INTEGRATION_TEST_FILES = frozenset(
     {

@@ -24,6 +24,7 @@ from metropolis.routers import (
     messages,
     uploads,
     users,
+    vehicles,
     webhooks,
 )
 from metropolis.security import validate_security_config
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
     app.include_router(users.router)
     app.include_router(fleet.router)
     app.include_router(listings.router)
+    app.include_router(vehicles.router)
     app.include_router(bookings.router)
     app.include_router(messages.router)
     app.include_router(uploads.router)

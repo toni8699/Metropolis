@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiPatch, apiPost } from "@/shared/api/api";
+import { apiGet, apiPatch, apiPost } from "@/shared/api/api";
 import { useAuth } from "@/context/AuthContext";
 import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
 import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
 
+function readSpecValue(field) {
+  if (field == null) return null;
+  if (typeof field === "object" && "value" in field) return field.value;
+  return field;
+}
+
 export const emptyListingForm = {
+  vin: "",
+  listingTitle: "",
   title: "",
   make: "",
   model: "",
   year: "",
   mileage: "",
+  bodyTypeId: "",
   vehicleClassId: "",
   pricePerDay: 120,
   instantBook: true,
@@ -21,6 +30,7 @@ export const emptyListingForm = {
   description: "",
   guidelines: "",
   features: [],
+  featureIds: [],
   images: [],
   address: "",
   latitude: null,
@@ -69,6 +79,10 @@ export function useListingForm({
   const [addressQuery, setAddressQuery] = useState("");
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+  const [metalFactsLocked, setMetalFactsLocked] = useState(false);
+  const [isDecodingVin, setIsDecodingVin] = useState(false);
+  const [bodyTypes, setBodyTypes] = useState([]);
+  const [catalogFeatures, setCatalogFeatures] = useState([]);
   const [locationMode, setLocationMode] = useState(isAdmin ? "hub" : "custom");
   const [tempLocation, setTempLocation] = useState({ lat: null, lng: null, address: "" });
   const fileInputRef = useRef(null);
@@ -85,6 +99,15 @@ export function useListingForm({
     country: "ca",
     mapsReady: isMapLoaded,
   });
+
+  useEffect(() => {
+    apiGet("/api/body-types")
+      .then((data) => setBodyTypes(data?.bodyTypes || []))
+      .catch(() => setBodyTypes([]));
+    apiGet("/api/features")
+      .then((data) => setCatalogFeatures(data?.features || []))
+      .catch(() => setCatalogFeatures([]));
+  }, []);
 
   useEffect(() => {
     if (!isMapLoaded || !window.google?.maps) return;
@@ -234,13 +257,55 @@ export function useListingForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationMode, listingForm.branchId, listingForm.address, companyLocations.branches]);
 
-  const toggleFeature = (featureName) => {
-    setListingForm((prev) => ({
-      ...prev,
-      features: prev.features.includes(featureName)
-        ? prev.features.filter((item) => item !== featureName)
-        : [...prev.features, featureName],
-    }));
+  const toggleFeature = (featureId) => {
+    setListingForm((prev) => {
+      const id = Number(featureId);
+      const nextIds = prev.featureIds.includes(id)
+        ? prev.featureIds.filter((item) => item !== id)
+        : [...prev.featureIds, id];
+      const nextNames = catalogFeatures
+        .filter((feature) => nextIds.includes(feature.featureId))
+        .map((feature) => feature.name);
+      return { ...prev, featureIds: nextIds, features: nextNames };
+    });
+  };
+
+  const decodeVin = async () => {
+    const vin = String(listingForm.vin || "").trim().toUpperCase();
+    if (!vin) {
+      setError("Enter a VIN first.");
+      return;
+    }
+    setIsDecodingVin(true);
+    setError("");
+    try {
+      const response = await apiPost("/api/vehicles/vin/decode", { vin }, true);
+      const decoded = response?.decoded || {};
+      const suggestedBodyTypeId =
+        decoded.bodyTypeId || decoded.suggestedBodyType?.bodyTypeId || listingForm.bodyTypeId;
+      setListingForm((prev) => ({
+        ...prev,
+        vin,
+        make: decoded.make || prev.make,
+        model: decoded.model || prev.model,
+        year: decoded.modelYear ? String(decoded.modelYear) : prev.year,
+        transmission: readSpecValue(decoded.transmission) || prev.transmission,
+        fuelType: readSpecValue(decoded.fuelType) || prev.fuelType,
+        seats: readSpecValue(decoded.seats) ? Number(readSpecValue(decoded.seats)) : prev.seats,
+        doors: readSpecValue(decoded.doors) ? Number(readSpecValue(decoded.doors)) : prev.doors,
+        bodyTypeId: suggestedBodyTypeId ? String(suggestedBodyTypeId) : prev.bodyTypeId,
+        listingTitle:
+          prev.listingTitle ||
+          [decoded.make, decoded.model].filter(Boolean).join(" ").trim() ||
+          prev.listingTitle,
+      }));
+      setMetalFactsLocked(true);
+      setSuccess("VIN decoded. Metal specs locked to vehicle record.");
+    } catch (err) {
+      setError(err?.message || "Could not decode VIN.");
+    } finally {
+      setIsDecodingVin(false);
+    }
   };
 
   const selectUploadFiles = (fileList) => {
@@ -353,12 +418,15 @@ export function useListingForm({
     try {
       const usesCompanyDropdown = isAdmin && locationMode === "hub";
       const payload = omitUndefined({
-        title: listingForm.title || undefined,
+        listingTitle: listingForm.listingTitle || listingForm.title || undefined,
+        title: listingForm.listingTitle || listingForm.title || undefined,
+        vin: listingForm.vin || undefined,
         brand: listingForm.make || undefined,
         make: listingForm.make || undefined,
         model: listingForm.model || undefined,
         year: listingForm.year ? Number(listingForm.year) : undefined,
         mileage: listingForm.mileage ? Number(listingForm.mileage) : undefined,
+        bodyTypeId: listingForm.bodyTypeId ? Number(listingForm.bodyTypeId) : undefined,
         vehicleClassId: listingForm.vehicleClassId ? Number(listingForm.vehicleClassId) : undefined,
         transmission: listingForm.transmission || undefined,
         fuelType: listingForm.fuelType || undefined,
@@ -366,7 +434,7 @@ export function useListingForm({
         doors: listingForm.doors ? Number(listingForm.doors) : undefined,
         description: listingForm.description || undefined,
         guidelines: listingForm.guidelines,
-        features: listingForm.features,
+        featureIds: listingForm.featureIds,
         images: listingForm.images,
         pickupAddress: listingForm.address || undefined,
         latitude: listingForm.latitude ?? undefined,
@@ -435,6 +503,7 @@ export function useListingForm({
         setCreateSuccessListing({
           listingId: targetListingId,
           title:
+            listingForm.listingTitle?.trim() ||
             listingForm.title?.trim() ||
             `${listingForm.make || ""} ${listingForm.model || ""}`.trim() ||
             "Your listing",
@@ -460,6 +529,7 @@ export function useListingForm({
     setPendingPhotoFiles([]);
     setAddressQuery("");
     setLocationMode(isAdmin ? "hub" : "custom");
+    setMetalFactsLocked(false);
     setEditingListingId(null);
     setBaselineKey((key) => key + 1);
   };
@@ -483,11 +553,14 @@ export function useListingForm({
     setEditingListingId(listing.listingId);
     setListingForm((prev) => ({
       ...prev,
-      title: listing.title || "",
+      vin: listing.vin || "",
+      listingTitle: listing.listingTitle || listing.title || "",
+      title: listing.listingTitle || listing.title || "",
       make: listing.make || listing.brand || "",
       model: listing.model || "",
       year: listing.year ?? "",
       mileage: listing.mileage ?? "",
+      bodyTypeId: listing.bodyTypeId ? String(listing.bodyTypeId) : "",
       vehicleClassId: listing.vehicleClassId ?? "",
       pricePerDay: listing.pricePerDay ?? prev.pricePerDay,
       transmission: listing.transmission || prev.transmission,
@@ -496,6 +569,13 @@ export function useListingForm({
       doors: listing.doors ?? prev.doors,
       description: listing.description || "",
       guidelines: listing.guidelines || listing.rules || "",
+      featureIds: Array.isArray(listing.featureIds)
+        ? listing.featureIds
+        : Array.isArray(listing.features)
+          ? catalogFeatures
+              .filter((feature) => listing.features.includes(feature.name))
+              .map((feature) => feature.featureId)
+          : [],
       features: Array.isArray(listing.features) ? listing.features : [],
       images: Array.isArray(listing.images)
         ? listing.images
@@ -518,6 +598,7 @@ export function useListingForm({
     setAddressQuery(resolvedAddress);
     setLocationMode(isAdmin ? nextMode : "custom");
     setPendingPhotoFiles([]);
+    setMetalFactsLocked(Boolean(listing.vin));
     setActiveTab("create_listing");
     setError("");
     setSuccess("");
@@ -650,5 +731,11 @@ export function useListingForm({
     handlePinDrop,
     confirmMapPickerLocation,
     applyHubBranchSelection,
+    decodeVin,
+    metalFactsLocked,
+    setMetalFactsLocked,
+    isDecodingVin,
+    bodyTypes,
+    catalogFeatures,
   };
 }

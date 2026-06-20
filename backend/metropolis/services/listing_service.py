@@ -13,11 +13,38 @@ from metropolis.services.marketplace_common import (
     _fetch_dashboard_analytics,
     _listing_image_urls,
     _resolve_guidelines,
+    _resolve_listing_title,
     _resolve_search_window,
     _upsert_listing_location,
     hydrate_listing_rows,
     listing_available_for_window_sql,
+    replace_listing_features,
+    resolve_company_location,
+    sync_listing_cache_from_asset,
+    validate_feature_ids,
 )
+from metropolis.services.vin_decode_service import (
+    decode_and_map_for_asset,
+    normalize_vin,
+    upsert_vin_metadata,
+)
+
+_METAL_PAYLOAD_KEYS = {
+    "vin": "vin",
+    "make": "make",
+    "model": "model",
+    "year": "model_year",
+    "mileage": "odometer_km",
+    "transmission": "transmission",
+    "fuelType": "fuel_type",
+    "seats": "seats",
+    "bodyTypeId": "body_type_id",
+}
+
+
+def _management_mode(*, is_company_owned: bool) -> str:
+    # ponytail: derived until host opt-in to company-managed hosting exists.
+    return "COMPANY_MANAGED" if is_company_owned else "SELF"
 
 
 class ListingService:
@@ -44,13 +71,74 @@ class ListingService:
     def _fetch_listing_ownership(self, cur, listing_id: int) -> dict | None:
         cur.execute(
             """
-            SELECT listing_id, owner_user_id
+            SELECT listing_id, owner_user_id, vehicle_id
             FROM vehicle_listing
             WHERE listing_id = %s
             """,
             (listing_id,),
         )
         return cur.fetchone()
+
+    def _extract_feature_ids(self, payload: dict) -> list[int] | None:
+        if "featureIds" in payload or "feature_ids" in payload:
+            raw = payload.get("featureIds", payload.get("feature_ids"))
+            if raw is None:
+                return []
+            if not isinstance(raw, list):
+                return []
+            return [int(value) for value in raw]
+        if "features" in payload and isinstance(payload.get("features"), list):
+            return None
+        return None
+
+    def _build_asset_facts(self, cur, payload: dict, *, is_company_owned: bool) -> dict:
+        mode = _management_mode(is_company_owned=is_company_owned)
+        raw_vin = payload.get("vin")
+        normalized_vin = normalize_vin(str(raw_vin)) if raw_vin not in (None, "") else None
+        facts = {
+            "vin": normalized_vin,
+            "make": payload.get("make") or payload.get("brand"),
+            "model": payload.get("model"),
+            "model_year": payload.get("year"),
+            "transmission": payload.get("transmission"),
+            "fuel_type": payload.get("fuelType"),
+            "seats": payload.get("seats"),
+            "body_type_id": payload.get("bodyTypeId") or payload.get("body_type_id"),
+            "odometer_km": payload.get("mileage"),
+            "is_vin_verified": False,
+        }
+        if normalized_vin:
+            decoded = decode_and_map_for_asset(cur, normalized_vin)
+            if decoded.get("status") == "validation_error":
+                return decoded
+            if decoded.get("status") == "error":
+                return decoded
+            decoded_facts = decoded.get("facts") or {}
+            for key, value in decoded_facts.items():
+                if value is not None and facts.get(key) in (None, ""):
+                    facts[key] = value
+            facts["_raw_decode"] = decoded.get("raw")
+            facts["is_vin_verified"] = bool(facts.get("make") or facts.get("model"))
+        elif mode == "COMPANY_MANAGED":
+            return {
+                "status": "validation_error",
+                "message": "VIN is required for company-managed listings.",
+            }
+        else:
+            if not facts.get("make") or not facts.get("model") or facts.get("model_year") is None:
+                return {
+                    "status": "validation_error",
+                    "message": "make, model, and year are required when VIN is not provided.",
+                }
+        if facts.get("odometer_km") is not None:
+            facts["odometer_km"] = int(facts["odometer_km"])
+        if facts.get("seats") is not None:
+            facts["seats"] = int(facts["seats"])
+        if facts.get("body_type_id") is not None:
+            facts["body_type_id"] = int(facts["body_type_id"])
+        if facts.get("model_year") is not None:
+            facts["model_year"] = int(facts["model_year"])
+        return {"status": "success", "facts": facts}
 
     def create_listing(self, actor: dict, payload: dict) -> dict:
         if not actor.get("isAdmin") and not settings.allow_user_listings:
@@ -60,27 +148,17 @@ class ListingService:
             }
         is_company_owned = bool(payload.get("isCompanyOwned")) and bool(actor.get("isAdmin"))
         owner_user_id = actor["userId"]
-        # Keep manual admin-created company listings compatible with existing
-        # listing table constraints (fleet rows require fleet_vehicle_vin).
         source_type = "OWNER"
 
-        brand = payload.get("brand")
-        make = payload.get("make") or brand
-        model = payload.get("model")
-        year = payload.get("year")
-        mileage = payload.get("mileage")
-        transmission = payload.get("transmission")
-        fuel_type = payload.get("fuelType")
-        seats = payload.get("seats")
-        doors = payload.get("doors")
-        features = payload.get("features")
         image_urls = _listing_image_urls(payload)
         address = payload.get("pickupAddress")
         latitude = payload.get("latitude")
         longitude = payload.get("longitude")
         guidelines = _resolve_guidelines(payload)
-        if mileage is not None:
-            mileage = int(mileage)
+        listing_title = _resolve_listing_title(payload)
+
+        seats = payload.get("seats")
+        doors = payload.get("doors")
         if seats is not None:
             seats = int(seats)
         if doors is not None:
@@ -89,26 +167,27 @@ class ListingService:
             latitude = float(latitude)
         if longitude is not None:
             longitude = float(longitude)
-        if mileage is not None and int(mileage) < 0:
-            return {"status": "validation_error", "message": "mileage must be >= 0."}
         if seats is not None and seats <= 0:
             return {"status": "validation_error", "message": "seats must be > 0."}
         if doors is not None and doors <= 0:
             return {"status": "validation_error", "message": "doors must be > 0."}
-        if features is None:
-            features = []
-        title = payload.get("title")
-        if not title:
-            parts = [p for p in [make, model, str(year) if year else None] if p]
-            title = " ".join(parts) if parts else "User listed car"
+
+        feature_ids = self._extract_feature_ids(payload)
 
         try:
             with get_connection() as conn:
                 cur = conn.cursor(cursor_factory=RealDictCursor)
+                asset_build = self._build_asset_facts(
+                    cur, payload, is_company_owned=is_company_owned
+                )
+                if asset_build.get("status") != "success":
+                    return asset_build
+                facts = asset_build["facts"]
+
                 if is_company_owned:
                     company_source_type = str(payload.get("locationSourceType") or "").upper()
                     if company_source_type in {"BRANCH", "PARKING_SPOT"}:
-                        location = self._resolve_company_location(cur, payload)
+                        location = resolve_company_location(cur, payload)
                         if location["status"] != "success":
                             return location
                         lat = location["lat"]
@@ -165,16 +244,22 @@ class ListingService:
                         address = location_address
 
                 if is_company_owned:
-                    if not make or not model:
+                    if not facts.get("make") or not facts.get("model"):
                         return {
                             "status": "validation_error",
                             "message": "make and model are required for company-owned listings.",
                         }
-                    if mileage is None:
+                    if facts.get("odometer_km") is None:
                         return {
                             "status": "validation_error",
                             "message": "mileage is required for company-owned listings.",
                         }
+
+                if feature_ids is not None:
+                    validated = validate_feature_ids(cur, feature_ids)
+                    if validated["status"] != "success":
+                        return validated
+
                 cur.execute(
                     """
                     INSERT INTO owner_profile (user_id, verification_status)
@@ -189,53 +274,86 @@ class ListingService:
                 cur.execute(
                     """
                     INSERT INTO vehicle_asset (
+                      vin,
                       vehicle_category,
+                      body_type_id,
                       owner_type,
                       owner_party_user_id,
                       owner_party_name,
                       asset_status,
                       make,
                       model,
-                      model_year
+                      model_year,
+                      fuel_type,
+                      transmission,
+                      seats,
+                      odometer_km,
+                      is_vin_verified
                     )
                     VALUES (
+                      %s,
                       'STANDARD'::vehicle_category,
+                      %s,
                       %s::vehicle_owner_type,
                       %s,
                       %s,
                       %s::vehicle_asset_status,
                       %s,
                       %s,
+                      %s,
+                      %s,
+                      %s,
+                      %s,
+                      %s,
                       %s
                     )
-                    RETURNING vehicle_id
+                    RETURNING vehicle_id, make, model, model_year,
+                      odometer_km, transmission, fuel_type, seats
                     """,
                     (
+                        facts.get("vin"),
+                        facts.get("body_type_id"),
                         owner_type,
                         owner_user_id,
                         owner_party_name,
                         asset_status,
-                        make,
-                        model,
-                        year,
+                        facts.get("make"),
+                        facts.get("model"),
+                        facts.get("model_year"),
+                        facts.get("fuel_type"),
+                        facts.get("transmission"),
+                        facts.get("seats"),
+                        facts.get("odometer_km"),
+                        bool(facts.get("is_vin_verified")),
                     ),
                 )
-                vehicle_id = cur.fetchone()["vehicle_id"]
+                asset_row = cur.fetchone()
+                vehicle_id = asset_row["vehicle_id"]
+                if facts.get("vin") and facts.get("_raw_decode"):
+                    upsert_vin_metadata(
+                        cur,
+                        vehicle_id,
+                        str(facts["vin"]),
+                        facts["_raw_decode"],
+                    )
+
                 pickup_address = address or location_address
                 cur.execute(
                     """
                     INSERT INTO vehicle_listing
                     (
-                      owner_user_id, created_by_user_id, vehicle_id, source_type, title, make,
-                      model, year, mileage,
+                      owner_user_id, created_by_user_id, vehicle_id, source_type, title,
+                      listing_title, make, model, year, mileage,
                       description, guidelines, transmission, fuel_type, seats, doors,
                       features, pickup_notes_template, price_per_day, active, status,
                       is_company_owned, instant_book, location_source_type, branch_id,
                       parking_spot_id
                     )
                     VALUES (
-                      %s, %s, %s, %s::listing_source_type, %s, %s, %s, %s, %s,
-                      %s, %s, %s, %s, %s, %s, %s::jsonb,
+                      %s, %s, %s, %s::listing_source_type, %s,
+                      %s, %s, %s, %s, %s,
+                      %s, %s, %s, %s, %s, %s,
+                      %s::jsonb,
                       %s, %s, TRUE, 'ACTIVE',
                       %s, %s, %s, %s, %s
                     )
@@ -246,18 +364,19 @@ class ListingService:
                         actor["userId"],
                         vehicle_id,
                         source_type,
-                        title,
-                        make,
-                        model,
-                        year,
-                        mileage,
+                        listing_title,
+                        listing_title,
+                        asset_row["make"],
+                        asset_row["model"],
+                        asset_row["model_year"],
+                        asset_row["odometer_km"],
                         payload.get("description"),
                         guidelines,
-                        transmission,
-                        fuel_type,
-                        seats,
+                        asset_row["transmission"],
+                        asset_row["fuel_type"],
+                        asset_row["seats"],
                         doors,
-                        Json(features),
+                        Json([]),
                         payload.get("pickupNotesTemplate"),
                         payload["pricePerDay"],
                         is_company_owned,
@@ -268,6 +387,9 @@ class ListingService:
                     ),
                 )
                 listing_id = cur.fetchone()["listing_id"]
+                sync_listing_cache_from_asset(cur, vehicle_id)
+                if feature_ids is not None:
+                    replace_listing_features(cur, listing_id, feature_ids)
                 _upsert_listing_location(
                     cur,
                     listing_id,
@@ -376,7 +498,14 @@ class ListingService:
         return {"status": "success", "listings": listings}
 
     def search_listings(self, query: dict) -> dict:
-        clauses = ["COALESCE(l.status, 'ACTIVE') = 'ACTIVE'"]
+        clauses = [
+            "COALESCE(l.status, 'ACTIVE') = 'ACTIVE'",
+            """(
+              l.is_company_owned = TRUE
+              OR l.source_type = 'FLEET'::listing_source_type
+              OR COALESCE(va.is_vin_verified, FALSE) = TRUE
+            )""",
+        ]
         params: list = []
         if query.get("city_zone"):
             clauses.append("loc.city_zone = %s")
@@ -409,6 +538,38 @@ class ListingService:
                 listings = hydrate_listing_rows(cur, cur.fetchall())
         return {"status": "success", "listings": listings}
 
+    def _update_vehicle_asset(self, cur, vehicle_id: int, payload: dict) -> dict | None:
+        fields = []
+        params = []
+        for payload_key, column in _METAL_PAYLOAD_KEYS.items():
+            if payload_key not in payload:
+                continue
+            value = payload[payload_key]
+            if payload_key == "mileage":
+                value = int(value) if value is not None else None
+            if payload_key in {"year", "seats", "bodyTypeId"} and value is not None:
+                value = int(value)
+            fields.append(f"{column} = %s")
+            params.append(value)
+        if not fields:
+            return None
+        fields.append("updated_at = %s")
+        params.append(datetime.utcnow())
+        params.append(vehicle_id)
+        cur.execute(
+            f"""
+            UPDATE vehicle_asset
+            SET {", ".join(fields)}
+            WHERE vehicle_id = %s
+            RETURNING vehicle_id
+            """,
+            tuple(params),
+        )
+        if not cur.fetchone():
+            return {"status": "not_found", "message": "Vehicle asset not found."}
+        sync_listing_cache_from_asset(cur, vehicle_id)
+        return None
+
     def update_listing(self, actor: dict, listing_id: int, payload: dict) -> dict:
         try:
             payload = self._apply_lifecycle_compat(payload)
@@ -418,20 +579,14 @@ class ListingService:
             payload = {**payload, "guidelines": payload["rules"]}
         if "make" not in payload and payload.get("brand") is not None:
             payload = {**payload, "make": payload.get("brand")}
+        if "title" in payload and "listingTitle" not in payload:
+            payload = {**payload, "listingTitle": payload["title"]}
 
-        vehicle_mapping = {
-            "title": "title",
-            "make": "make",
-            "model": "model",
-            "year": "year",
-            "mileage": "mileage",
+        listing_mapping = {
+            "listingTitle": "listing_title",
             "description": "description",
             "guidelines": "guidelines",
-            "transmission": "transmission",
-            "fuelType": "fuel_type",
-            "seats": "seats",
             "doors": "doors",
-            "features": "features",
             "pickupNotesTemplate": "pickup_notes_template",
             "pricePerDay": "price_per_day",
             "active": "active",
@@ -439,12 +594,15 @@ class ListingService:
             "isCompanyOwned": "is_company_owned",
             "instantBook": "instant_book",
         }
-        vehicle_fields = []
-        vehicle_params = []
-        for key, column in vehicle_mapping.items():
+        listing_fields = []
+        listing_params = []
+        for key, column in listing_mapping.items():
             if key in payload:
-                vehicle_fields.append(f"{column} = %s")
-                vehicle_params.append(Json(payload[key]) if key == "features" else payload[key])
+                listing_fields.append(f"{column} = %s")
+                listing_params.append(payload[key])
+        if "listingTitle" in payload:
+            listing_fields.append("title = %s")
+            listing_params.append(payload["listingTitle"])
 
         image_urls = _listing_image_urls(payload)
         location_keys = {
@@ -456,8 +614,16 @@ class ListingService:
             "pickupAddress",
         }
         has_location_update = any(key in payload for key in location_keys)
+        has_metal_update = any(key in payload for key in _METAL_PAYLOAD_KEYS)
+        feature_ids = self._extract_feature_ids(payload)
 
-        if not vehicle_fields and not has_location_update and not image_urls:
+        if (
+            not listing_fields
+            and not has_location_update
+            and not image_urls
+            and not has_metal_update
+            and feature_ids is None
+        ):
             return {"status": "validation_error", "message": "No fields to update."}
 
         with get_connection() as conn:
@@ -466,21 +632,83 @@ class ListingService:
                 if not listing or not self._can_manage_listing(actor, listing):
                     return {"status": "not_found", "message": "Listing not found for actor."}
 
-                if vehicle_fields:
-                    vehicle_fields.append("updated_at = %s")
-                    vehicle_params.append(datetime.utcnow())
-                    vehicle_params.append(listing_id)
+                vehicle_id = listing.get("vehicle_id")
+                if has_metal_update:
+                    if not vehicle_id:
+                        asset_build = self._build_asset_facts(
+                            cur,
+                            payload,
+                            is_company_owned=bool(actor.get("isAdmin")),
+                        )
+                        if asset_build.get("status") != "success":
+                            return asset_build
+                        facts = asset_build["facts"]
+                        cur.execute(
+                            """
+                            INSERT INTO vehicle_asset (
+                              vin, vehicle_category, body_type_id, owner_type,
+                              owner_party_user_id, asset_status, make, model, model_year,
+                              fuel_type, transmission, seats, odometer_km, is_vin_verified
+                            )
+                            VALUES (
+                              %s, 'STANDARD'::vehicle_category, %s,
+                              'INDEPENDENT_HOST'::vehicle_owner_type, %s,
+                              'ACTIVE'::vehicle_asset_status, %s, %s, %s, %s, %s, %s, %s, %s
+                            )
+                            RETURNING vehicle_id
+                            """,
+                            (
+                                facts.get("vin"),
+                                facts.get("body_type_id"),
+                                listing["owner_user_id"],
+                                facts.get("make"),
+                                facts.get("model"),
+                                facts.get("model_year"),
+                                facts.get("fuel_type"),
+                                facts.get("transmission"),
+                                facts.get("seats"),
+                                facts.get("odometer_km"),
+                                bool(facts.get("is_vin_verified")),
+                            ),
+                        )
+                        vehicle_id = cur.fetchone()["vehicle_id"]
+                        cur.execute(
+                            """
+                            UPDATE vehicle_listing
+                            SET vehicle_id = %s, updated_at = %s
+                            WHERE listing_id = %s
+                            """,
+                            (vehicle_id, datetime.utcnow(), listing_id),
+                        )
+                    else:
+                        asset_error = self._update_vehicle_asset(cur, vehicle_id, payload)
+                        if asset_error:
+                            return asset_error
+
+                if feature_ids is not None:
+                    validated = validate_feature_ids(cur, feature_ids)
+                    if validated["status"] != "success":
+                        return validated
+
+                if listing_fields:
+                    listing_fields.append("updated_at = %s")
+                    listing_params.append(datetime.utcnow())
+                    listing_params.append(listing_id)
                     cur.execute(
                         f"""
                         UPDATE vehicle_listing
-                        SET {", ".join(vehicle_fields)}
+                        SET {", ".join(listing_fields)}
                         WHERE listing_id = %s
                         RETURNING listing_id
                         """,
-                        tuple(vehicle_params),
+                        tuple(listing_params),
                     )
                     if not cur.fetchone():
                         return {"status": "not_found", "message": "Listing not found for actor."}
+
+                if feature_ids is not None:
+                    replace_listing_features(cur, listing_id, feature_ids)
+
                 if has_location_update:
                     cur.execute(
                         """

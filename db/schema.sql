@@ -122,6 +122,36 @@ CREATE INDEX idx_file_asset_listing ON file_asset(listing_id, created_at DESC);
 CREATE INDEX idx_file_asset_owner ON file_asset(owner_user_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
+-- Vehicle reference data
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE ref_body_type
+(
+  body_type_id SERIAL PRIMARY KEY,
+  code VARCHAR(40) NOT NULL UNIQUE,
+  display_name VARCHAR(80) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE ref_nhtsa_body_class_map
+(
+  map_id SERIAL PRIMARY KEY,
+  nhtsa_body_class VARCHAR(120) NOT NULL UNIQUE,
+  body_type_id INT NOT NULL REFERENCES ref_body_type(body_type_id)
+);
+
+CREATE TABLE ref_feature
+(
+  feature_id SERIAL PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE,
+  name VARCHAR(120) NOT NULL UNIQUE,
+  icon_key VARCHAR(64) NOT NULL DEFAULT 'Check',
+  category VARCHAR(32) NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- ---------------------------------------------------------------------------
 -- Vehicle assets
 -- ---------------------------------------------------------------------------
 
@@ -130,6 +160,7 @@ CREATE TABLE vehicle_asset
   vehicle_id BIGSERIAL PRIMARY KEY,
   vin VARCHAR(17) UNIQUE,
   vehicle_category vehicle_category NOT NULL DEFAULT 'STANDARD',
+  body_type_id INT REFERENCES ref_body_type(body_type_id),
   estimated_value DECIMAL(12,2) CHECK (estimated_value IS NULL OR estimated_value >= 0),
   owner_type vehicle_owner_type NOT NULL,
   owner_party_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
@@ -138,9 +169,13 @@ CREATE TABLE vehicle_asset
   make VARCHAR(80),
   model VARCHAR(80),
   model_year INT,
+  fuel_type VARCHAR(30),
+  transmission VARCHAR(30),
+  seats INT CHECK (seats IS NULL OR seats > 0),
   branch_id INT REFERENCES branch(branchid) ON DELETE SET NULL,
   odometer_km INT CHECK (odometer_km IS NULL OR odometer_km >= 0),
   fleet_status VARCHAR(30),
+  is_vin_verified BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT vehicle_asset_owner_identity_check CHECK (
@@ -154,6 +189,58 @@ CREATE TABLE vehicle_asset
 CREATE INDEX idx_vehicle_asset_owner ON vehicle_asset(owner_type, owner_party_user_id);
 CREATE INDEX idx_vehicle_asset_status ON vehicle_asset(asset_status);
 CREATE INDEX idx_vehicle_asset_fleet_branch_status ON vehicle_asset(branch_id, fleet_status);
+
+CREATE TABLE vehicle_vin_metadata
+(
+  metadata_id BIGSERIAL PRIMARY KEY,
+  vehicle_id BIGINT NOT NULL UNIQUE REFERENCES vehicle_asset(vehicle_id) ON DELETE CASCADE,
+  vin VARCHAR(17) NOT NULL,
+  decoded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  nhtsa_response JSONB NOT NULL,
+  decode_source VARCHAR(32) NOT NULL DEFAULT 'NHTSA_VPIC',
+  CONSTRAINT vehicle_vin_metadata_vin_len_check CHECK (
+    char_length(vin) BETWEEN 11 AND 17
+  )
+);
+
+CREATE INDEX idx_vehicle_vin_metadata_vin ON vehicle_vin_metadata(vin);
+
+CREATE OR REPLACE FUNCTION sync_listing_cache_from_asset(p_vehicle_id BIGINT)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  UPDATE vehicle_listing vl
+  SET
+    make = va.make,
+    model = va.model,
+    year = va.model_year,
+    mileage = va.odometer_km,
+    transmission = va.transmission,
+    fuel_type = va.fuel_type,
+    seats = va.seats,
+    updated_at = NOW()
+  FROM vehicle_asset va
+  WHERE vl.vehicle_id = va.vehicle_id
+    AND va.vehicle_id = p_vehicle_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION trg_sync_listing_cache_from_asset()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM sync_listing_cache_from_asset(NEW.vehicle_id);
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_vehicle_asset_sync_listing
+AFTER INSERT OR UPDATE OF make, model, model_year, vin, fuel_type, transmission, seats, odometer_km, body_type_id
+ON vehicle_asset
+FOR EACH ROW
+EXECUTE FUNCTION trg_sync_listing_cache_from_asset();
 
 -- ---------------------------------------------------------------------------
 -- Company parking + marketplace listings
@@ -187,6 +274,7 @@ CREATE TABLE vehicle_listing
   fleet_vehicle_vin CHAR(17),
   source_type listing_source_type NOT NULL,
   title VARCHAR(120) NOT NULL,
+  listing_title VARCHAR(120),
   make VARCHAR(80),
   model VARCHAR(80),
   year INT,
@@ -272,6 +360,15 @@ CREATE TABLE listing_image
 );
 
 CREATE INDEX idx_listing_image_listing_order ON listing_image(listing_id, display_order);
+
+CREATE TABLE listing_feature
+(
+  listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
+  feature_id INT NOT NULL REFERENCES ref_feature(feature_id) ON DELETE CASCADE,
+  PRIMARY KEY (listing_id, feature_id)
+);
+
+CREATE INDEX idx_listing_feature_feature ON listing_feature(feature_id);
 
 -- ---------------------------------------------------------------------------
 -- Bookings + payments + trip lifecycle

@@ -33,11 +33,18 @@ class ListingAvailabilityResponse(ListingAvailabilityRequest):
 
 
 class ListingCreateRequest(CamelModel):
-    title: str
+    title: str | None = None
+    listing_title: str | None = Field(
+        default=None, validation_alias=AliasChoices("listingTitle", "listing_title")
+    )
+    vin: str | None = None
     make: str | None = Field(default=None, validation_alias=AliasChoices("make", "brand"))
     model: str | None = None
     year: int | None = None
     mileage: int | None = None
+    body_type_id: int | None = Field(
+        default=None, validation_alias=AliasChoices("bodyTypeId", "body_type_id")
+    )
     vehicle_class_id: int | None = None
     description: str | None = None
     guidelines: str | None = Field(
@@ -48,6 +55,9 @@ class ListingCreateRequest(CamelModel):
     seats: int | None = None
     doors: int | None = None
     features: list[str] | None = None
+    feature_ids: list[int] | None = Field(
+        default=None, validation_alias=AliasChoices("featureIds", "feature_ids")
+    )
     images: list[str] | None = Field(
         default=None, validation_alias=AliasChoices("images", "photos")
     )
@@ -74,10 +84,17 @@ class ListingUpdateRequest(CamelModel):
     )
 
     title: str | None = None
+    listing_title: str | None = Field(
+        default=None, validation_alias=AliasChoices("listingTitle", "listing_title")
+    )
+    vin: str | None = None
     make: str | None = Field(default=None, validation_alias=AliasChoices("make", "brand"))
     model: str | None = None
     year: int | None = None
     mileage: int | None = None
+    body_type_id: int | None = Field(
+        default=None, validation_alias=AliasChoices("bodyTypeId", "body_type_id")
+    )
     vehicle_class_id: int | None = None
     description: str | None = None
     guidelines: str | None = Field(
@@ -88,6 +105,9 @@ class ListingUpdateRequest(CamelModel):
     seats: int | None = None
     doors: int | None = None
     features: list[str] | None = None
+    feature_ids: list[int] | None = Field(
+        default=None, validation_alias=AliasChoices("featureIds", "feature_ids")
+    )
     images: list[str] | None = Field(
         default=None, validation_alias=AliasChoices("images", "photos")
     )
@@ -108,7 +128,14 @@ class ListingUpdateRequest(CamelModel):
         if not isinstance(data, dict):
             return data
         cleaned = dict(data)
-        for key in ("year", "mileage", "vehicleClassId", "vehicle_class_id"):
+        for key in (
+            "year",
+            "mileage",
+            "vehicleClassId",
+            "vehicle_class_id",
+            "bodyTypeId",
+            "body_type_id",
+        ):
             if cleaned.get(key) == "":
                 cleaned[key] = None
         return cleaned
@@ -141,10 +168,14 @@ class ListingResponse(CamelModel):
     vehicle_id: int | None = None
     source_type: str
     title: str
+    listing_title: str | None = Field(default=None, serialization_alias="listingTitle")
+    vin: str | None = None
+    is_vin_verified: bool | None = Field(default=None, serialization_alias="isVinVerified")
     make: str | None = None
     model: str | None = None
     year: int | None = None
     mileage: int | None = None
+    body_type_id: int | None = Field(default=None, serialization_alias="bodyTypeId")
     vehicle_class_id: int | None = None
     description: str | None = None
     guidelines: str | None = None
@@ -153,6 +184,7 @@ class ListingResponse(CamelModel):
     seats: int | None = None
     doors: int | None = None
     features: list[str] | None = None
+    feature_ids: list[int] | None = Field(default=None, serialization_alias="featureIds")
     images: list[str] | None = None
     lat: float | None = None
     lng: float | None = None

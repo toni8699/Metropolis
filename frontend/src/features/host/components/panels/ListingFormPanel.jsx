@@ -25,29 +25,24 @@ import {
   LabeledTextarea,
 } from "@/features/host/components/form/Fields";
 
-const FEATURE_OPTIONS = [
-  "Apple CarPlay",
-  "Android Auto",
-  "Bluetooth",
-  "Sunroof",
-  "Heated Seats",
-  "AWD",
-  "Backup Camera",
-  "Blind Spot Warning",
-  "Keyless Entry",
-];
-
 const FEATURE_ICONS = {
-  "Apple CarPlay": Smartphone,
-  "Android Auto": Smartphone,
+  Smartphone,
   Bluetooth,
-  Sunroof: Sun,
-  "Heated Seats": Snowflake,
-  AWD: ShieldCheck,
-  "Backup Camera": UploadCloud,
-  "Blind Spot Warning": ShieldCheck,
-  "Keyless Entry": KeyRound,
+  Sun,
+  Snowflake,
+  ShieldCheck,
+  UploadCloud,
+  KeyRound,
+  Check,
 };
+
+function featureIcon(iconKey) {
+  return FEATURE_ICONS[iconKey] || Check;
+}
+
+function assetLabel(form) {
+  return [form.make, form.model, form.year].filter(Boolean).join(" ").trim();
+}
 
 export default function ListingFormPanel({
   form,
@@ -91,7 +86,21 @@ export default function ListingFormPanel({
     selectAddressPrediction,
     openMapPicker,
     applyHubBranchSelection,
+    decodeVin,
+    metalFactsLocked,
+    setMetalFactsLocked,
+    isDecodingVin,
+    bodyTypes,
+    catalogFeatures,
   } = form;
+
+  const metalReadOnly = metalFactsLocked && !isAdmin;
+  const featuresByCategory = catalogFeatures.reduce((acc, feature) => {
+    const key = feature.category || "Other";
+    acc[key] = acc[key] || [];
+    acc[key].push(feature);
+    return acc;
+  }, {});
 
   const [saveButtonPhase, setSaveButtonPhase] = useState("idle");
   const [showSaveFlash, setShowSaveFlash] = useState(false);
@@ -138,14 +147,52 @@ export default function ListingFormPanel({
       >
         <form className="space-y-6" onSubmit={createListing}>
           <section className="space-y-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Vehicle VIN</h3>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <LabeledInput
+                label="VIN"
+                value={listingForm.vin}
+                onChange={(value) =>
+                  setListingForm((prev) => ({ ...prev, vin: value.toUpperCase() }))
+                }
+                placeholder="17-character VIN"
+              />
+              <div className="flex items-end gap-2">
+                <button
+                  type="button"
+                  onClick={decodeVin}
+                  disabled={isDecodingVin}
+                  className="rounded-lg border-2 border-black bg-vroom-accent px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  {isDecodingVin ? "Decoding..." : "Decode VIN"}
+                </button>
+                {metalFactsLocked && (
+                  <button
+                    type="button"
+                    onClick={() => setMetalFactsLocked(false)}
+                    className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-700"
+                  >
+                    Edit specs
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Basic Info</h3>
             <LabeledInput
-              label="Listing title"
-              value={listingForm.title}
-              onChange={(value) => setListingForm((prev) => ({ ...prev, title: value }))}
-              placeholder="Downtown Toronto SUV"
+              label="Listing title (marketing)"
+              value={listingForm.listingTitle}
+              onChange={(value) =>
+                setListingForm((prev) => ({ ...prev, listingTitle: value, title: value }))
+              }
+              placeholder="Perfect AWD for your weekend ski trip"
               required
             />
+            {assetLabel(listingForm) && (
+              <p className="text-sm text-gray-600">Vehicle: {assetLabel(listingForm)}</p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <LabeledInput
                 label="Make"
@@ -153,6 +200,7 @@ export default function ListingFormPanel({
                 onChange={(value) => setListingForm((prev) => ({ ...prev, make: value }))}
                 placeholder="Toyota"
                 required
+                disabled={metalReadOnly}
               />
               <LabeledInput
                 label="Model"
@@ -160,6 +208,7 @@ export default function ListingFormPanel({
                 onChange={(value) => setListingForm((prev) => ({ ...prev, model: value }))}
                 placeholder="RAV4"
                 required
+                disabled={metalReadOnly}
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -168,6 +217,7 @@ export default function ListingFormPanel({
                 value={listingForm.year}
                 onChange={(value) => setListingForm((prev) => ({ ...prev, year: value }))}
                 type="number"
+                disabled={metalReadOnly}
               />
               <LabeledPriceInput
                 label="Price per day"
@@ -181,7 +231,22 @@ export default function ListingFormPanel({
                 type="number"
                 placeholder="24500"
                 required={isAdmin}
+                disabled={metalReadOnly}
               />
+              {bodyTypes.length > 0 && (
+                <LabeledSelect
+                  label="Body type"
+                  value={listingForm.bodyTypeId ? String(listingForm.bodyTypeId) : ""}
+                  onChange={(value) =>
+                    setListingForm((prev) => ({ ...prev, bodyTypeId: value }))
+                  }
+                  disabled={metalReadOnly}
+                  options={bodyTypes.map((bodyType) => ({
+                    value: String(bodyType.bodyTypeId),
+                    label: bodyType.displayName,
+                  }))}
+                />
+              )}
               {companyLocations.vehicleClasses.length > 0 && (
                 <LabeledSelect
                   label="Vehicle class"
@@ -220,6 +285,7 @@ export default function ListingFormPanel({
                 label="Transmission"
                 value={listingForm.transmission}
                 onChange={(value) => setListingForm((prev) => ({ ...prev, transmission: value }))}
+                disabled={metalReadOnly}
                 options={[
                   { value: "Automatic", label: "Automatic" },
                   { value: "Manual", label: "Manual" },
@@ -229,6 +295,7 @@ export default function ListingFormPanel({
                 label="Fuel Type"
                 value={listingForm.fuelType}
                 onChange={(value) => setListingForm((prev) => ({ ...prev, fuelType: value }))}
+                disabled={metalReadOnly}
                 options={[
                   { value: "Gas", label: "Gas" },
                   { value: "Electric", label: "Electric" },
@@ -241,6 +308,7 @@ export default function ListingFormPanel({
                 value={listingForm.seats}
                 onChange={(value) => setListingForm((prev) => ({ ...prev, seats: value }))}
                 type="number"
+                disabled={metalReadOnly}
               />
               <LabeledInput
                 label="Doors"
@@ -269,27 +337,32 @@ export default function ListingFormPanel({
 
           <section className="space-y-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Features & Amenities</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {FEATURE_OPTIONS.map((featureName) => {
-                const Icon = FEATURE_ICONS[featureName] || Check;
-                const active = listingForm.features.includes(featureName);
-                return (
-                  <button
-                    key={featureName}
-                    type="button"
-                    onClick={() => toggleFeature(featureName)}
-                    className={`flex items-center gap-2 border p-3 rounded-xl text-left transition ${
-                      active
-                        ? "border-gray-900 bg-gray-50 text-gray-900"
-                        : "border-gray-200 hover:border-gray-900"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm">{featureName}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {Object.entries(featuresByCategory).map(([category, features]) => (
+              <div key={category} className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{category}</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {features.map((feature) => {
+                    const Icon = featureIcon(feature.iconKey);
+                    const active = listingForm.featureIds.includes(feature.featureId);
+                    return (
+                      <button
+                        key={feature.featureId}
+                        type="button"
+                        onClick={() => toggleFeature(feature.featureId)}
+                        className={`flex items-center gap-2 border p-3 rounded-xl text-left transition ${
+                          active
+                            ? "border-gray-900 bg-gray-50 text-gray-900"
+                            : "border-gray-200 hover:border-gray-900"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">{feature.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </section>
 
           {isAdmin && (

@@ -2,29 +2,153 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { UploadCloud, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import VroomLogo from "@/layout/VroomLogo";
-import { apiPost } from "@/shared/api/api";
+import { apiGet, apiPost } from "@/shared/api/api";
 import { uploadPresignedFile } from "@/shared/lib/uploadPresigned";
 import { useAuth } from "@/context/AuthContext";
 import { useGoogleMaps } from "@/context/GoogleMapsProvider";
 import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
 import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
+import {
+  BODY_TYPE_DEFAULTS,
+  FUEL_TYPE_OPTIONS,
+  REQUIRED_SPEC_FIELDS,
+  TRANSMISSION_OPTIONS,
+} from "@/features/host/constants/bodyTypeDefaults";
 import InstantBookToggle from "@/features/host/components/InstantBookToggle";
 import { markRecentListingCreated } from "@/features/host/lib/recentListing";
 
-const TOTAL_STEPS = 4;
-const vehicleTypes = ["Sedan", "SUV", "Truck", "Electric"];
+const TOTAL_STEPS = 5;
+const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{11,17}$/i;
+
+const EMPTY_SPEC_META = {
+  seats: { isVerified: false, source: "missing" },
+  doors: { isVerified: false, source: "missing" },
+  transmission: { isVerified: false, source: "missing" },
+  fuelType: { isVerified: false, source: "missing" },
+};
+
+function formatAssetLabel(data) {
+  return [data.make, data.model, data.year].filter(Boolean).join(" ").trim();
+}
+
+function specMetaFromApi(field) {
+  if (!field || typeof field !== "object") {
+    return { isVerified: false, source: "missing" };
+  }
+  return {
+    isVerified: Boolean(field.isVerified),
+    source: field.source || "missing",
+  };
+}
+
+function specValueFromApi(field) {
+  if (!field || field.value == null) return "";
+  return String(field.value);
+}
+
+function requiredSpecsFilled(data) {
+  return REQUIRED_SPEC_FIELDS.every((field) => {
+    const value = data[field];
+    return value != null && String(value).trim() !== "";
+  });
+}
+
+function normalizeTransmission(value) {
+  if (!value) return "";
+  const text = String(value).toLowerCase();
+  if (text.includes("manual")) return "Manual";
+  if (text.includes("auto") || text.includes("cvt")) return "Automatic";
+  return "";
+}
+
+function normalizeFuelType(value) {
+  if (!value) return "";
+  const text = String(value).toLowerCase();
+  if (text.includes("electric") || text === "ev") return "Electric";
+  if (text.includes("hybrid")) return "Hybrid";
+  if (text.includes("diesel")) return "Diesel";
+  if (text.includes("gas") || text.includes("petrol")) return "Gas";
+  return "";
+}
+
+function SpecConfirmField({
+  label,
+  value,
+  meta,
+  onChange,
+  required = false,
+  type = "text",
+  options = null,
+  placeholder = "",
+}) {
+  const missing = required && (value == null || String(value).trim() === "");
+  const estimated = meta?.source === "default";
+
+  let borderClass = "border-gray-300";
+  if (missing) borderClass = "border-red-500 ring-1 ring-red-200";
+  else if (estimated) borderClass = "border-amber-400 ring-1 ring-amber-100";
+
+  const controlClass = `w-full rounded-xl border px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900 ${borderClass}`;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-sm font-medium text-gray-700">{label}</label>
+        {missing && (
+          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+            Required
+          </span>
+        )}
+        {!missing && estimated && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+            Estimate
+          </span>
+        )}
+      </div>
+      {options ? (
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={controlClass}
+        >
+          <option value="">{placeholder || `Select ${label.toLowerCase()}`}</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={controlClass}
+        />
+      )}
+    </div>
+  );
+}
 
 export default function HostOnboardingFlow() {
   const navigate = useNavigate();
   const { refreshMe, ensureVerifiedEmail } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [headlineVisible, setHeadlineVisible] = useState(true);
+  const [bodyTypes, setBodyTypes] = useState([]);
   const [listingData, setListingData] = useState({
+    vin: "",
+    mileage: "",
     make: "",
     model: "",
     year: "",
-    type: "",
+    transmission: "",
+    fuelType: "",
+    seats: "",
+    doors: "",
+    bodyTypeId: "",
+    listingTitle: "",
     address: "",
     lat: null,
     lng: null,
@@ -32,7 +156,11 @@ export default function HostOnboardingFlow() {
     instantBook: true,
     images: [],
   });
+  const [entryMode, setEntryMode] = useState("vin");
+  const [specMeta, setSpecMeta] = useState(EMPTY_SPEC_META);
   const [submitError, setSubmitError] = useState("");
+  const [decodeError, setDecodeError] = useState("");
+  const [isDecoding, setIsDecoding] = useState(false);
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviewUrls, setImagePreviewUrls] = useState([]);
   const [imageError, setImageError] = useState("");
@@ -47,12 +175,18 @@ export default function HostOnboardingFlow() {
     setPlacesError,
     setPredictions: setPlacePredictions,
   } = usePlacesAutocomplete(listingData.address, {
-    enabled: currentStep === 2,
+    enabled: currentStep === 3,
     debounceMs: 250,
     country: "ca",
     mapsReady,
     placesLoadError,
   });
+
+  useEffect(() => {
+    apiGet("/api/body-types")
+      .then((data) => setBodyTypes(data?.bodyTypes || []))
+      .catch(() => setBodyTypes([]));
+  }, []);
 
   useEffect(() => {
     setHeadlineVisible(false);
@@ -69,43 +203,184 @@ export default function HostOnboardingFlow() {
   }, [imageFiles]);
 
   const progress = (currentStep / TOTAL_STEPS) * 100;
+  const assetLabel = formatAssetLabel(listingData);
 
   const canProceed = useMemo(() => {
+    const mileage = Number(listingData.mileage);
+    const mileageOk = Number.isFinite(mileage) && mileage >= 0;
     if (currentStep === 1) {
-      return (
-        listingData.make.trim() &&
-        listingData.model.trim() &&
-        listingData.year.trim() &&
-        listingData.type
-      );
+      if (!mileageOk) return false;
+      if (entryMode === "manual") return true;
+      return VIN_PATTERN.test(String(listingData.vin).trim());
     }
     if (currentStep === 2) {
+      const specsOk = requiredSpecsFilled(listingData);
+      if (entryMode === "manual") {
+        return Boolean(
+          listingData.make &&
+            listingData.model &&
+            listingData.year &&
+            listingData.bodyTypeId &&
+            specsOk,
+        );
+      }
+      return Boolean(
+        listingData.make && listingData.model && listingData.bodyTypeId && specsOk,
+      );
+    }
+    if (currentStep === 3) {
       return (
         listingData.address.trim() &&
         Number.isFinite(Number(listingData.lat)) &&
         Number.isFinite(Number(listingData.lng))
       );
     }
-    if (currentStep === 3) {
+    if (currentStep === 4) {
       return imageFiles.length >= MIN_LISTING_PHOTOS;
     }
-    return Number(listingData.price) > 0;
-  }, [currentStep, listingData, imageFiles.length]);
+    return Number(listingData.price) > 0 && Boolean(listingData.listingTitle.trim());
+  }, [currentStep, listingData, imageFiles.length, entryMode]);
 
   const stepHeadline = {
-    1: "What kind of car are you listing?",
-    2: "Where can guests find your car?",
-    3: "Show guests your car",
-    4: "Now set your price",
+    1: "Start with your VIN",
+    2: entryMode === "manual" ? "Tell us about your car" : "Confirm your specs",
+    3: "Where can guests find your car?",
+    4: "Show guests your car",
+    5: "Name your listing and set your price",
   }[currentStep];
+
+  const handleSpecChange = (field, value) => {
+    setListingData((prev) => ({ ...prev, [field]: value }));
+    setSpecMeta((prev) => ({
+      ...prev,
+      [field]: { isVerified: false, source: "user" },
+    }));
+  };
+
+  const handleBodyTypeChange = (bodyTypeId) => {
+    const type = bodyTypes.find((item) => String(item.bodyTypeId) === bodyTypeId);
+    const defaults = BODY_TYPE_DEFAULTS[type?.code] || {};
+    setListingData((prev) => {
+      const next = { ...prev, bodyTypeId };
+      if (specMeta.seats.source !== "nhtsa" && specMeta.seats.source !== "user") {
+        next.seats = defaults.seats != null ? String(defaults.seats) : prev.seats;
+      }
+      if (specMeta.doors.source !== "nhtsa" && specMeta.doors.source !== "user") {
+        next.doors = defaults.doors != null ? String(defaults.doors) : prev.doors;
+      }
+      if (
+        specMeta.transmission.source !== "nhtsa" &&
+        specMeta.transmission.source !== "user"
+      ) {
+        next.transmission = defaults.transmission || prev.transmission;
+      }
+      return next;
+    });
+    setSpecMeta((prev) => {
+      const next = { ...prev };
+      if (prev.seats.source !== "nhtsa" && prev.seats.source !== "user") {
+        next.seats =
+          defaults.seats != null
+            ? { isVerified: false, source: "default" }
+            : { isVerified: false, source: "missing" };
+      }
+      if (prev.doors.source !== "nhtsa" && prev.doors.source !== "user") {
+        next.doors =
+          defaults.doors != null
+            ? { isVerified: false, source: "default" }
+            : { isVerified: false, source: "missing" };
+      }
+      if (prev.transmission.source !== "nhtsa" && prev.transmission.source !== "user") {
+        next.transmission = defaults.transmission
+          ? { isVerified: false, source: "default" }
+          : { isVerified: false, source: "missing" };
+      }
+      return next;
+    });
+  };
+
+  const skipVinEntry = () => {
+    setEntryMode("manual");
+    setDecodeError("");
+    setListingData((prev) => ({
+      ...prev,
+      vin: "",
+      make: "",
+      model: "",
+      year: "",
+      transmission: "",
+      fuelType: "",
+      seats: "",
+      doors: "",
+      bodyTypeId: "",
+    }));
+    setSpecMeta(EMPTY_SPEC_META);
+    setCurrentStep(2);
+  };
+
+  const decodeVin = async () => {
+    const vin = String(listingData.vin).trim().toUpperCase();
+    if (!VIN_PATTERN.test(vin)) {
+      setDecodeError("Enter a valid 11-17 character VIN.");
+      return false;
+    }
+    setIsDecoding(true);
+    setDecodeError("");
+    try {
+      const response = await apiPost("/api/vehicles/vin/decode", { vin }, true);
+      const decoded = response?.decoded || {};
+      const suggestedId =
+        decoded.bodyTypeId ||
+        decoded.suggestedBodyType?.bodyTypeId ||
+        listingData.bodyTypeId ||
+        "";
+      setListingData((prev) => ({
+        ...prev,
+        vin,
+        make: decoded.make || prev.make,
+        model: decoded.model || prev.model,
+        year: decoded.modelYear ? String(decoded.modelYear) : prev.year,
+        transmission:
+          normalizeTransmission(specValueFromApi(decoded.transmission)) || prev.transmission,
+        fuelType: normalizeFuelType(specValueFromApi(decoded.fuelType)) || prev.fuelType,
+        seats: specValueFromApi(decoded.seats) || prev.seats,
+        doors: specValueFromApi(decoded.doors) || prev.doors,
+        bodyTypeId: suggestedId ? String(suggestedId) : prev.bodyTypeId,
+        listingTitle:
+          prev.listingTitle ||
+          [decoded.make, decoded.model].filter(Boolean).join(" ").trim(),
+      }));
+      setSpecMeta({
+        seats: specMetaFromApi(decoded.seats),
+        doors: specMetaFromApi(decoded.doors),
+        transmission: specMetaFromApi(decoded.transmission),
+        fuelType: specMetaFromApi(decoded.fuelType),
+      });
+      return true;
+    } catch (error) {
+      setDecodeError(error?.message || "Could not decode VIN.");
+      return false;
+    } finally {
+      setIsDecoding(false);
+    }
+  };
 
   const handleBack = () => {
     if (currentStep === 1) return;
+    if (currentStep === 2 && entryMode === "manual") {
+      setEntryMode("vin");
+    }
     setCurrentStep((step) => Math.max(1, step - 1));
   };
 
   const handleNext = async () => {
-    if (!canProceed) return;
+    if (!canProceed || isDecoding) return;
+    if (currentStep === 1 && entryMode === "vin") {
+      const ok = await decodeVin();
+      if (!ok) return;
+      setCurrentStep(2);
+      return;
+    }
     if (currentStep < TOTAL_STEPS) {
       setCurrentStep((step) => Math.min(TOTAL_STEPS, step + 1));
       return;
@@ -160,27 +435,33 @@ export default function HostOnboardingFlow() {
       const lat = Number(listingData.lat);
       const lng = Number(listingData.lng);
       const cityZone = "toronto-core";
-      const title = `${listingData.make} ${listingData.model}`.trim();
-      const response = await apiPost(
-        "/api/listings",
-        {
-          title: title || "My listing",
-          make: listingData.make,
-          model: listingData.model,
-          year: listingData.year ? Number(listingData.year) : undefined,
-          pricePerDay: Number(listingData.price),
-          instantBook: Boolean(listingData.instantBook),
-          isCompanyOwned: false,
-          pickupAddress: listingData.address,
-          latitude: lat,
-          longitude: lng,
-          lat,
-          lng,
-          cityZone,
-          description: listingData.type ? `Vehicle type: ${listingData.type}` : undefined,
-        },
-        true,
-      );
+      const listingTitle = listingData.listingTitle.trim();
+      const payload = {
+        listingTitle,
+        title: listingTitle,
+        mileage: Number(listingData.mileage),
+        bodyTypeId: Number(listingData.bodyTypeId),
+        make: listingData.make,
+        model: listingData.model,
+        year: listingData.year ? Number(listingData.year) : undefined,
+        transmission: listingData.transmission || undefined,
+        fuelType: listingData.fuelType || undefined,
+        seats: listingData.seats ? Number(listingData.seats) : undefined,
+        doors: listingData.doors ? Number(listingData.doors) : undefined,
+        pricePerDay: Number(listingData.price),
+        instantBook: Boolean(listingData.instantBook),
+        isCompanyOwned: false,
+        pickupAddress: listingData.address,
+        latitude: lat,
+        longitude: lng,
+        lat,
+        lng,
+        cityZone,
+      };
+      if (entryMode === "vin" && listingData.vin.trim()) {
+        payload.vin = String(listingData.vin).trim().toUpperCase();
+      }
+      const response = await apiPost("/api/listings", payload, true);
       const listingId = response?.listing?.listingId;
       if (!listingId) {
         throw new Error("Listing created but no listing id returned.");
@@ -273,13 +554,70 @@ export default function HostOnboardingFlow() {
           <section className="w-full md:w-1/2 flex items-center justify-center p-10">
             <div className="w-full max-w-xl space-y-6">
               {currentStep === 1 && (
-                <>
+                <div className="space-y-4">
+                  {entryMode === "vin" && (
+                    <input
+                      value={listingData.vin}
+                      onChange={(e) =>
+                        setListingData((prev) => ({
+                          ...prev,
+                          vin: e.target.value.toUpperCase(),
+                        }))
+                      }
+                      placeholder="Vehicle VIN"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 uppercase outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                    />
+                  )}
+                  <input
+                    value={listingData.mileage}
+                    onChange={(e) =>
+                      setListingData((prev) => ({ ...prev, mileage: e.target.value }))
+                    }
+                    type="number"
+                    min="0"
+                    placeholder="Current mileage (km)"
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  />
+                  {entryMode === "vin" ? (
+                    <>
+                      <p className="text-xs text-gray-500">
+                        We decode make, model, and specs from your VIN automatically.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={skipVinEntry}
+                        disabled={!Number.isFinite(Number(listingData.mileage)) || Number(listingData.mileage) < 0}
+                        className="text-sm font-semibold text-gray-700 underline disabled:opacity-40"
+                      >
+                        I don&apos;t have my VIN handy
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-500">
+                      Manual entry — you&apos;ll add make, model, and year on the next step.
+                    </p>
+                  )}
+                  {decodeError && <p className="text-sm text-red-600">{decodeError}</p>}
+                </div>
+              )}
+
+              {currentStep === 2 && entryMode === "manual" && (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                    <p className="font-semibold">Trust notice</p>
+                    <p className="mt-1">
+                      Listings without a verified VIN may be hidden from search results until
+                      you add and verify your VIN later.
+                    </p>
+                  </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <input
                       value={listingData.make}
-                      onChange={(e) => setListingData((prev) => ({ ...prev, make: e.target.value }))}
+                      onChange={(e) =>
+                        setListingData((prev) => ({ ...prev, make: e.target.value }))
+                      }
                       placeholder="Make"
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
                     />
                     <input
                       value={listingData.model}
@@ -287,39 +625,127 @@ export default function HostOnboardingFlow() {
                         setListingData((prev) => ({ ...prev, model: e.target.value }))
                       }
                       placeholder="Model"
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
                     />
                     <input
                       value={listingData.year}
-                      onChange={(e) => setListingData((prev) => ({ ...prev, year: e.target.value }))}
+                      onChange={(e) =>
+                        setListingData((prev) => ({ ...prev, year: e.target.value }))
+                      }
                       type="number"
                       placeholder="Year"
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {vehicleTypes.map((type) => {
-                      const active = listingData.type === type;
-                      return (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => setListingData((prev) => ({ ...prev, type }))}
-                      className={`rounded-2xl border-2 border-black px-4 py-4 text-left font-bold transition ${
-                            active
-                              ? "bg-vroom-heading text-white"
-                              : "bg-white hover:bg-vroom-card"
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      );
-                    })}
+                  <label className="block text-sm font-medium text-gray-700">Body type</label>
+                  <select
+                    value={listingData.bodyTypeId}
+                    onChange={(e) => handleBodyTypeChange(e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
+                  >
+                    <option value="">Select body type</option>
+                    {bodyTypes.map((type) => (
+                      <option key={type.bodyTypeId} value={String(type.bodyTypeId)}>
+                        {type.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <SpecConfirmField
+                      label="Seats"
+                      value={listingData.seats}
+                      meta={specMeta.seats}
+                      onChange={(value) => handleSpecChange("seats", value)}
+                      required
+                      type="number"
+                    />
+                    <SpecConfirmField
+                      label="Doors"
+                      value={listingData.doors}
+                      meta={specMeta.doors}
+                      onChange={(value) => handleSpecChange("doors", value)}
+                      type="number"
+                    />
+                    <SpecConfirmField
+                      label="Transmission"
+                      value={listingData.transmission}
+                      meta={specMeta.transmission}
+                      onChange={(value) => handleSpecChange("transmission", value)}
+                      required
+                      options={TRANSMISSION_OPTIONS}
+                    />
+                    <SpecConfirmField
+                      label="Fuel type"
+                      value={listingData.fuelType}
+                      meta={specMeta.fuelType}
+                      onChange={(value) => handleSpecChange("fuelType", value)}
+                      required
+                      options={FUEL_TYPE_OPTIONS}
+                    />
                   </div>
-                </>
+                </div>
               )}
 
-              {currentStep === 2 && (
+              {currentStep === 2 && entryMode === "vin" && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border-2 border-black bg-white p-5 space-y-2">
+                    <p className="text-sm font-semibold text-gray-500">Decoded vehicle</p>
+                    <p className="text-2xl font-bold">{assetLabel || "Your vehicle"}</p>
+                    <p className="text-sm text-gray-700">VIN: {listingData.vin}</p>
+                    <p className="text-xs text-gray-500">
+                      Confirm specs below. Yellow = estimate from body type — change if wrong.
+                    </p>
+                  </div>
+                  <label className="block text-sm font-medium text-gray-700">Body type</label>
+                  <select
+                    value={listingData.bodyTypeId}
+                    onChange={(e) => handleBodyTypeChange(e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
+                  >
+                    <option value="">Select body type</option>
+                    {bodyTypes.map((type) => (
+                      <option key={type.bodyTypeId} value={String(type.bodyTypeId)}>
+                        {type.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <SpecConfirmField
+                      label="Seats"
+                      value={listingData.seats}
+                      meta={specMeta.seats}
+                      onChange={(value) => handleSpecChange("seats", value)}
+                      required
+                      type="number"
+                    />
+                    <SpecConfirmField
+                      label="Doors"
+                      value={listingData.doors}
+                      meta={specMeta.doors}
+                      onChange={(value) => handleSpecChange("doors", value)}
+                      type="number"
+                    />
+                    <SpecConfirmField
+                      label="Transmission"
+                      value={listingData.transmission}
+                      meta={specMeta.transmission}
+                      onChange={(value) => handleSpecChange("transmission", value)}
+                      required
+                      options={TRANSMISSION_OPTIONS}
+                    />
+                    <SpecConfirmField
+                      label="Fuel type"
+                      value={listingData.fuelType}
+                      meta={specMeta.fuelType}
+                      onChange={(value) => handleSpecChange("fuelType", value)}
+                      required
+                      options={FUEL_TYPE_OPTIONS}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 3 && (
                 <div className="space-y-4">
                   <div className="rounded-xl border border-gray-300 px-4 py-3">
                     <input
@@ -358,7 +784,7 @@ export default function HostOnboardingFlow() {
                 </div>
               )}
 
-              {currentStep === 3 && (
+              {currentStep === 4 && (
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm text-gray-600">
@@ -414,20 +840,6 @@ export default function HostOnboardingFlow() {
                     <p className="text-sm text-gray-500 mt-1">
                       Drag images here or click to choose (images only)
                     </p>
-                    {imageFiles.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setImageFiles([]);
-                          setListingData((prev) => ({ ...prev, images: [] }));
-                          setImageError("");
-                        }}
-                        className="mt-3 text-xs font-semibold text-gray-600 hover:text-gray-900"
-                      >
-                        Clear all photos
-                      </button>
-                    )}
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -445,8 +857,22 @@ export default function HostOnboardingFlow() {
                 </div>
               )}
 
-              {currentStep === 4 && (
+              {currentStep === 5 && (
                 <div className="mx-auto w-full max-w-md space-y-8">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Listing title</label>
+                    <input
+                      value={listingData.listingTitle}
+                      onChange={(e) =>
+                        setListingData((prev) => ({ ...prev, listingTitle: e.target.value }))
+                      }
+                      placeholder="Perfect AWD for your weekend ski trip"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                    {assetLabel && (
+                      <p className="text-xs text-gray-500">Vehicle: {assetLabel}</p>
+                    )}
+                  </div>
                   <div className="flex items-center justify-center gap-8">
                     <button
                       type="button"
@@ -508,13 +934,18 @@ export default function HostOnboardingFlow() {
         <button
           type="button"
           onClick={handleNext}
-          disabled={!canProceed || isPublishing}
+          disabled={!canProceed || isPublishing || isDecoding}
           className="rounded-full border-2 border-black border-b-4 bg-vroom-accent px-8 py-3 font-extrabold text-white active:border-b-0 disabled:opacity-40"
         >
-          {currentStep === TOTAL_STEPS ? (isPublishing ? "Publishing..." : "Publish Listing") : "Next"}
+          {currentStep === 1 && isDecoding
+            ? "Decoding..."
+            : currentStep === TOTAL_STEPS
+              ? isPublishing
+                ? "Publishing..."
+                : "Publish Listing"
+              : "Next"}
         </button>
       </footer>
-
     </div>
   );
 }

@@ -138,6 +138,7 @@ export default function ListingDetailPage() {
   }
 
   const title =
+    listing.listingTitle ||
     listing.title ||
     `${listing.make || listing.brand || "Car"} ${listing.model || ""} ${listing.year || ""}`.trim();
   const locationText = listing.cityZone ? listing.cityZone.replace(/-/g, " ") : "Location";
@@ -238,17 +239,15 @@ export default function ListingDetailPage() {
             <div className="grid gap-4 border-t-4 border-black py-6 sm:grid-cols-3">
               <div className="flex items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 font-bold text-vroom-text">
                 <CarFront className="h-5 w-5 text-vroom-accent" />
-                <span className="text-sm">5 seats</span>
+                <span className="text-sm">{listing.seats ? `${listing.seats} seats` : "Seats N/A"}</span>
               </div>
               <div className="flex items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 font-bold text-vroom-text">
                 <Settings className="h-5 w-5 text-vroom-accent" />
-                <span className="text-sm">Automatic</span>
+                <span className="text-sm">{listing.transmission || "Transmission N/A"}</span>
               </div>
               <div className="flex items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 font-bold text-vroom-text">
                 <Fuel className="h-5 w-5 text-vroom-accent" />
-                <span className="text-sm">
-                  {listing.make?.toLowerCase().includes("tesla") ? "Electric" : "Gas"}
-                </span>
+                <span className="text-sm">{listing.fuelType || "Fuel N/A"}</span>
               </div>
             </div>
 
@@ -267,7 +266,7 @@ export default function ListingDetailPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               {(Array.isArray(listing.features) && listing.features.length
                 ? listing.features
-                : ["Instant booking", "Free cancellation in 24h"]
+                : []
               ).map((feature) => (
                 <div key={feature} className="flex items-center gap-2 text-sm text-gray-800">
                   <span className="h-1.5 w-1.5 rounded-full bg-gray-900" />

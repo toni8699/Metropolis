@@ -52,6 +52,7 @@ class Settings(BaseSettings):
 
     # Marketplace
     allow_user_listings: bool = Field(default=True, validation_alias="ALLOW_USER_LISTINGS")
+    require_vin_for_p2p: bool = Field(default=True, validation_alias="REQUIRE_VIN_FOR_P2P")
 
     # Stripe
     stripe_secret_key: str = Field(default="", validation_alias="STRIPE_SECRET_KEY")
@@ -104,7 +105,9 @@ class Settings(BaseSettings):
             return value
         return []
 
-    @field_validator("allow_user_listings", "ratelimit_enabled", mode="before")
+    @field_validator(
+        "allow_user_listings", "ratelimit_enabled", "require_vin_for_p2p", mode="before"
+    )
     @classmethod
     def parse_bool_env(cls, value: object) -> bool:
         if isinstance(value, bool):

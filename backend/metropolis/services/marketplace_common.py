@@ -5,6 +5,9 @@ from datetime import datetime
 
 LISTING_SELECT_SQL = """
     SELECT l.*,
+           va.vin AS asset_vin,
+           va.body_type_id AS asset_body_type_id,
+           va.is_vin_verified AS asset_is_vin_verified,
            loc.lat,
            loc.lng,
            loc.geohash,
@@ -13,6 +16,7 @@ LISTING_SELECT_SQL = """
            u.full_name AS owner_name,
            u.profile_photo_url AS owner_profile_photo_url
     FROM vehicle_listing l
+    LEFT JOIN vehicle_asset va ON va.vehicle_id = l.vehicle_id
     LEFT JOIN listing_location loc ON loc.listing_id = l.listing_id
     LEFT JOIN app_user u ON u.user_id = l.owner_user_id
 """
@@ -32,7 +36,8 @@ _BOOKING_SELECT_SQL = """
         b.price_snapshot_json,
         b.created_at,
         b.updated_at,
-        l.title AS listing_title,
+        l.title AS listing_title_legacy,
+        COALESCE(l.listing_title, l.title) AS listing_marketing_title,
         l.source_type,
         l.owner_user_id,
         loc.city_zone,
@@ -148,6 +153,237 @@ def _resolve_guidelines(payload: dict) -> str | None:
     if guidelines is None:
         guidelines = payload.get("rules")
     return guidelines
+
+
+def _resolve_listing_title(payload: dict) -> str:
+    for key in ("listingTitle", "listing_title", "title"):
+        value = payload.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    make = payload.get("make") or payload.get("brand")
+    model = payload.get("model")
+    year = payload.get("year")
+    parts = [p for p in [make, model, str(year) if year else None] if p]
+    return " ".join(parts) if parts else "User listed car"
+
+
+def resolve_company_location(cur, payload: dict) -> dict:
+    source_type = str(payload.get("locationSourceType") or "").upper()
+    branch_id = payload.get("branchId")
+    parking_spot_id = payload.get("parkingSpotId")
+    selected_area_id = payload.get("areaId")
+    if source_type not in {"BRANCH", "PARKING_SPOT"}:
+        return {
+            "status": "validation_error",
+            "message": "locationSourceType must be BRANCH or PARKING_SPOT.",
+        }
+
+    if source_type == "BRANCH":
+        if not branch_id:
+            return {
+                "status": "validation_error",
+                "message": "branchId required for BRANCH source.",
+            }
+        cur.execute(
+            """
+            SELECT b.branchid, b.areaid, b.address, b.lat, b.lng, a.areaname
+            FROM branch b
+            JOIN area a ON a.areaid = b.areaid
+            WHERE b.branchid = %s
+            """,
+            (int(branch_id),),
+        )
+        row = cur.fetchone()
+        if not row:
+            return {"status": "not_found", "message": "Branch not found."}
+        if selected_area_id and int(selected_area_id) != int(row["areaid"]):
+            return {
+                "status": "validation_error",
+                "message": "Selected branch is not in selected area.",
+            }
+        if row["lat"] is None or row["lng"] is None:
+            return {
+                "status": "validation_error",
+                "message": "Selected branch missing coordinates.",
+            }
+        return {
+            "status": "success",
+            "locationSourceType": "BRANCH",
+            "branchId": int(row["branchid"]),
+            "parkingSpotId": None,
+            "pickupAddress": row["address"],
+            "lat": float(row["lat"]),
+            "lng": float(row["lng"]),
+            "cityZone": str(row["areaname"]).lower().replace(" ", "-"),
+        }
+
+    if not parking_spot_id:
+        return {
+            "status": "validation_error",
+            "message": "parkingSpotId required for PARKING_SPOT source.",
+        }
+    cur.execute(
+        """
+        SELECT id, area_id, branch_id, address, lat, lng, city_zone
+        FROM company_parking_spot
+        WHERE id = %s AND is_active = TRUE
+        """,
+        (int(parking_spot_id),),
+    )
+    row = cur.fetchone()
+    if not row:
+        return {"status": "not_found", "message": "Parking spot not found."}
+    if selected_area_id and int(selected_area_id) != int(row["area_id"]):
+        return {
+            "status": "validation_error",
+            "message": "Selected parking spot is not in selected area.",
+        }
+    return {
+        "status": "success",
+        "locationSourceType": "PARKING_SPOT",
+        "branchId": None,
+        "parkingSpotId": int(row["id"]),
+        "pickupAddress": row["address"],
+        "lat": float(row["lat"]),
+        "lng": float(row["lng"]),
+        "cityZone": row["city_zone"],
+    }
+
+
+def sync_listing_cache_from_asset(cur, vehicle_id: int) -> None:
+    cur.execute("SELECT sync_listing_cache_from_asset(%s)", (vehicle_id,))
+
+
+def fetch_listing_features_map(cur, listing_ids: list[int]) -> dict[int, list[dict]]:
+    if not listing_ids:
+        return {}
+    cur.execute(
+        """
+        SELECT lf.listing_id, rf.feature_id, rf.code, rf.name, rf.icon_key, rf.category
+        FROM listing_feature lf
+        JOIN ref_feature rf ON rf.feature_id = lf.feature_id
+        WHERE lf.listing_id = ANY(%s)
+        ORDER BY lf.listing_id, rf.sort_order, rf.name
+        """,
+        (listing_ids,),
+    )
+    features_by_listing: dict[int, list[dict]] = {}
+    for row in cur.fetchall():
+        features_by_listing.setdefault(row["listing_id"], []).append(
+            {
+                "featureId": row["feature_id"],
+                "code": row["code"],
+                "name": row["name"],
+                "iconKey": row["icon_key"],
+                "category": row["category"],
+            }
+        )
+    return features_by_listing
+
+
+def validate_feature_ids(cur, feature_ids: list[int]) -> dict:
+    if not feature_ids:
+        return {"status": "success", "features": []}
+    cur.execute(
+        """
+        SELECT feature_id, name
+        FROM ref_feature
+        WHERE feature_id = ANY(%s) AND is_active = TRUE
+        """,
+        (feature_ids,),
+    )
+    rows = cur.fetchall()
+    found = {row["feature_id"] for row in rows}
+    missing = [fid for fid in feature_ids if fid not in found]
+    if missing:
+        return {
+            "status": "validation_error",
+            "message": f"Unknown or inactive feature ids: {missing}",
+        }
+    return {"status": "success", "features": rows}
+
+
+def replace_listing_features(cur, listing_id: int, feature_ids: list[int]) -> None:
+    cur.execute("DELETE FROM listing_feature WHERE listing_id = %s", (listing_id,))
+    if not feature_ids:
+        cur.execute(
+            "UPDATE vehicle_listing SET features = %s::jsonb WHERE listing_id = %s",
+            ("[]", listing_id),
+        )
+        return
+    cur.executemany(
+        """
+        INSERT INTO listing_feature (listing_id, feature_id)
+        VALUES (%s, %s)
+        ON CONFLICT DO NOTHING
+        """,
+        [(listing_id, feature_id) for feature_id in feature_ids],
+    )
+    cur.execute(
+        """
+        UPDATE vehicle_listing
+        SET features = (
+          SELECT COALESCE(jsonb_agg(rf.name ORDER BY rf.sort_order, rf.name), '[]'::jsonb)
+          FROM listing_feature lf
+          JOIN ref_feature rf ON rf.feature_id = lf.feature_id
+          WHERE lf.listing_id = %s
+        )
+        WHERE listing_id = %s
+        """,
+        (listing_id, listing_id),
+    )
+
+
+def list_body_types(cur) -> list[dict]:
+    cur.execute(
+        """
+        SELECT body_type_id, code, display_name, sort_order
+        FROM ref_body_type
+        ORDER BY sort_order, display_name
+        """
+    )
+    return [
+        {
+            "body_type_id": row["body_type_id"],
+            "code": row["code"],
+            "display_name": row["display_name"],
+            "sort_order": row["sort_order"],
+        }
+        for row in cur.fetchall()
+    ]
+
+
+def list_features(cur, category: str | None = None) -> list[dict]:
+    if category:
+        cur.execute(
+            """
+            SELECT feature_id, code, name, icon_key, category, sort_order
+            FROM ref_feature
+            WHERE is_active = TRUE AND category = %s
+            ORDER BY sort_order, name
+            """,
+            (category,),
+        )
+    else:
+        cur.execute(
+            """
+            SELECT feature_id, code, name, icon_key, category, sort_order
+            FROM ref_feature
+            WHERE is_active = TRUE
+            ORDER BY category, sort_order, name
+            """
+        )
+    return [
+        {
+            "feature_id": row["feature_id"],
+            "code": row["code"],
+            "name": row["name"],
+            "icon_key": row["icon_key"],
+            "category": row["category"],
+            "sort_order": row["sort_order"],
+        }
+        for row in cur.fetchall()
+    ]
 
 
 def _listing_image_urls(payload: dict) -> list[str]:
@@ -298,11 +534,13 @@ def hydrate_listing_rows(cur, rows: list[dict]) -> list[dict]:
     listing_ids = [row["listing_id"] for row in rows]
     images_by_listing = fetch_listing_images_map(cur, listing_ids)
     ratings_by_listing = _fetch_listing_ratings_map(cur, listing_ids)
+    features_by_listing = fetch_listing_features_map(cur, listing_ids)
     return [
         _to_listing_row(
             row,
             images_by_listing.get(row["listing_id"], []),
             ratings_by_listing.get(row["listing_id"]),
+            features_by_listing.get(row["listing_id"]),
         )
         for row in rows
     ]
@@ -312,6 +550,7 @@ def _to_listing_row(
     row: dict,
     image_urls: list[str] | None = None,
     ratings: dict | None = None,
+    feature_rows: list[dict] | None = None,
 ) -> dict:
     urls = image_urls if image_urls is not None else []
     lat = row.get("lat")
@@ -326,15 +565,26 @@ def _to_listing_row(
     if review_count is None:
         review_count = int(row.get("review_count") or 0)
 
+    listing_title = row.get("listing_title") or row.get("title")
+    feature_objs = feature_rows or []
+    feature_names = (
+        [f["name"] for f in feature_objs] if feature_objs else (row.get("features") or [])
+    )
+    feature_ids = [f["featureId"] for f in feature_objs] if feature_objs else []
+
     return {
         "listingId": row["listing_id"],
         "vehicleId": row.get("vehicle_id"),
         "sourceType": row["source_type"],
-        "title": row["title"],
+        "title": listing_title,
+        "listingTitle": listing_title,
         "make": row.get("make"),
         "model": row.get("model"),
         "year": row.get("year"),
         "mileage": row.get("mileage"),
+        "vin": row.get("asset_vin"),
+        "isVinVerified": bool(row.get("asset_is_vin_verified")),
+        "bodyTypeId": row.get("asset_body_type_id"),
         "vehicleClassId": None,
         "description": row.get("description"),
         "guidelines": guidelines,
@@ -342,7 +592,9 @@ def _to_listing_row(
         "fuelType": row.get("fuel_type"),
         "seats": row.get("seats"),
         "doors": row.get("doors"),
-        "features": row.get("features") or [],
+        "features": feature_names,
+        "featureIds": feature_ids,
+        "featureDetails": feature_objs,
         "images": urls,
         "pickupNotesTemplate": row.get("pickup_notes_template"),
         "pricePerDay": float(row["price_per_day"]),

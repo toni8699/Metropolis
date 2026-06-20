@@ -12,7 +12,15 @@ export function AnalyticsCard({ label, value }) {
   );
 }
 
-export function LabeledInput({ label, value, onChange, type = "text", placeholder, required = false }) {
+export function LabeledInput({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  required = false,
+  disabled = false,
+}) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-vroom-muted">{label}</span>
@@ -22,7 +30,8 @@ export function LabeledInput({ label, value, onChange, type = "text", placeholde
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full border-2 border-black rounded-2xl bg-white px-4 py-3 text-vroom-heading outline-none transition"
+        disabled={disabled}
+        className="w-full border-2 border-black rounded-2xl bg-white px-4 py-3 text-vroom-heading outline-none transition disabled:bg-gray-100 disabled:text-gray-500"
       />
     </label>
   );
@@ -42,7 +51,14 @@ export function LabeledTextarea({ label, value, onChange, placeholder }) {
   );
 }
 
-export function LabeledSelect({ label, value, onChange, options, required = false }) {
+export function LabeledSelect({
+  label,
+  value,
+  onChange,
+  options,
+  required = false,
+  disabled = false,
+}) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-vroom-muted">{label}</span>
@@ -50,7 +66,8 @@ export function LabeledSelect({ label, value, onChange, options, required = fals
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required={required}
-        className="w-full border-2 border-black rounded-2xl bg-white px-4 py-3 text-vroom-heading outline-none transition"
+        disabled={disabled}
+        className="w-full border-2 border-black rounded-2xl bg-white px-4 py-3 text-vroom-heading outline-none transition disabled:bg-gray-100 disabled:text-gray-500"
       >
         <option value="">Select option</option>
         {options.map((option) => (
