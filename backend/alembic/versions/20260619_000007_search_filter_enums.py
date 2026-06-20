@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from sqlalchemy import text
+
 from alembic import op
 
 revision: str = "000007_search_filter_enums"
@@ -19,17 +21,19 @@ depends_on: str | Sequence[str] | None = None
 _BACKFILL_TRANSMISSION = """
 UPDATE vehicle_asset
 SET transmission = CASE
-  WHEN transmission IS NULL OR btrim(transmission) = '' THEN NULL
-  WHEN lower(transmission) LIKE '%manual%' THEN 'MANUAL'
-  WHEN lower(transmission) LIKE '%auto%' OR lower(transmission) LIKE '%cvt%' THEN 'AUTOMATIC'
+  WHEN transmission IS NULL OR btrim(transmission::text) = '' THEN NULL
+  WHEN lower(transmission::text) LIKE '%manual%' THEN 'MANUAL'
+  WHEN lower(transmission::text) LIKE '%auto%'
+    OR lower(transmission::text) LIKE '%cvt%' THEN 'AUTOMATIC'
   ELSE NULL
 END;
 
 UPDATE vehicle_listing
 SET transmission = CASE
-  WHEN transmission IS NULL OR btrim(transmission) = '' THEN NULL
-  WHEN lower(transmission) LIKE '%manual%' THEN 'MANUAL'
-  WHEN lower(transmission) LIKE '%auto%' OR lower(transmission) LIKE '%cvt%' THEN 'AUTOMATIC'
+  WHEN transmission IS NULL OR btrim(transmission::text) = '' THEN NULL
+  WHEN lower(transmission::text) LIKE '%manual%' THEN 'MANUAL'
+  WHEN lower(transmission::text) LIKE '%auto%'
+    OR lower(transmission::text) LIKE '%cvt%' THEN 'AUTOMATIC'
   ELSE NULL
 END;
 """
@@ -37,63 +41,76 @@ END;
 _BACKFILL_FUEL = """
 UPDATE vehicle_asset
 SET fuel_type = CASE
-  WHEN fuel_type IS NULL OR btrim(fuel_type) = '' THEN NULL
-  WHEN lower(fuel_type) LIKE '%electric%' OR lower(fuel_type) = 'ev' THEN 'Electric'
-  WHEN lower(fuel_type) LIKE '%hybrid%' THEN 'Hybrid'
-  WHEN lower(fuel_type) LIKE '%diesel%' THEN 'Diesel'
-  WHEN lower(fuel_type) LIKE '%gas%' OR lower(fuel_type) LIKE '%petrol%' THEN 'Gasoline'
+  WHEN fuel_type IS NULL OR btrim(fuel_type::text) = '' THEN NULL
+  WHEN lower(fuel_type::text) LIKE '%electric%' OR lower(fuel_type::text) = 'ev' THEN 'Electric'
+  WHEN lower(fuel_type::text) LIKE '%hybrid%' THEN 'Hybrid'
+  WHEN lower(fuel_type::text) LIKE '%diesel%' THEN 'Diesel'
+  WHEN lower(fuel_type::text) LIKE '%gas%' OR lower(fuel_type::text) LIKE '%petrol%' THEN 'Gasoline'
   ELSE NULL
 END;
 
 UPDATE vehicle_listing
 SET fuel_type = CASE
-  WHEN fuel_type IS NULL OR btrim(fuel_type) = '' THEN NULL
-  WHEN lower(fuel_type) LIKE '%electric%' OR lower(fuel_type) = 'ev' THEN 'Electric'
-  WHEN lower(fuel_type) LIKE '%hybrid%' THEN 'Hybrid'
-  WHEN lower(fuel_type) LIKE '%diesel%' THEN 'Diesel'
-  WHEN lower(fuel_type) LIKE '%gas%' OR lower(fuel_type) LIKE '%petrol%' THEN 'Gasoline'
+  WHEN fuel_type IS NULL OR btrim(fuel_type::text) = '' THEN NULL
+  WHEN lower(fuel_type::text) LIKE '%electric%' OR lower(fuel_type::text) = 'ev' THEN 'Electric'
+  WHEN lower(fuel_type::text) LIKE '%hybrid%' THEN 'Hybrid'
+  WHEN lower(fuel_type::text) LIKE '%diesel%' THEN 'Diesel'
+  WHEN lower(fuel_type::text) LIKE '%gas%' OR lower(fuel_type::text) LIKE '%petrol%' THEN 'Gasoline'
   ELSE NULL
 END;
 """
 
 
+def _enum_types_exist() -> bool:
+    bind = op.get_bind()
+    row = bind.execute(
+        text("SELECT 1 FROM pg_type WHERE typname = 'transmission_type' LIMIT 1")
+    ).scalar()
+    return row is not None
+
+
 def upgrade() -> None:
-    op.execute(_BACKFILL_TRANSMISSION)
-    op.execute(_BACKFILL_FUEL)
+    if not _enum_types_exist():
+        op.execute(_BACKFILL_TRANSMISSION)
+        op.execute(_BACKFILL_FUEL)
+        op.execute(
+            """
+            DROP TRIGGER IF EXISTS trg_vehicle_asset_sync_listing ON vehicle_asset;
+
+            CREATE TYPE transmission_type AS ENUM ('AUTOMATIC', 'MANUAL');
+            CREATE TYPE fuel_type_enum AS ENUM ('Gasoline', 'Electric', 'Hybrid', 'Diesel');
+
+            ALTER TABLE vehicle_asset
+              ALTER COLUMN transmission TYPE transmission_type
+              USING transmission::transmission_type,
+              ALTER COLUMN fuel_type TYPE fuel_type_enum
+              USING fuel_type::fuel_type_enum;
+
+            ALTER TABLE vehicle_listing
+              ALTER COLUMN transmission TYPE transmission_type
+              USING transmission::transmission_type,
+              ALTER COLUMN fuel_type TYPE fuel_type_enum
+              USING fuel_type::fuel_type_enum;
+
+            CREATE TRIGGER trg_vehicle_asset_sync_listing
+            AFTER INSERT OR UPDATE OF
+              make, model, model_year, vin, fuel_type, transmission, seats, body_type_id
+            ON vehicle_asset
+            FOR EACH ROW
+            EXECUTE FUNCTION trg_sync_listing_cache_from_asset();
+            """
+        )
+
     op.execute(
         """
-        DROP TRIGGER IF EXISTS trg_vehicle_asset_sync_listing ON vehicle_asset;
-
-        CREATE TYPE transmission_type AS ENUM ('AUTOMATIC', 'MANUAL');
-        CREATE TYPE fuel_type_enum AS ENUM ('Gasoline', 'Electric', 'Hybrid', 'Diesel');
-
-        ALTER TABLE vehicle_asset
-          ALTER COLUMN transmission TYPE transmission_type
-          USING transmission::transmission_type,
-          ALTER COLUMN fuel_type TYPE fuel_type_enum
-          USING fuel_type::fuel_type_enum;
-
-        ALTER TABLE vehicle_listing
-          ALTER COLUMN transmission TYPE transmission_type
-          USING transmission::transmission_type,
-          ALTER COLUMN fuel_type TYPE fuel_type_enum
-          USING fuel_type::fuel_type_enum;
-
-        CREATE TRIGGER trg_vehicle_asset_sync_listing
-        AFTER INSERT OR UPDATE OF
-          make, model, model_year, vin, fuel_type, transmission, seats, body_type_id
-        ON vehicle_asset
-        FOR EACH ROW
-        EXECUTE FUNCTION trg_sync_listing_cache_from_asset();
-
-        CREATE INDEX idx_vehicle_listing_price_active
+        CREATE INDEX IF NOT EXISTS idx_vehicle_listing_price_active
           ON vehicle_listing(price_per_day)
           WHERE COALESCE(status, 'ACTIVE') = 'ACTIVE';
 
-        CREATE INDEX idx_vehicle_asset_body_type ON vehicle_asset(body_type_id);
-        CREATE INDEX idx_vehicle_asset_transmission ON vehicle_asset(transmission);
-        CREATE INDEX idx_vehicle_asset_fuel_type ON vehicle_asset(fuel_type);
-        CREATE INDEX idx_vehicle_asset_seats ON vehicle_asset(seats);
+        CREATE INDEX IF NOT EXISTS idx_vehicle_asset_body_type ON vehicle_asset(body_type_id);
+        CREATE INDEX IF NOT EXISTS idx_vehicle_asset_transmission ON vehicle_asset(transmission);
+        CREATE INDEX IF NOT EXISTS idx_vehicle_asset_fuel_type ON vehicle_asset(fuel_type);
+        CREATE INDEX IF NOT EXISTS idx_vehicle_asset_seats ON vehicle_asset(seats);
         """
     )
 

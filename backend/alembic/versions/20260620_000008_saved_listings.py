@@ -20,7 +20,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.execute(
         """
-        CREATE TABLE saved_listing
+        CREATE TABLE IF NOT EXISTS saved_listing
         (
           user_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
           listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
@@ -28,7 +28,7 @@ def upgrade() -> None:
           PRIMARY KEY (user_id, listing_id)
         );
 
-        CREATE INDEX idx_saved_listing_user_created
+        CREATE INDEX IF NOT EXISTS idx_saved_listing_user_created
           ON saved_listing(user_id, created_at DESC);
         """
     )
