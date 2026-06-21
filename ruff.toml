@@ -1,0 +1,2 @@
+# Match backend/pyproject.toml so ruff from repo root agrees with CI (working-directory: backend).
+extend = "backend/pyproject.toml"
