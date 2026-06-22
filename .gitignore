@@ -35,3 +35,5 @@ out/
 # agent files
 .agents/
 .cursor/
+.claude
+.windsurf
