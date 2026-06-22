@@ -618,3 +618,19 @@ CREATE TABLE saved_listing
 );
 
 CREATE INDEX idx_saved_listing_user_created ON saved_listing(user_id, created_at DESC);
+
+CREATE TABLE host_payout
+(
+  payout_id BIGSERIAL PRIMARY KEY,
+  booking_id BIGINT NOT NULL UNIQUE REFERENCES booking(booking_id) ON DELETE CASCADE,
+  owner_user_id BIGINT NOT NULL REFERENCES app_user(user_id),
+  amount_cents INT NOT NULL CHECK (amount_cents > 0),
+  currency VARCHAR(3) NOT NULL DEFAULT 'cad',
+  stripe_transfer_id VARCHAR(100),
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  failure_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_host_payout_owner_status ON host_payout(owner_user_id, status);

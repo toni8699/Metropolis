@@ -8,6 +8,7 @@ from metropolis.services.booking_support import (
     auto_complete_expired_bookings,
     build_price_snapshot,
     fetch_trip_events,
+    host_can_cancel,
     renter_can_cancel,
     renter_can_complete_trip,
     renter_can_confirm_pickup,
@@ -79,6 +80,8 @@ class BookingService:
                 row["can_cancel"] = is_renter and renter_can_cancel(
                     row["status"], row["start_at"], now
                 )
+                if is_owner and not row["can_cancel"]:
+                    row["can_cancel"] = host_can_cancel(row["status"], row["start_at"], now)
                 row["can_confirm_pickup"] = is_renter and renter_can_confirm_pickup(
                     row["status"], row["start_at"], row["end_at"]
                 )
@@ -138,6 +141,9 @@ class BookingService:
                     (renter_user_id,),
                 )
                 rows = cur.fetchall()
+        now = utcnow()
+        for row in rows:
+            row["can_cancel"] = renter_can_cancel(row["status"], row["start_at"], now)
         return {
             "status": "success",
             "bookings": [to_booking_row(row) for row in rows],
@@ -157,6 +163,9 @@ class BookingService:
                     (owner_user_id,),
                 )
                 rows = cur.fetchall()
+        now = utcnow()
+        for row in rows:
+            row["can_cancel"] = host_can_cancel(row["status"], row["start_at"], now)
         return {"status": "success", "bookings": [to_booking_row(row) for row in rows]}
 
     def _has_active_booking_conflict(
@@ -349,9 +358,10 @@ class BookingService:
                     ),
                 )
                 conn.commit()
-        return self.get_booking(booking_id, owner_user_id, False)
+        from metropolis.services.booking_notifications import notify_booking_approved
 
-    def reject_booking(self, booking_id: int, owner_user_id: int) -> dict:
+        notify_booking_approved(booking_id)
+        return self.get_booking(booking_id, owner_user_id, False)
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
@@ -397,6 +407,9 @@ class BookingService:
                     ),
                 )
                 conn.commit()
+        from metropolis.services.booking_notifications import notify_booking_rejected
+
+        notify_booking_rejected(booking_id)
         return self.get_booking(booking_id, owner_user_id, False)
 
     def cancel_booking(self, booking_id: int, renter_user_id: int) -> dict:
@@ -424,7 +437,7 @@ class BookingService:
                         "status": "validation_error",
                         "message": "This booking cannot be cancelled.",
                     }
-                if trip_has_started(row["start_at"]):
+                if row["status"] != "PENDING" and trip_has_started(row["start_at"]):
                     return {
                         "status": "validation_error",
                         "message": "Cannot cancel after the trip has started.",
@@ -449,7 +462,61 @@ class BookingService:
                     ),
                 )
                 conn.commit()
+        from metropolis.services.booking_notifications import notify_booking_cancelled
+
+        notify_booking_cancelled(booking_id)
         return self.get_booking(booking_id, renter_user_id, False)
+
+    def host_cancel_booking(self, booking_id: int, owner_user_id: int) -> dict:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT b.booking_id, b.status, b.start_at, l.owner_user_id
+                    FROM booking b
+                    JOIN vehicle_listing l ON l.listing_id = b.listing_id
+                    WHERE b.booking_id = %s
+                    FOR UPDATE
+                    """,
+                    (booking_id,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {"status": "not_found", "message": "Booking not found."}
+                if row["owner_user_id"] != owner_user_id:
+                    return {
+                        "status": "forbidden",
+                        "message": "Only the listing owner can cancel this booking.",
+                    }
+                if not host_can_cancel(row["status"], row["start_at"]):
+                    return {
+                        "status": "validation_error",
+                        "message": "This booking cannot be cancelled.",
+                    }
+                cur.execute(
+                    """
+                    UPDATE booking
+                    SET status = 'CANCELLED'::booking_status, updated_at = NOW()
+                    WHERE booking_id = %s
+                    """,
+                    (booking_id,),
+                )
+                cur.execute(
+                    """
+                    INSERT INTO trip_event (booking_id, event_type, actor_user_id, metadata_json)
+                    VALUES (%s, 'BOOKING_CANCELLED', %s, %s::jsonb)
+                    """,
+                    (
+                        booking_id,
+                        owner_user_id,
+                        Json({"from": row["status"], "to": "CANCELLED", "by": "host"}),
+                    ),
+                )
+                conn.commit()
+        from metropolis.services.booking_notifications import notify_booking_cancelled
+
+        notify_booking_cancelled(booking_id)
+        return self.get_booking(booking_id, owner_user_id, False)
 
     def transition_booking_status(
         self,
@@ -522,6 +589,10 @@ class BookingService:
                     ),
                 )
                 conn.commit()
+        if status == "COMPLETED":
+            from metropolis.services.booking_notifications import notify_trip_completed
+
+            notify_trip_completed(booking_id)
         return self.get_booking(booking_id, actor_user_id, actor_is_admin)
 
     def patch_booking(
@@ -547,7 +618,7 @@ class BookingService:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     cur.execute(
                         """
-                        SELECT b.status, b.renter_user_id, l.owner_user_id
+                        SELECT b.status, b.start_at, b.renter_user_id, l.owner_user_id
                         FROM booking b
                         JOIN vehicle_listing l ON l.listing_id = b.listing_id
                         WHERE b.booking_id = %s
@@ -559,6 +630,10 @@ class BookingService:
                 return {"status": "not_found", "message": "Booking not found."}
             if row["owner_user_id"] == actor_user_id and row["status"] == "PENDING_APPROVAL":
                 return self.reject_booking(booking_id, actor_user_id)
+            if row["owner_user_id"] == actor_user_id and host_can_cancel(
+                row["status"], row["start_at"]
+            ):
+                return self.host_cancel_booking(booking_id, actor_user_id)
             if row["renter_user_id"] == actor_user_id:
                 return self.cancel_booking(booking_id, actor_user_id)
             return {
@@ -592,12 +667,99 @@ class BookingService:
                 cur.execute("SELECT pg_try_advisory_lock(%s) AS acquired", (421_001,))
                 if not cur.fetchone()["acquired"]:
                     return {"status": "success", "completed": 0}
+                completed_ids: list[int] = []
                 try:
-                    completed = auto_complete_expired_bookings(cur)
+                    completed_ids = auto_complete_expired_bookings(cur)
                     conn.commit()
                 finally:
                     cur.execute("SELECT pg_advisory_unlock(%s)", (421_001,))
-        return {"status": "success", "completed": completed}
+        for booking_id in completed_ids:
+            from metropolis.services.booking_notifications import notify_trip_completed
+
+            notify_trip_completed(booking_id)
+        return {"status": "success", "completed": len(completed_ids)}
+
+    def sweep_trip_reminders(self) -> dict:
+        """Email renters ~24h before CONFIRMED trips start. Deduped via trip_event."""
+        from psycopg2.extras import Json
+
+        from metropolis.services import mail_service
+
+        sent = 0
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT b.booking_id
+                    FROM booking b
+                    WHERE b.status = 'CONFIRMED'::booking_status
+                      AND b.start_at >= NOW() + INTERVAL '23 hours'
+                      AND b.start_at <= NOW() + INTERVAL '25 hours'
+                      AND NOT EXISTS (
+                        SELECT 1 FROM trip_event te
+                        WHERE te.booking_id = b.booking_id
+                          AND te.event_type = 'EMAIL_SENT'
+                          AND te.metadata_json->>'emailType' = 'TRIP_REMINDER'
+                      )
+                    LIMIT 100
+                    """
+                )
+                rows = cur.fetchall()
+                for row in rows:
+                    booking_id = row["booking_id"]
+                    try:
+                        if mail_service.send_trip_reminder(booking_id):
+                            cur.execute(
+                                """
+                                INSERT INTO trip_event (booking_id, event_type, metadata_json)
+                                VALUES (%s, 'EMAIL_SENT', %s::jsonb)
+                                """,
+                                (booking_id, Json({"emailType": "TRIP_REMINDER"})),
+                            )
+                            sent += 1
+                    except Exception:
+                        pass
+                conn.commit()
+        return {"status": "success", "sent": sent}
+
+    def sweep_stale_unpaid_bookings(self) -> dict:
+        """Cancel unpaid PENDING bookings past trip start or older than 24h."""
+        from psycopg2.extras import Json
+
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    UPDATE booking b
+                    SET status = 'CANCELLED'::booking_status, updated_at = NOW()
+                    WHERE b.status = 'PENDING'::booking_status
+                      AND NOT EXISTS (
+                        SELECT 1 FROM payment p
+                        WHERE p.booking_id = b.booking_id
+                          AND p.status = 'succeeded'
+                      )
+                      AND (
+                        b.start_at <= NOW()
+                        OR b.created_at < NOW() - INTERVAL '24 hours'
+                      )
+                    RETURNING booking_id
+                    """
+                )
+                rows = cur.fetchall()
+                for row in rows:
+                    cur.execute(
+                        """
+                        INSERT INTO trip_event
+                         (booking_id, event_type, actor_user_id, metadata_json)
+                        VALUES (%s, 'BOOKING_CANCELLED', NULL, %s::jsonb)
+                        """,
+                        (
+                            row["booking_id"],
+                            Json({"from": "PENDING", "to": "CANCELLED", "auto": True}),
+                        ),
+                    )
+                conn.commit()
+        return {"status": "success", "cancelled": len(rows)}
 
 
 booking_service = BookingService()

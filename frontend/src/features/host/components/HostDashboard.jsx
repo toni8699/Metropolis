@@ -1,5 +1,5 @@
-import { useMemo, useCallback } from "react";
-import { useLocation } from "react-router-dom";
+import { useMemo, useCallback, useEffect } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import Layout from "@/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
 import { useGoogleMaps } from "@/context/GoogleMapsProvider";
@@ -15,14 +15,28 @@ import HostDashboardContent from "@/features/host/components/dashboard/HostDashb
 
 export default function HostDashboard({ mode = "admin" }) {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { refreshMe, ensureVerifiedEmail } = useAuth();
   const isAdmin = mode === "admin";
   const navItems = useMemo(() => getNavItems(isAdmin), [isAdmin]);
   const { apiKey, isLoaded: isMapLoaded } = useGoogleMaps();
 
   const data = useHostDashboardData({ isAdmin, pathname: location.pathname });
+  const { setSuccess, refreshPayouts } = data;
   const { activeTab, setActiveTab, requestTabChange, setConfirmLeaveIfDirty } =
     useHostDashboardTabs();
+
+  useEffect(() => {
+    const payoutParam = searchParams.get("payout");
+    if (!isAdmin && payoutParam) {
+      setActiveTab(TAB.payouts);
+      if (payoutParam === "complete") {
+        setSuccess("Payout setup updated. Refresh status if needed.");
+        refreshPayouts();
+      }
+      setSearchParams({}, { replace: true });
+    }
+  }, [isAdmin, searchParams, setSearchParams, setActiveTab, setSuccess, refreshPayouts]);
 
   const guardedTabChange = useCallback(
     (tabId) => {
@@ -87,7 +101,11 @@ export default function HostDashboard({ mode = "admin" }) {
             onRequestTabChange={guardedTabChange}
             onDeleteListing={data.deleteListing}
             onBookingDecision={data.handleBookingDecision}
+            onCancelBooking={data.handleCancelBooking}
             onKycDecision={data.decideKyc}
+            connectStatus={data.connectStatus}
+            recentPayouts={data.recentPayouts}
+            onRefreshPayouts={data.refreshPayouts}
           />
         </div>
       </HostDashboardShell>

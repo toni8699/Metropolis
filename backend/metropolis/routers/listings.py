@@ -15,6 +15,7 @@ from metropolis.dependencies.auth import (
 from metropolis.hateoas import with_listing_links
 from metropolis.schemas.listing_models import (
     BookedRangeCollectionResponse,
+    ListingAvailabilityCollectionResponse,
     ListingAvailabilityRequest,
     ListingAvailabilityResponse,
     ListingCollectionResponse,
@@ -228,6 +229,23 @@ def set_location(
     return with_listing_links(result, can_edit=True)
 
 
+@router.get("/{listing_id}/availability", response_model=ListingAvailabilityCollectionResponse)
+def list_listing_availability(
+    listing_id: int,
+    access: ListingAccessContext = Depends(require_listing_access),
+) -> dict:
+    """List host-blocked availability windows for a listing."""
+    try:
+        result = listing_service.list_listing_availability(
+            _actor_from_user(access.user),
+            listing_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    raise_for_service_result(result)
+    return result
+
+
 @router.post("/{listing_id}/availability", response_model=ListingAvailabilityResponse)
 def add_availability(
     payload: ListingAvailabilityRequest,
@@ -245,6 +263,25 @@ def add_availability(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     raise_for_service_result(result)
     return result["availability"]
+
+
+@router.delete("/{listing_id}/availability/{availability_id}", response_model=StatusResponse)
+def delete_availability(
+    listing_id: int,
+    availability_id: int,
+    access: ListingAccessContext = Depends(require_listing_access),
+) -> dict:
+    """Remove a host availability block."""
+    try:
+        result = listing_service.delete_availability(
+            _actor_from_user(access.user),
+            listing_id,
+            availability_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    raise_for_service_result(result)
+    return result
 
 
 @router.get("/{listing_id}/booked-ranges", response_model=BookedRangeCollectionResponse)

@@ -22,6 +22,20 @@ export function useHostDashboardData({ isAdmin, pathname }) {
   const [bookingActionId, setBookingActionId] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [connectStatus, setConnectStatus] = useState(null);
+  const [recentPayouts, setRecentPayouts] = useState([]);
+
+  const loadPayouts = useCallback(async () => {
+    if (isAdmin) return;
+    try {
+      const data = await apiGet("/api/payouts/connect/status", true);
+      setConnectStatus(data?.connect || null);
+      setRecentPayouts(data?.recentPayouts || []);
+    } catch {
+      setConnectStatus(null);
+      setRecentPayouts([]);
+    }
+  }, [isAdmin]);
 
   const loadAll = useCallback(async () => {
     setError("");
@@ -53,7 +67,7 @@ export function useHostDashboardData({ isAdmin, pathname }) {
       } else {
         const [listingsRes, bookingsRes, analyticsRes, vehicleClassesRes] = await Promise.all([
           apiGet("/api/listings?scope=mine", true),
-          apiGet("/api/bookings?scope=owner", true).catch(() => ({ bookings: [] })),
+          apiGet("/api/bookings?scope=owner", true),
           apiGet("/api/analytics?scope=owner", true).catch(() => ({ analytics: null })),
           apiGet("/api/vehicle-classes", true).catch(() => ({ vehicleClasses: [] })),
         ]);
@@ -65,13 +79,14 @@ export function useHostDashboardData({ isAdmin, pathname }) {
           ...EMPTY_LOCATIONS,
           vehicleClasses: vehicleClassesRes?.vehicleClasses || [],
         });
+        await loadPayouts();
       }
     } catch (err) {
       setError(err?.message || `Could not load ${isAdmin ? "admin" : "host"} dashboard.`);
     } finally {
       setIsLoading(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, loadPayouts]);
 
   useEffect(() => {
     loadAll();
@@ -124,13 +139,26 @@ export function useHostDashboardData({ isAdmin, pathname }) {
     const status = action === "approve" ? "CONFIRMED" : "CANCELLED";
     try {
       await apiPatch(`/api/bookings/${bookingId}`, { status }, true);
-      setSuccess(action === "approve" ? "Booking approved." : "Booking rejected.");
+      setSuccess(
+        action === "approve"
+          ? "Booking approved."
+          : action === "cancel"
+            ? "Booking cancelled."
+            : "Booking rejected.",
+      );
       await loadAll();
     } catch (err) {
       setError(err?.message || `Could not ${action} booking.`);
     } finally {
       setBookingActionId(null);
     }
+  };
+
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm("Cancel this booking? The guest will be notified.")) {
+      return;
+    }
+    await handleBookingDecision(bookingId, "cancel");
   };
 
   const decideKyc = async (userId, verificationStatus) => {
@@ -157,6 +185,10 @@ export function useHostDashboardData({ isAdmin, pathname }) {
     deleteListing,
     syncFleet,
     handleBookingDecision,
+    handleCancelBooking,
     decideKyc,
+    connectStatus,
+    recentPayouts,
+    refreshPayouts: loadPayouts,
   };
 }

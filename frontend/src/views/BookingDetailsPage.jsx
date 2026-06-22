@@ -126,7 +126,7 @@ export default function BookingDetailsPage() {
   };
 
   const hasHostActions =
-    isHost && (booking?.canApprove || booking?.canReject);
+    isHost && (booking?.canApprove || booking?.canReject || booking?.canCancel);
   const hasRenterActions =
     isRenter &&
     (booking?.canCancel || booking?.canConfirmPickup || booking?.canCompleteTrip);
@@ -354,11 +354,31 @@ export default function BookingDetailsPage() {
                   Reject booking
                 </button>
               )}
+              {isHost && booking.canCancel && !booking.canReject && (
+                <button
+                  type="button"
+                  disabled={isActing}
+                  onClick={() => {
+                    if (!window.confirm("Cancel this booking? The guest will be notified.")) {
+                      return;
+                    }
+                    runAction({ status: "CANCELLED" });
+                  }}
+                  className="rounded-full border-2 border-black border-b-4 bg-vroom-error px-3 py-1.5 text-xs font-bold text-vroom-errorText active:border-b-0 disabled:opacity-50"
+                >
+                  Cancel booking
+                </button>
+              )}
               {isRenter && booking.canCancel && (
                 <button
                   type="button"
                   disabled={isActing}
-                  onClick={() => runAction({ status: "CANCELLED" })}
+                  onClick={() => {
+                    if (!window.confirm("Cancel this booking?")) {
+                      return;
+                    }
+                    runAction({ status: "CANCELLED" });
+                  }}
                   className="rounded-full border-2 border-black border-b-4 bg-vroom-error px-3 py-1.5 text-xs font-bold text-vroom-errorText active:border-b-0 disabled:opacity-50"
                 >
                   Cancel booking
@@ -403,10 +423,15 @@ export default function BookingDetailsPage() {
               <h2 className="text-sm font-semibold text-gray-900">
                 {isHost ? "Earnings Summary" : "Payment Summary"}
               </h2>
-              {!isHost && (
+              {!isHost && booking.status !== "PENDING" && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
                   <CreditCard className="h-3.5 w-3.5" />
                   Paid with card
+                </span>
+              )}
+              {!isHost && booking.status === "PENDING" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+                  Payment required
                 </span>
               )}
             </div>

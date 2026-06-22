@@ -7,7 +7,13 @@ import {
 } from "@/shared/lib/bookingStatus";
 import { formatBookingWindow } from "@/features/host/lib/dashboardAnalytics";
 
-export default function BookingsPanel({ isAdmin, bookings, bookingActionId, onDecision }) {
+export default function BookingsPanel({
+  isAdmin,
+  bookings,
+  bookingActionId,
+  onDecision,
+  onCancelBooking,
+}) {
   const pendingApprovalBookings = useMemo(
     () => bookings.filter((booking) => isPendingApproval(booking.status)),
     [bookings],
@@ -139,6 +145,15 @@ export default function BookingsPanel({ isAdmin, bookings, bookingActionId, onDe
                               Approve
                             </button>
                           </div>
+                        ) : booking.status === "PENDING" || booking.canCancel ? (
+                          <button
+                            type="button"
+                            disabled={bookingActionId === booking.bookingId}
+                            onClick={() => onCancelBooking(booking.bookingId)}
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100 disabled:opacity-50"
+                          >
+                            {booking.status === "PENDING" ? "Dismiss" : "Cancel"}
+                          </button>
                         ) : (
                           <span className="text-xs text-gray-400">—</span>
                         )}

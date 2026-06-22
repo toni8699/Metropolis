@@ -40,7 +40,7 @@ export default function HeaderUserMenu({
       <button
         type="button"
         onClick={onToggleMenu}
-        className={`flex items-center gap-1.5 rounded-full border-2 border-black bg-vroom-surface ${buttonPadding} transition hover:shadow-neoBlack`}
+        className={`flex items-center gap-1.5 rounded-full border-2 border-black bg-vroom-surface ${buttonPadding} transition hover:shadow-neoSm`}
         aria-label="User menu"
       >
         <Menu className="h-6 w-6 text-vroom-text" />

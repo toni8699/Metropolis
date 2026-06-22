@@ -62,8 +62,29 @@ export function buildBookedModifiers(bookedRanges) {
   };
 }
 
+export function buildHostBlockedModifiers(blockedRanges) {
+  const intervals = buildBookedDisabledMatchers(blockedRanges);
+  if (!intervals.length) {
+    return {};
+  }
+  const today = startOfToday();
+  return {
+    hostBlocked: (date) => {
+      const day = startOfDay(date);
+      if (isBefore(day, today)) {
+        return false;
+      }
+      return intervals.some(({ from, to }) => dayInInclusiveInterval(day, from, to));
+    },
+  };
+}
+
 export const bookedDayModifierClassNames = {
   booked: "rdp-booked",
+};
+
+export const hostBlockedDayModifierClassNames = {
+  hostBlocked: "rdp-host-blocked",
 };
 
 export function sanitizeDateRange(range) {

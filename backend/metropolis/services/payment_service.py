@@ -129,6 +129,11 @@ class PaymentService:
                 return {"status": "validation_error", "message": "Missing booking reference."}
             return self._complete_payment(booking_id, payment_intent_id=intent["id"], mock=False)
 
+        if event["type"] == "account.updated":
+            from metropolis.services.payout_service import payout_service
+
+            return payout_service.handle_account_updated(event["data"]["object"])
+
         return {"status": "ignored", "message": f"Unhandled event type {event['type']}."}
 
     def _resolve_booking_id_from_intent(self, intent: dict) -> int | None:
@@ -254,6 +259,10 @@ class PaymentService:
                 )
                 conn.commit()
 
+        from metropolis.services.booking_notifications import notify_payment_completed
+
+        notify_payment_completed(booking_id, next_status)
+
         return {
             "status": "ok",
             "bookingId": booking_id,
@@ -261,6 +270,52 @@ class PaymentService:
             "mock": mock,
             "alreadyPaid": False,
         }
+
+    def confirm_payment(self, booking_id: int, renter_user_id: int) -> dict:
+        """Apply payment after client-side Stripe confirm (webhook fallback)."""
+        if not _stripe_enabled():
+            return {"status": "validation_error", "message": "Stripe not configured."}
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                row = self._fetch_booking_for_payment(cur, booking_id)
+                if not row:
+                    return {"status": "not_found", "message": "Booking not found."}
+                if row["renter_user_id"] != renter_user_id:
+                    return {
+                        "status": "forbidden",
+                        "message": "Only the renter can confirm payment.",
+                    }
+                if row["status"] != "PENDING":
+                    return {
+                        "status": "ok",
+                        "bookingId": booking_id,
+                        "alreadyPaid": True,
+                    }
+                cur.execute(
+                    """
+                    SELECT stripe_payment_intent_id, status
+                    FROM payment
+                    WHERE booking_id = %s
+                    """,
+                    (booking_id,),
+                )
+                payment_row = cur.fetchone()
+                if not payment_row or not payment_row.get("stripe_payment_intent_id"):
+                    return {
+                        "status": "validation_error",
+                        "message": "No payment found for this booking.",
+                    }
+                intent = stripe.PaymentIntent.retrieve(payment_row["stripe_payment_intent_id"])
+                if intent.status != "succeeded":
+                    return {
+                        "status": "validation_error",
+                        "message": "Payment has not completed yet.",
+                    }
+        return self._complete_payment(
+            booking_id,
+            payment_intent_id=intent.id,
+            mock=False,
+        )
 
 
 payment_service = PaymentService()

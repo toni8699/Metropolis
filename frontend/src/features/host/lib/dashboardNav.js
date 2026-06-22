@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   UploadCloud,
   Users,
+  Wallet,
 } from "lucide-react";
 
 export const TAB = {
@@ -17,6 +18,8 @@ export const TAB = {
   users: "users",
   kyc: "kyc",
   bookings: "bookings",
+  payouts: "payouts",
+  availability: "availability",
 };
 
 const PAGE_TITLES = {
@@ -28,6 +31,8 @@ const PAGE_TITLES = {
   [TAB.users]: "Users",
   [TAB.kyc]: "KYC Queue",
   [TAB.bookings]: "Bookings",
+  [TAB.payouts]: "Payouts",
+  [TAB.availability]: "Availability",
 };
 
 export function getNavItems(isAdmin) {
@@ -44,6 +49,8 @@ export function getNavItems(isAdmin) {
     items.push(
       { id: TAB.listings, label: "Listings", icon: CarFront },
       { id: TAB.create_listing, label: "Create Listing", icon: UploadCloud },
+      { id: TAB.availability, label: "Availability", icon: CalendarDays },
+      { id: TAB.payouts, label: "Payouts", icon: Wallet },
     );
   }
   items.push({ id: TAB.bookings, label: "Bookings", icon: CalendarDays });

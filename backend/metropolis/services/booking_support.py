@@ -53,7 +53,18 @@ def trip_is_active_window(
 
 
 def renter_can_cancel(status: str, start_at: datetime, now: datetime | None = None) -> bool:
+    if status == "PENDING":
+        return True
     if status not in {"PENDING_APPROVAL", "CONFIRMED"}:
+        return False
+    return not trip_has_started(start_at, now)
+
+
+def host_can_cancel(status: str, start_at: datetime, now: datetime | None = None) -> bool:
+    """Host may cancel before trip start (reject handles PENDING_APPROVAL via separate path)."""
+    if status == "PENDING":
+        return True
+    if status not in {"CONFIRMED"}:
         return False
     return not trip_has_started(start_at, now)
 
@@ -68,7 +79,7 @@ def renter_can_complete_trip(status: str) -> bool:
 
 def auto_complete_expired_bookings(
     cur, *, renter_user_id: int | None = None, booking_id: int | None = None
-) -> int:
+) -> list[int]:
     from psycopg2.extras import Json
 
     filters = [
@@ -93,15 +104,18 @@ def auto_complete_expired_bookings(
         tuple(params),
     )
     completed = cur.fetchall()
+    completed_ids: list[int] = []
     for row in completed:
+        bid = row["booking_id"] if isinstance(row, dict) else row[0]
+        completed_ids.append(int(bid))
         cur.execute(
             """
             INSERT INTO trip_event (booking_id, event_type, actor_user_id, metadata_json)
             VALUES (%s, 'TRIP_COMPLETED', NULL, %s::jsonb)
             """,
-            (row["booking_id"], Json({"auto": True})),
+            (bid, Json({"auto": True})),
         )
-    return len(completed)
+    return completed_ids
 
 
 def fetch_trip_events(cur, booking_id: int) -> list[dict]:

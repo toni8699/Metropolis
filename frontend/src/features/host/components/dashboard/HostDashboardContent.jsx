@@ -5,6 +5,8 @@ import ListingFormPanel from "@/features/host/components/panels/ListingFormPanel
 import BookingsPanel from "@/features/host/components/panels/BookingsPanel";
 import UsersPanel from "@/features/host/components/panels/UsersPanel";
 import KycPanel from "@/features/host/components/panels/KycPanel";
+import PayoutsPanel from "@/features/host/components/panels/PayoutsPanel";
+import AvailabilityPanel from "@/features/host/components/panels/AvailabilityPanel";
 import {
   TAB,
   isListingsTab,
@@ -30,7 +32,11 @@ export default function HostDashboardContent({
   onRequestTabChange,
   onDeleteListing,
   onBookingDecision,
+  onCancelBooking,
   onKycDecision,
+  connectStatus,
+  recentPayouts,
+  onRefreshPayouts,
 }) {
   return (
     <main className="pb-10">
@@ -85,7 +91,20 @@ export default function HostDashboardContent({
           bookings={bookings}
           bookingActionId={bookingActionId}
           onDecision={onBookingDecision}
+          onCancelBooking={onCancelBooking}
         />
+      )}
+
+      {!isAdmin && activeTab === TAB.payouts && (
+        <PayoutsPanel
+          connectStatus={connectStatus}
+          recentPayouts={recentPayouts}
+          onRefresh={onRefreshPayouts}
+        />
+      )}
+
+      {!isAdmin && activeTab === TAB.availability && (
+        <AvailabilityPanel listings={listings} />
       )}
 
       {form.isMapModalOpen && (

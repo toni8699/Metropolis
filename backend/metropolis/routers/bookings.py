@@ -144,6 +144,20 @@ def create_booking_payment(
     return result
 
 
+@router.post("/{booking_id}/payments/confirm", response_model=PaymentIntentResponse)
+def confirm_booking_payment(
+    booking_id: int,
+    user: UserContext = Depends(get_current_user),
+) -> dict:
+    """Sync booking status after client-side Stripe payment (webhook fallback)."""
+    try:
+        result = payment_service.confirm_payment(booking_id, user.user_id)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    raise_for_service_result(result)
+    return result
+
+
 @router.get("/{booking_id}/messages", response_model=BookingMessageCollectionResponse)
 def list_booking_messages(
     booking_id: int,

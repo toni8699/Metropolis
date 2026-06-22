@@ -55,6 +55,8 @@ Migrations run on container start via `docker-entrypoint.prod.sh` (`alembic upgr
 3. Frontend (Vercel build env):
    - `VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...`
 
+4. **Stripe Connect (host payouts):** Enable Connect in Dashboard (Express accounts). Add webhook event `account.updated` on the same endpoint. Hosts onboard via Host Dashboard → Payouts.
+
 Without Stripe keys locally, checkout auto-completes payment in dev (`mock: true`).
 
 ## 4. Render web service

@@ -33,11 +33,20 @@ class ListingLocationInputRequest(CamelModel):
 class ListingAvailabilityRequest(CamelModel):
     start_at: datetime
     end_at: datetime
-    status: str = "AVAILABLE"
+    status: str = "BLOCKED"
 
 
-class ListingAvailabilityResponse(ListingAvailabilityRequest):
-    pass
+class ListingAvailabilityResponse(CamelModel):
+    availability_id: int
+    listing_id: int
+    start_at: datetime
+    end_at: datetime
+    status: str
+
+
+class ListingAvailabilityCollectionResponse(CamelModel):
+    status: str
+    availability: list[ListingAvailabilityResponse]
 
 
 class ListingCreateRequest(CamelModel):

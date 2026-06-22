@@ -34,6 +34,7 @@ export default function BookingCheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [clientSecret, setClientSecret] = useState(null);
+  const [checkoutBookingId, setCheckoutBookingId] = useState(null);
 
   const stripePromise = useMemo(
     () => (stripePublishableKey ? loadStripe(stripePublishableKey) : null),
@@ -113,6 +114,7 @@ export default function BookingCheckoutPage() {
         navigate("/app/trips");
         return;
       }
+      setCheckoutBookingId(bookingId);
       setClientSecret(intent.clientSecret);
     } catch (err) {
       if (err?.message === "EMAIL_NOT_VERIFIED") {
@@ -176,6 +178,7 @@ export default function BookingCheckoutPage() {
             {clientSecret && stripePromise ? (
               <Elements stripe={stripePromise} options={{ clientSecret }}>
                 <StripePaymentForm
+                  bookingId={checkoutBookingId}
                   onSuccess={() => navigate("/app/trips")}
                   onError={setSubmitError}
                 />

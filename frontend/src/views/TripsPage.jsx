@@ -3,7 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import ReviewModal from "@/features/reviews/components/ReviewModal";
 import PageShell from "@/shared/components/PageShell";
-import { apiGet } from "@/shared/api/api";
+import { apiGet, apiPatch } from "@/shared/api/api";
 import { bookingStatusBadgeClass, formatBookingStatusLabel } from "@/shared/lib/bookingStatus";
 import { formatTripWindow } from "@/shared/lib/tripDetail";
 
@@ -13,6 +13,7 @@ export default function TripsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [reviewBooking, setReviewBooking] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
 
   const loadTrips = useCallback(async () => {
     setError("");
@@ -32,6 +33,20 @@ export default function TripsPage() {
     if (!isAuthenticated) return;
     loadTrips();
   }, [isAuthenticated, loadTrips]);
+
+  const handleCancel = async (bookingId) => {
+    if (!window.confirm("Cancel this booking?")) return;
+    setError("");
+    setCancellingId(bookingId);
+    try {
+      await apiPatch(`/api/bookings/${bookingId}`, { status: "CANCELLED" }, true);
+      await loadTrips();
+    } catch (err) {
+      setError(err?.message || "Could not cancel booking.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   if (!isAuthenticated) {
     return <Navigate to="/app" replace />;
@@ -116,6 +131,16 @@ export default function TripsPage() {
                     className="rounded-full border-2 border-black border-b-4 bg-vroom-accent px-4 py-2 text-sm font-extrabold text-white active:border-b-0"
                   >
                     Write a Review
+                  </button>
+                )}
+                {trip.canCancel && (
+                  <button
+                    type="button"
+                    disabled={cancellingId === trip.bookingId}
+                    onClick={() => handleCancel(trip.bookingId)}
+                    className="rounded-full border-2 border-black border-b-4 bg-vroom-error px-4 py-2 text-sm font-bold text-vroom-errorText active:border-b-0 disabled:opacity-50"
+                  >
+                    {cancellingId === trip.bookingId ? "Cancelling..." : "Cancel booking"}
                   </button>
                 )}
               </div>

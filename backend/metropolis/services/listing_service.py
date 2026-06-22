@@ -822,7 +822,40 @@ class ListingService:
                 conn.commit()
         return self.get_listing(listing_id)
 
+    def list_listing_availability(self, actor: dict, listing_id: int) -> dict:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                listing = self._fetch_listing_ownership(cur, listing_id)
+                if not listing or not self._can_manage_listing(actor, listing):
+                    return {"status": "not_found", "message": "Listing not found for actor."}
+                cur.execute(
+                    """
+                    SELECT availability_id, listing_id, start_at, end_at, status
+                    FROM listing_availability
+                    WHERE listing_id = %s AND status = 'BLOCKED'::availability_status
+                    ORDER BY start_at ASC
+                    """,
+                    (listing_id,),
+                )
+                rows = cur.fetchall()
+        return {
+            "status": "success",
+            "availability": [
+                {
+                    "availabilityId": row["availability_id"],
+                    "listingId": row["listing_id"],
+                    "startAt": row["start_at"].isoformat(),
+                    "endAt": row["end_at"].isoformat(),
+                    "status": row["status"],
+                }
+                for row in rows
+            ],
+        }
+
     def add_availability(self, actor: dict, listing_id: int, payload: dict) -> dict:
+        status = payload.get("status", "BLOCKED")
+        if status not in {"BLOCKED", "AVAILABLE"}:
+            return {"status": "bad_request", "message": "Invalid availability status."}
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 listing = self._fetch_listing_ownership(cur, listing_id)
@@ -838,7 +871,7 @@ class ListingService:
                         listing_id,
                         payload["startAt"],
                         payload["endAt"],
-                        payload.get("status", "AVAILABLE"),
+                        status,
                     ),
                 )
                 row = cur.fetchone()
@@ -853,6 +886,26 @@ class ListingService:
                 "status": row["status"],
             },
         }
+
+    def delete_availability(self, actor: dict, listing_id: int, availability_id: int) -> dict:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                listing = self._fetch_listing_ownership(cur, listing_id)
+                if not listing or not self._can_manage_listing(actor, listing):
+                    return {"status": "not_found", "message": "Listing not found for actor."}
+                cur.execute(
+                    """
+                    DELETE FROM listing_availability
+                    WHERE availability_id = %s AND listing_id = %s
+                    RETURNING availability_id
+                    """,
+                    (availability_id, listing_id),
+                )
+                deleted = cur.fetchone()
+                if not deleted:
+                    return {"status": "not_found", "message": "Availability window not found."}
+                conn.commit()
+        return {"status": "success"}
 
     def delete_listing(self, actor: dict, listing_id: int) -> dict:
         with get_connection() as conn:

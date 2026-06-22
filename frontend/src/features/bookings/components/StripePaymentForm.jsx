@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 
-export default function StripePaymentForm({ onSuccess, onError }) {
+import { apiPost } from "@/shared/api/api";
+
+export default function StripePaymentForm({ bookingId, onSuccess, onError }) {
   const stripe = useStripe();
   const elements = useElements();
   const [isPaying, setIsPaying] = useState(false);
@@ -22,6 +24,9 @@ export default function StripePaymentForm({ onSuccess, onError }) {
       if (error) {
         onError(error.message || "Payment failed.");
         return;
+      }
+      if (bookingId) {
+        await apiPost(`/api/bookings/${bookingId}/payments/confirm`, {}, true);
       }
       onSuccess();
     } catch (err) {

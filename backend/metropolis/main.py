@@ -22,6 +22,7 @@ from metropolis.routers import (
     listings,
     me,
     messages,
+    payouts,
     uploads,
     users,
     vehicles,
@@ -82,5 +83,6 @@ def create_app() -> FastAPI:
     app.include_router(bookings.router)
     app.include_router(messages.router)
     app.include_router(uploads.router)
+    app.include_router(payouts.router)
     app.include_router(webhooks.router)
     return app

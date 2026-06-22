@@ -5,6 +5,7 @@ from metropolis.services.kyc_service import KycService, kyc_service
 from metropolis.services.listing_service import ListingService, listing_service
 from metropolis.services.message_service import MessageService
 from metropolis.services.payment_service import PaymentService, payment_service
+from metropolis.services.payout_service import PayoutService, payout_service
 from metropolis.services.review_service import ReviewService
 from metropolis.services.saved_listing_service import SavedListingService, saved_listing_service
 from metropolis.services.uploads_service import UploadsService
@@ -22,6 +23,7 @@ __all__ = [
     "listing_service",
     "message_service",
     "payment_service",
+    "payout_service",
     "review_service",
     "saved_listing_service",
     "uploads_service",
@@ -32,6 +34,7 @@ __all__ = [
     "ListingService",
     "MessageService",
     "PaymentService",
+    "PayoutService",
     "ReviewService",
     "SavedListingService",
     "UploadsService",

@@ -138,6 +138,12 @@ h3 {
   background: none;
 }
 
+.rdp-airbnb .rdp-host-blocked .rdp-day_button {
+  color: #92400e;
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
 .rdp-airbnb .rdp-disabled .rdp-day_button:hover {
   border-color: transparent;
 }

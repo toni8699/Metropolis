@@ -13,9 +13,19 @@ vi.mock("@stripe/react-stripe-js", () => ({
   useElements: () => ({}),
 }));
 
+const { mockApiPost } = vi.hoisted(() => ({
+  mockApiPost: vi.fn(),
+}));
+
+vi.mock("@/shared/api/api", () => ({
+  apiPost: (...args) => mockApiPost(...args),
+}));
+
 describe("StripePaymentForm", () => {
   beforeEach(() => {
     mockConfirmPayment.mockReset();
+    mockApiPost.mockReset();
+    mockApiPost.mockResolvedValue({});
   });
 
   it("renders the Pay now button", () => {
@@ -32,13 +42,14 @@ describe("StripePaymentForm", () => {
     mockConfirmPayment.mockResolvedValue({ error: null });
     const onSuccess = vi.fn();
     const onError = vi.fn();
-    render(<StripePaymentForm onSuccess={onSuccess} onError={onError} />);
+    render(<StripePaymentForm bookingId={42} onSuccess={onSuccess} onError={onError} />);
 
     await act(async () => {
       fireEvent.submit(screen.getByRole("button", { name: /pay now/i }).closest("form"));
     });
 
     await vi.waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+    expect(mockApiPost).toHaveBeenCalledWith("/api/bookings/42/payments/confirm", {}, true);
     expect(onError).toHaveBeenCalledWith("");
   });
 

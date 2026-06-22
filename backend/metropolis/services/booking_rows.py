@@ -60,7 +60,9 @@ def to_booking_row(row: dict, *, include_detail: bool = False) -> dict:
     payload = {
         "bookingId": row["booking_id"],
         "listingId": row["listing_id"],
-        "listingTitle": row["listing_title"],
+        "listingTitle": row.get("listing_title")
+        or row.get("listing_marketing_title")
+        or row.get("title"),
         "sourceType": row["source_type"],
         "ownerUserId": row["owner_user_id"],
         "renterUserId": row["renter_user_id"],
@@ -74,6 +76,8 @@ def to_booking_row(row: dict, *, include_detail: bool = False) -> dict:
         "updatedAt": row["updated_at"].isoformat(),
         "needsReview": bool(row.get("needs_review")),
     }
+    if row.get("can_cancel") is not None:
+        payload["canCancel"] = bool(row.get("can_cancel"))
     if not include_detail:
         return payload
 

@@ -1,7 +1,8 @@
 /** Human-readable booking status for UI pills. */
 export function formatBookingStatusLabel(status) {
   const normalized = String(status || "").toUpperCase();
-  if (normalized === "PENDING_APPROVAL") return "Pending Approval";
+  if (normalized === "PENDING") return "Awaiting payment";
+  if (normalized === "PENDING_APPROVAL") return "Pending approval";
   if (normalized === "IN_PROGRESS") return "In Progress";
   return normalized.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }

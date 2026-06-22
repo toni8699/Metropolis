@@ -78,13 +78,48 @@ def _redis_settings() -> RedisSettings:
     return RedisSettings.from_dsn(dsn)
 
 
+async def sweep_trip_reminders(ctx: dict) -> dict:
+    """Email renters ~24h before trip start."""
+    if not _sweep_enabled():
+        return {"status": "skipped", "sent": 0}
+
+    from metropolis.services import booking_service
+
+    result = await asyncio.to_thread(booking_service.sweep_trip_reminders)
+    sent = int(result.get("sent") or 0)
+    if sent:
+        _logger.info("trip reminder sweep sent %s email(s)", sent)
+    return result
+
+
+async def sweep_stale_unpaid_bookings(ctx: dict) -> dict:
+    """Drop ghost checkouts that never completed payment."""
+    if not _sweep_enabled():
+        return {"status": "skipped", "cancelled": 0}
+
+    from metropolis.services import booking_service
+
+    result = await asyncio.to_thread(booking_service.sweep_stale_unpaid_bookings)
+    cancelled = int(result.get("cancelled") or 0)
+    if cancelled:
+        _logger.info("booking sweep cancelled %s stale unpaid booking(s)", cancelled)
+    return result
+
+
 class WorkerSettings:
     """arq worker entrypoint: arq metropolis.jobs.booking_sweep.WorkerSettings"""
 
-    functions = [sweep_expired_bookings, sweep_orphan_listing_uploads]
+    functions = [
+        sweep_expired_bookings,
+        sweep_orphan_listing_uploads,
+        sweep_trip_reminders,
+        sweep_stale_unpaid_bookings,
+    ]
     cron_jobs = [
         cron(sweep_expired_bookings, minute=set(range(0, 60, 15))),
+        cron(sweep_stale_unpaid_bookings, minute=set(range(0, 60, 30))),
         cron(sweep_orphan_listing_uploads, hour={3}, minute={30}),
+        cron(sweep_trip_reminders, hour={8}, minute={0}),
     ]
     on_startup = startup
     on_shutdown = shutdown
