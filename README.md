@@ -65,7 +65,7 @@ edit  →  lint / test  →  PR to main or develop  →  CI  →  merge main  �
 **Before you push** (from repo root):
 
 ```bash
-# Backend
+# Backend (use uv — pins ruff 0.15; global `ruff` may differ)
 cd backend && uv run ruff check .
 cd backend && uv run ruff format --check .
 cd backend && uv run pytest tests -v
@@ -90,7 +90,7 @@ More detail: [CONTRIBUTING.md](CONTRIBUTING.md)
 | What | Command |
 |------|---------|
 | Backend (day to day) | `cd backend && uv run pytest tests -v` |
-| Backend lint | `cd backend && uv run ruff check .` |
+| Backend lint | `cd backend && uv run ruff check .` and `uv run ruff format --check .` |
 | Frontend | `cd frontend && npm test` |
 | Frontend lint | `cd frontend && npm run lint` |
 | Full backend suite + integration | see below |

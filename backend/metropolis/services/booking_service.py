@@ -362,6 +362,8 @@ class BookingService:
 
         notify_booking_approved(booking_id)
         return self.get_booking(booking_id, owner_user_id, False)
+
+    def reject_booking(self, booking_id: int, owner_user_id: int) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(

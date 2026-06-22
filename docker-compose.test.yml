@@ -16,11 +16,19 @@ services:
       timeout: 5s
       retries: 10
 
+  worker:
+    environment:
+      BOOKING_SWEEP_ENABLED: "0"
+      RESEND_API_KEY: ""
+      MAIL_FROM: ""
+
   backend:
     environment:
       DATABASE_URL: postgresql://metropolis:metropolis@postgres_test:5432/metropolis_test
       STRIPE_SECRET_KEY: ""
       STRIPE_WEBHOOK_SECRET: ""
+      RESEND_API_KEY: ""
+      MAIL_FROM: ""
     depends_on:
       postgres_test:
         condition: service_healthy
@@ -35,6 +43,8 @@ services:
       BOOKING_SWEEP_ENABLED: "0"
       STRIPE_SECRET_KEY: ""
       STRIPE_WEBHOOK_SECRET: ""
+      RESEND_API_KEY: ""
+      MAIL_FROM: ""
     volumes:
       - /app/backend/.venv
     depends_on:
