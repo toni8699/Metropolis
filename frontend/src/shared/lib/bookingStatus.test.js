@@ -7,7 +7,11 @@ import {
 
 describe("bookingStatus", () => {
   it("formats pending approval label", () => {
-    expect(formatBookingStatusLabel("PENDING_APPROVAL")).toBe("Pending Approval");
+    expect(formatBookingStatusLabel("PENDING_APPROVAL")).toBe("Pending approval");
+  });
+
+  it("formats unpaid pending label", () => {
+    expect(formatBookingStatusLabel("PENDING")).toBe("Awaiting payment");
   });
 
   it("detects pending approval", () => {
