@@ -3,6 +3,39 @@ import { X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const googleClientId = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || "";
+const isDevSignupEmailLimited = import.meta.env.DEV;
+
+function DevSignupEmailToast({ open, onDismiss }) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div
+      role="alert"
+      className="fixed left-1/2 top-4 z-[80] w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 rounded-2xl border-2 border-amber-500 bg-amber-50 p-4 shadow-neoSm"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-extrabold text-vroom-heading">Development email limit</p>
+          <p className="mt-1 text-sm text-gray-700">
+            Without a custom domain, Resend only delivers verification mail to the account owner.
+            Other addresses will not receive it. Use <strong>Continue with Google</strong> instead
+            of signing up with email and password.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded-full border-2 border-black bg-white p-1 hover:bg-vroom-sage"
+          aria-label="Dismiss"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function isSignupPasswordValid(password) {
   if (password.length < 8) return false;
@@ -17,6 +50,7 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [devSignupWarningOpen, setDevSignupWarningOpen] = useState(false);
   const { login, register, googleLogin } = useAuth();
   const googleButtonRef = useRef(null);
 
@@ -29,6 +63,7 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
     setForm({ email: "", password: "", fullName: "" });
     setTermsAccepted(false);
     setError("");
+    setDevSignupWarningOpen(false);
   }, [isOpen, authMode]);
 
   useEffect(() => {
@@ -80,8 +115,6 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
     return () => document.removeEventListener("keydown", onEsc);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
   const submitLabel = authMode === "login" ? "Log in" : "Sign up";
   const isSignup = authMode === "signup";
   const signupReady =
@@ -97,6 +130,9 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
       if (authMode === "login") {
         await login(form.email, form.password);
       } else {
+        if (isDevSignupEmailLimited) {
+          setDevSignupWarningOpen(true);
+        }
         await register({
           email: form.email,
           password: form.password,
@@ -113,7 +149,13 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
   };
 
   return (
-    <div
+    <>
+      <DevSignupEmailToast
+        open={devSignupWarningOpen}
+        onDismiss={() => setDevSignupWarningOpen(false)}
+      />
+      {isOpen && (
+      <div
       className="modal-enter fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4"
       onClick={() => onClose?.()}
     >
@@ -227,6 +269,8 @@ export default function AuthModal({ isOpen, mode = "login", onClose, onSuccess }
           </p>
         </div>
       </div>
-    </div>
+      </div>
+      )}
+    </>
   );
 }

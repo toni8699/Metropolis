@@ -46,6 +46,9 @@ describe("AuthModal", () => {
       }),
     );
     expect(onClose).toHaveBeenCalled();
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toMatch(/development email limit/i);
+    expect(alert.textContent).toMatch(/continue with google/i);
   });
 
   it("keeps sign up disabled until terms, name, and password are valid", () => {
