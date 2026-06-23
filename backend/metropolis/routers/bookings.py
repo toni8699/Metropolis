@@ -11,6 +11,8 @@ from metropolis.hateoas import with_booking_links
 from metropolis.schemas.booking_models import (
     BookingCollectionResponse,
     BookingCreateRequest,
+    BookingInspectionDeleteResponse,
+    BookingInspectionResponse,
     BookingItemResponse,
     BookingListQuery,
     BookingMessageCollectionResponse,
@@ -27,6 +29,7 @@ from metropolis.services import (
     message_service,
     payment_service,
     review_service,
+    trip_inspection_service,
 )
 from metropolis.sockets.booking_chat import emit_booking_message
 
@@ -108,6 +111,47 @@ def get_booking(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     raise_for_service_result(result)
     return with_booking_links(result)
+
+
+@router.get("/{booking_id}/inspection", response_model=BookingInspectionResponse)
+def get_booking_inspection(
+    booking_id: int,
+    user: UserContext = Depends(get_current_user),
+) -> dict:
+    """Trip inspection photos for check-in and check-out (both phases)."""
+    try:
+        result = trip_inspection_service.get_inspection(
+            booking_id,
+            user.user_id,
+            user.is_admin,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    raise_for_service_result(result)
+    return result
+
+
+@router.delete(
+    "/{booking_id}/inspection/photos/{photo_id}",
+    response_model=BookingInspectionDeleteResponse,
+)
+def delete_booking_inspection_photo(
+    booking_id: int,
+    photo_id: int,
+    user: UserContext = Depends(get_current_user),
+) -> dict:
+    """Delete a trip inspection photo (renter only, during upload window)."""
+    try:
+        result = trip_inspection_service.delete_inspection_photo(
+            booking_id,
+            photo_id,
+            user.user_id,
+            user.is_admin,
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    raise_for_service_result(result)
+    return result
 
 
 @router.patch("/{booking_id}", response_model=BookingItemResponse)

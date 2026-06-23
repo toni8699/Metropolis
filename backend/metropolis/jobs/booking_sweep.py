@@ -92,6 +92,20 @@ async def sweep_trip_reminders(ctx: dict) -> dict:
     return result
 
 
+async def sweep_expired_trip_inspection_photos(ctx: dict) -> dict:
+    """Remove inspection file_asset rows 30 days after trip completion."""
+    if not _upload_sweep_enabled():
+        return {"status": "skipped", "deleted": 0}
+
+    from metropolis.services import trip_inspection_service
+
+    result = await asyncio.to_thread(trip_inspection_service.sweep_expired_trip_inspection_photos)
+    deleted = int(result.get("deleted") or 0)
+    if deleted:
+        _logger.info("inspection retention sweep deleted %s file_asset row(s)", deleted)
+    return result
+
+
 async def sweep_stale_unpaid_bookings(ctx: dict) -> dict:
     """Drop ghost checkouts that never completed payment."""
     if not _sweep_enabled():
@@ -114,12 +128,14 @@ class WorkerSettings:
         sweep_orphan_listing_uploads,
         sweep_trip_reminders,
         sweep_stale_unpaid_bookings,
+        sweep_expired_trip_inspection_photos,
     ]
     cron_jobs = [
         cron(sweep_expired_bookings, minute=set(range(0, 60, 15))),
         cron(sweep_stale_unpaid_bookings, minute=set(range(0, 60, 30))),
         cron(sweep_orphan_listing_uploads, hour={3}, minute={30}),
         cron(sweep_trip_reminders, hour={8}, minute={0}),
+        cron(sweep_expired_trip_inspection_photos, hour={4}, minute={0}),
     ]
     on_startup = startup
     on_shutdown = shutdown

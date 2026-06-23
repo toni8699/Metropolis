@@ -1,0 +1,122 @@
+[
+  {
+    "key": "front_driver_corner",
+    "group": "exterior",
+    "title": "Front driver corner",
+    "instruction": "Stand at the front-left; capture the full front and driver side.",
+    "icon": "Camera",
+    "recommendedFirst": true
+  },
+  {
+    "key": "front_passenger_corner",
+    "group": "exterior",
+    "title": "Front passenger corner",
+    "instruction": "Stand at the front-right for a 3/4 view.",
+    "icon": "Camera",
+    "recommendedFirst": true
+  },
+  {
+    "key": "rear_driver_corner",
+    "group": "exterior",
+    "title": "Rear driver corner",
+    "instruction": "Stand at the rear-left for a 3/4 view.",
+    "icon": "Camera",
+    "recommendedFirst": true
+  },
+  {
+    "key": "rear_passenger_corner",
+    "group": "exterior",
+    "title": "Rear passenger corner",
+    "instruction": "Stand at the rear-right for a 3/4 view.",
+    "icon": "Camera",
+    "recommendedFirst": true
+  },
+  {
+    "key": "front_straight",
+    "group": "exterior",
+    "title": "Front",
+    "instruction": "Full front view; license plate visible if possible.",
+    "icon": "Camera",
+    "recommendedFirst": true
+  },
+  {
+    "key": "rear_straight",
+    "group": "exterior",
+    "title": "Rear",
+    "instruction": "Full rear view of the vehicle.",
+    "icon": "Camera",
+    "recommendedFirst": true
+  },
+  {
+    "key": "driver_side",
+    "group": "exterior",
+    "title": "Driver side",
+    "instruction": "Full profile along the driver side.",
+    "icon": "Camera",
+    "recommendedFirst": true
+  },
+  {
+    "key": "passenger_side",
+    "group": "exterior",
+    "title": "Passenger side",
+    "instruction": "Full profile along the passenger side.",
+    "icon": "Camera",
+    "recommendedFirst": true
+  },
+  {
+    "key": "dashboard_odometer",
+    "group": "interior",
+    "title": "Dashboard / odometer",
+    "instruction": "Dash on; odometer reading clearly visible.",
+    "icon": "Gauge"
+  },
+  {
+    "key": "fuel_gauge",
+    "group": "interior",
+    "title": "Fuel / charge level",
+    "instruction": "Fuel gauge or battery level visible.",
+    "icon": "Fuel"
+  },
+  {
+    "key": "front_seats",
+    "group": "interior",
+    "title": "Front seats",
+    "instruction": "Wide shot of the front cabin.",
+    "icon": "Sofa"
+  },
+  {
+    "key": "rear_seats",
+    "group": "interior",
+    "title": "Rear seats",
+    "instruction": "Wide shot of the rear cabin.",
+    "icon": "Sofa"
+  },
+  {
+    "key": "trunk_cargo",
+    "group": "detail",
+    "title": "Trunk / cargo",
+    "instruction": "Trunk or hatch open; show the cargo area.",
+    "icon": "Luggage"
+  },
+  {
+    "key": "windshield",
+    "group": "detail",
+    "title": "Windshield",
+    "instruction": "Full windshield from outside.",
+    "icon": "Camera"
+  },
+  {
+    "key": "tires",
+    "group": "detail",
+    "title": "Tire",
+    "instruction": "Close-up of one tire showing tread and sidewall.",
+    "icon": "Circle"
+  },
+  {
+    "key": "vin_plate",
+    "group": "detail",
+    "title": "VIN plate",
+    "instruction": "VIN sticker on door jamb or windshield.",
+    "icon": "Hash"
+  }
+]

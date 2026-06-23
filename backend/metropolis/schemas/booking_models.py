@@ -105,6 +105,9 @@ class BookingResponse(CamelModel):
     can_cancel: bool | None = None
     can_confirm_pickup: bool | None = None
     can_complete_trip: bool | None = None
+    has_inspection_photos: bool | None = None
+    can_upload_check_in: bool | None = None
+    can_upload_check_out: bool | None = None
     can_approve: bool | None = None
     can_reject: bool | None = None
     links: dict[str, LinkResponse] | None = Field(default=None, alias="_links")
@@ -179,6 +182,38 @@ class ReviewResponse(CamelModel):
 class ReviewItemResponse(CamelModel):
     status: str
     review: ReviewResponse
+
+
+class InspectionPhotoSlotResponse(CamelModel):
+    angle_key: str
+    group: str | None = None
+    title: str
+    instruction: str
+    icon: str
+    recommended_first: bool = False
+    is_extra: bool = False
+    photo: dict | None = None
+
+
+class InspectionPhaseResponse(CamelModel):
+    slots: list[InspectionPhotoSlotResponse]
+    uploaded: int
+    standard_uploaded: int | None = None
+    recommended: int
+    standard_total: int | None = None
+    can_upload: bool
+
+
+class BookingInspectionResponse(CamelModel):
+    status: str
+    check_in: InspectionPhaseResponse
+    check_out: InspectionPhaseResponse
+    expires_at: str | None = None
+    purged: bool = False
+
+
+class BookingInspectionDeleteResponse(CamelModel):
+    status: str
 
 
 class StripeWebhookResponse(CamelModel):

@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     upload_sweep_orphan_grace_hours: int = Field(
         default=24, validation_alias="UPLOAD_SWEEP_ORPHAN_GRACE_HOURS"
     )
+    trip_inspection_retention_days: int = Field(
+        default=30, validation_alias="TRIP_INSPECTION_RETENTION_DAYS"
+    )
 
     @field_validator("debug", mode="before")
     @classmethod

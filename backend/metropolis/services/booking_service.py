@@ -86,6 +86,17 @@ class BookingService:
                     row["status"], row["start_at"], row["end_at"]
                 )
                 row["can_complete_trip"] = is_renter and renter_can_complete_trip(row["status"])
+                from metropolis.services.trip_inspection_service import trip_inspection_service
+
+                row["has_inspection_photos"] = (
+                    trip_inspection_service.booking_has_inspection_photos(cur, booking_id)
+                )
+                row["can_upload_check_in"] = trip_inspection_service.renter_can_upload_phase(
+                    {**row, "is_renter": is_renter}, "CHECK_IN"
+                )
+                row["can_upload_check_out"] = trip_inspection_service.renter_can_upload_phase(
+                    {**row, "is_renter": is_renter}, "CHECK_OUT"
+                )
         booking = to_booking_row(row, include_detail=True)
         if is_renter:
             booking["userRole"] = "renter"
@@ -573,10 +584,15 @@ class BookingService:
                 cur.execute(
                     """
                     UPDATE booking
-                    SET status = %s::booking_status, updated_at = NOW()
+                    SET status = %s::booking_status,
+                        updated_at = NOW(),
+                        completed_at = CASE
+                          WHEN %s = 'COMPLETED' THEN COALESCE(completed_at, NOW())
+                          ELSE completed_at
+                        END
                     WHERE booking_id = %s
                     """,
-                    (status, booking_id),
+                    (status, status, booking_id),
                 )
                 cur.execute(
                     """

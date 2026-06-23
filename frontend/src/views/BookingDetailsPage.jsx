@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import {
   Calendar,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { GoogleMap, Marker } from "@react-google-maps/api";
 import BookingChat from "@/features/bookings/components/BookingChat";
+import TripInspectionSection from "@/features/bookings/components/TripInspectionSection";
 import { useAuth } from "@/context/AuthContext";
 import { useGoogleMaps } from "@/context/GoogleMapsProvider";
 import { apiGet, apiPatch } from "@/shared/api/api";
@@ -82,6 +83,8 @@ export default function BookingDetailsPage() {
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [isActing, setIsActing] = useState(false);
+  const [exteriorDocumented, setExteriorDocumented] = useState(false);
+  const inspectionSectionRef = useRef(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -131,6 +134,13 @@ export default function BookingDetailsPage() {
     isRenter &&
     (booking?.canCancel || booking?.canConfirmPickup || booking?.canCompleteTrip);
   const hasAnyActions = hasHostActions || hasRenterActions;
+  const showInspectionSection =
+    (isRenter || isHost) &&
+    ["CONFIRMED", "IN_PROGRESS", "COMPLETED"].includes(booking?.status) &&
+    (booking?.hasInspectionPhotos ||
+      booking?.canUploadCheckIn ||
+      booking?.canUploadCheckOut ||
+      booking?.status === "COMPLETED");
 
   if (!isAuthenticated) {
     return <Navigate to="/app" replace />;
@@ -281,6 +291,21 @@ export default function BookingDetailsPage() {
             )}
           </section>
 
+          {showInspectionSection && (
+            <TripInspectionSection
+              ref={inspectionSectionRef}
+              bookingId={booking.bookingId}
+              isRenter={isRenter}
+              isHost={isHost}
+              canUploadCheckIn={Boolean(booking.canUploadCheckIn)}
+              canUploadCheckOut={Boolean(booking.canUploadCheckOut)}
+              showPickupNudge={Boolean(booking.canConfirmPickup)}
+              showReturnNudge={Boolean(booking.canCompleteTrip)}
+              onRecommendedComplete={() => setExteriorDocumented(true)}
+              onExteriorComplete={() => setExteriorDocumented(true)}
+            />
+          )}
+
           <section className="rounded-3xl border-2 border-black bg-vroom-surface p-4 shadow-neoCard">
             <h2 className="text-lg font-extrabold text-vroom-heading">Trip timeline</h2>
             {timeline.length === 0 ? (
@@ -330,6 +355,15 @@ export default function BookingDetailsPage() {
         <aside className="space-y-3 lg:sticky lg:top-16 lg:self-start">
           <section className="rounded-3xl border-2 border-black bg-vroom-surface p-4 shadow-neoCard">
             <h2 className="text-lg font-extrabold text-vroom-heading">Actions</h2>
+            {(booking.canConfirmPickup || booking.canCompleteTrip) && isRenter && (
+              <button
+                type="button"
+                onClick={() => inspectionSectionRef.current?.openInspection?.()}
+                className="mt-2 w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-900"
+              >
+                Document condition (optional) — start inspection
+              </button>
+            )}
             {actionError && (
               <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</p>
             )}
@@ -385,14 +419,21 @@ export default function BookingDetailsPage() {
                 </button>
               )}
               {isRenter && booking.canConfirmPickup && (
-                <button
-                  type="button"
-                  disabled={isActing}
-                  onClick={() => runAction({ status: "IN_PROGRESS" })}
-                  className="rounded-full border-2 border-black border-b-4 bg-vroom-heading px-3 py-1.5 text-xs font-bold text-white active:border-b-0 disabled:opacity-50"
-                >
-                  Confirm pickup
-                </button>
+                <>
+                  {exteriorDocumented && (
+                    <p className="text-xs font-semibold text-vroom-accent">Exterior documented</p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isActing}
+                    onClick={() => runAction({ status: "IN_PROGRESS" })}
+                    className={`rounded-full border-2 border-black border-b-4 bg-vroom-heading px-3 py-1.5 text-xs font-bold text-white active:border-b-0 disabled:opacity-50 ${
+                      exteriorDocumented ? "ring-2 ring-vroom-accent ring-offset-1" : ""
+                    }`}
+                  >
+                    Confirm pickup
+                  </button>
+                </>
               )}
               {isRenter && booking.canCompleteTrip && (
                 <button

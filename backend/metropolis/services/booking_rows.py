@@ -105,6 +105,9 @@ def to_booking_row(row: dict, *, include_detail: bool = False) -> dict:
             "canCancel": bool(row.get("can_cancel")),
             "canConfirmPickup": bool(row.get("can_confirm_pickup")),
             "canCompleteTrip": bool(row.get("can_complete_trip")),
+            "hasInspectionPhotos": bool(row.get("has_inspection_photos")),
+            "canUploadCheckIn": bool(row.get("can_upload_check_in")),
+            "canUploadCheckOut": bool(row.get("can_upload_check_out")),
         }
     )
     return payload

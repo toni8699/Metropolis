@@ -97,7 +97,9 @@ def auto_complete_expired_bookings(
     cur.execute(
         f"""
         UPDATE booking
-        SET status = 'COMPLETED'::booking_status, updated_at = NOW()
+        SET status = 'COMPLETED'::booking_status,
+            updated_at = NOW(),
+            completed_at = COALESCE(completed_at, NOW())
         WHERE {where_sql}
         RETURNING booking_id
         """,

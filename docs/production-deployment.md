@@ -46,6 +46,8 @@ Migrations run on container start via `docker-entrypoint.prod.sh` (`alembic upgr
    - `AWS_REGION`, `S3_BUCKET_NAME`
    - `S3_PRESIGN_TTL_SECONDS=300`
 
+4. **Trip inspection photos (cost control):** Add an S3 lifecycle rule on prefix `uploads/inspection/` to expire objects ~120 days after upload. App access is revoked sooner (30 days after trip completion) via the ARQ `sweep_expired_trip_inspection_photos` job, which deletes `file_asset` rows only. Do not promise physical S3 erasure at 30 days in privacy/ToS unless you also delete objects in that sweep.
+
 ## 3. Stripe
 
 1. Create a Stripe account; use **test keys** in staging.

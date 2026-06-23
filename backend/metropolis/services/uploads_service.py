@@ -12,8 +12,9 @@ from psycopg2.extras import RealDictCursor
 from metropolis.core.config import settings
 from metropolis.core.db import get_connection
 
-ALLOWED_SCOPES = {"FLEET", "OWNER_LISTING", "USER_DOC", "USER_AVATAR"}
+ALLOWED_SCOPES = {"FLEET", "OWNER_LISTING", "USER_DOC", "USER_AVATAR", "TRIP_INSPECTION"}
 LISTING_UPLOAD_KEY_RE = re.compile(r"^owner/\d+/listing/(\d+)/.+")
+INSPECTION_UPLOAD_KEY_RE = re.compile(r"^uploads/inspection/(\d+)/.+")
 
 
 def _safe_filename(file_name: str) -> str:
@@ -53,7 +54,13 @@ class UploadsService:
             }
         return None
 
-    def _scope_prefix(self, scope: str, user_id: int, listing_id: int | None) -> str | dict:
+    def _scope_prefix(
+        self,
+        scope: str,
+        user_id: int,
+        listing_id: int | None,
+        booking_id: int | None,
+    ) -> str | dict:
         if scope == "FLEET":
             return "fleet"
         if scope == "OWNER_LISTING":
@@ -63,6 +70,13 @@ class UploadsService:
                     "message": "listingId required for OWNER_LISTING uploads.",
                 }
             return f"owner/{user_id}/listing/{listing_id}"
+        if scope == "TRIP_INSPECTION":
+            if not booking_id:
+                return {
+                    "status": "validation_error",
+                    "message": "bookingId required for TRIP_INSPECTION uploads.",
+                }
+            return f"uploads/inspection/{booking_id}"
         if scope == "USER_AVATAR":
             return f"user/{user_id}/avatar"
         return f"user/{user_id}/documents"
@@ -108,11 +122,18 @@ class UploadsService:
             }
         if scope == "USER_AVATAR" and not content_type.startswith("image/"):
             return {"status": "validation_error", "message": "Avatar must be an image."}
+        if scope == "TRIP_INSPECTION" and not content_type.startswith("image/"):
+            return {"status": "validation_error", "message": "Inspection photos must be images."}
         listing_id = payload.get("listingId")
         if listing_id is not None:
             listing_id = int(listing_id)
+        booking_id = payload.get("bookingId")
+        if booking_id is not None:
+            booking_id = int(booking_id)
+        phase = str(payload.get("phase") or "").upper()
+        is_extra = bool(payload.get("isExtra"))
 
-        prefix = self._scope_prefix(scope, user_id, listing_id)
+        prefix = self._scope_prefix(scope, user_id, listing_id, booking_id)
         if isinstance(prefix, dict):
             return prefix
 
@@ -120,11 +141,17 @@ class UploadsService:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 if err := self._assert_listing_access(cur, scope, listing_id, user_id, role):
                     return err
+                if scope == "TRIP_INSPECTION":
+                    from metropolis.services.trip_inspection_service import (
+                        trip_inspection_service,
+                    )
 
-        object_key = (
-            f"{prefix}/"
-            f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{uuid4()}-{_safe_filename(file_name)}"
-        )
+                    if err := trip_inspection_service.assert_renter_upload_access(
+                        cur, booking_id, user_id, phase, is_extra
+                    ):
+                        return err
+
+        object_key = f"{prefix}/{uuid4()}-{_safe_filename(file_name)}"
         try:
             presigned_url = self.client.generate_presigned_url(
                 "put_object",
@@ -158,32 +185,49 @@ class UploadsService:
         listing_id = payload.get("listingId")
         if listing_id is not None:
             listing_id = int(listing_id)
+        booking_id = payload.get("bookingId")
+        if booking_id is not None:
+            booking_id = int(booking_id)
+        phase = str(payload.get("phase") or "").upper()
+        angle_key = str(payload.get("angleKey") or "").strip()
+        is_extra = bool(payload.get("isExtra"))
 
         file_url = _public_file_url(self.bucket, self.region, object_key)
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 if err := self._assert_listing_access(cur, scope, listing_id, user_id, role):
                     return err
+                if scope == "TRIP_INSPECTION":
+                    from metropolis.services.trip_inspection_service import (
+                        trip_inspection_service,
+                    )
+
+                    if err := trip_inspection_service.assert_renter_upload_access(
+                        cur, booking_id, user_id, phase, is_extra
+                    ):
+                        return err
                 cur.execute(
                     """
                     INSERT INTO file_asset
                     (
-                        owner_user_id, listing_id, bucket, object_key, file_url,
+                        owner_user_id, listing_id, booking_id, bucket, object_key, file_url,
                         content_type, size_bytes, scope
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (object_key)
                     DO UPDATE
                     SET file_url = EXCLUDED.file_url,
                         content_type = COALESCE(EXCLUDED.content_type, file_asset.content_type),
                         size_bytes = COALESCE(EXCLUDED.size_bytes, file_asset.size_bytes),
                         listing_id = COALESCE(EXCLUDED.listing_id, file_asset.listing_id),
+                        booking_id = COALESCE(EXCLUDED.booking_id, file_asset.booking_id),
                         scope = EXCLUDED.scope
                     RETURNING file_id
                     """,
                     (
                         user_id if scope != "FLEET" else None,
                         listing_id,
+                        booking_id if scope == "TRIP_INSPECTION" else None,
                         self.bucket,
                         object_key,
                         file_url,
@@ -193,6 +237,20 @@ class UploadsService:
                     ),
                 )
                 row = cur.fetchone()
+                if scope == "TRIP_INSPECTION":
+                    from metropolis.services.trip_inspection_service import (
+                        trip_inspection_service,
+                    )
+
+                    trip_inspection_service.link_photo(
+                        cur,
+                        booking_id=booking_id,
+                        file_id=int(row["file_id"]),
+                        phase=phase,
+                        angle_key=angle_key,
+                        is_extra=is_extra,
+                        user_id=user_id,
+                    )
                 if listing_id:
                     cur.execute(
                         """
@@ -268,6 +326,53 @@ class UploadsService:
             return None
         return int(match.group(1))
 
+    def purge_file_assets(self, file_ids: list[int]) -> dict:
+        """Delete file_asset rows; booking_inspection_photo cascades via FK."""
+        if not file_ids:
+            return {"status": "success", "deleted": 0}
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM file_asset WHERE file_id = ANY(%s)",
+                    (file_ids,),
+                )
+                deleted = cur.rowcount
+                conn.commit()
+        return {"status": "success", "deleted": deleted}
+
+    def _sweep_orphan_keys_for_prefix(
+        self,
+        *,
+        prefix: str,
+        key_pattern: re.Pattern[str],
+        known_keys: set[str],
+        live_marker_check,
+        cutoff: datetime,
+    ) -> tuple[int, int]:
+        scanned = 0
+        deleted = 0
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                if not key_pattern.match(key):
+                    continue
+                scanned += 1
+                if key in known_keys:
+                    continue
+                if live_marker_check(key):
+                    continue
+                last_modified = obj["LastModified"]
+                if last_modified.tzinfo is None:
+                    last_modified = last_modified.replace(tzinfo=UTC)
+                else:
+                    last_modified = last_modified.astimezone(UTC)
+                if last_modified > cutoff:
+                    continue
+                if self._delete_s3_object_best_effort(key):
+                    deleted += 1
+        return scanned, deleted
+
     def sweep_orphan_listing_uploads(self) -> dict:
         """Delete owner listing S3 objects absent from file_asset past grace window."""
         if err := self._ensure_ready():
@@ -306,6 +411,19 @@ class UploadsService:
                         continue
                 if self._delete_s3_object_best_effort(key):
                     deleted += 1
+
+        def _inspection_live(_key: str) -> bool:
+            return False
+
+        inspection_scanned, inspection_deleted = self._sweep_orphan_keys_for_prefix(
+            prefix="uploads/inspection/",
+            key_pattern=INSPECTION_UPLOAD_KEY_RE,
+            known_keys=known_keys,
+            live_marker_check=_inspection_live,
+            cutoff=cutoff,
+        )
+        scanned += inspection_scanned
+        deleted += inspection_deleted
         return {"status": "success", "scanned": scanned, "deleted": deleted}
 
     def delete_user_avatar_file(self, user_id: int, file_url: str | None) -> None:

@@ -109,6 +109,7 @@ CREATE TABLE file_asset
   file_id BIGSERIAL PRIMARY KEY,
   owner_user_id BIGINT REFERENCES app_user(user_id) ON DELETE SET NULL,
   listing_id BIGINT,
+  booking_id BIGINT,
   bucket VARCHAR(128) NOT NULL,
   object_key TEXT NOT NULL UNIQUE,
   file_url TEXT NOT NULL,
@@ -117,11 +118,12 @@ CREATE TABLE file_asset
   scope VARCHAR(32) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT file_asset_scope_check
-    CHECK (scope IN ('FLEET', 'OWNER_LISTING', 'USER_DOC', 'USER_AVATAR'))
+    CHECK (scope IN ('FLEET', 'OWNER_LISTING', 'USER_DOC', 'USER_AVATAR', 'TRIP_INSPECTION'))
 );
 
 CREATE INDEX idx_file_asset_listing ON file_asset(listing_id, created_at DESC);
 CREATE INDEX idx_file_asset_owner ON file_asset(owner_user_id, created_at DESC);
+CREATE INDEX idx_file_asset_booking ON file_asset(booking_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
 -- Vehicle reference data
@@ -393,10 +395,12 @@ CREATE TABLE booking
   price_snapshot_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
   CHECK (end_at > start_at)
 );
 
 CREATE INDEX idx_booking_listing_window ON booking(listing_id, start_at, end_at);
+CREATE INDEX idx_booking_completed_at ON booking(completed_at) WHERE status = 'COMPLETED';
 CREATE INDEX idx_booking_renter ON booking(renter_user_id);
 CREATE INDEX idx_booking_status ON booking(status);
 
@@ -427,6 +431,27 @@ CREATE TABLE trip_event
 );
 
 CREATE INDEX idx_trip_event_booking ON trip_event(booking_id, event_at);
+
+CREATE TYPE trip_inspection_phase AS ENUM ('CHECK_IN', 'CHECK_OUT');
+
+CREATE TABLE booking_inspection_photo
+(
+  photo_id            BIGSERIAL PRIMARY KEY,
+  booking_id          BIGINT NOT NULL REFERENCES booking(booking_id) ON DELETE CASCADE,
+  file_id             BIGINT NOT NULL REFERENCES file_asset(file_id) ON DELETE CASCADE,
+  phase               trip_inspection_phase NOT NULL,
+  angle_key           VARCHAR(64) NOT NULL,
+  is_extra            BOOLEAN NOT NULL DEFAULT FALSE,
+  uploaded_by_user_id BIGINT NOT NULL REFERENCES app_user(user_id),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_booking_inspection_standard_slot
+  ON booking_inspection_photo (booking_id, phase, angle_key)
+  WHERE is_extra = FALSE;
+
+CREATE INDEX idx_booking_inspection_booking_phase
+  ON booking_inspection_photo (booking_id, phase, created_at);
 
 CREATE TABLE booking_message
 (
