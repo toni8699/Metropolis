@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from metropolis.services.auth_service import _normalize_profile_photo_url
+from vroom.services.auth_service import _normalize_profile_photo_url
 
 
 def test_normalize_profile_photo_url_accepts_null():

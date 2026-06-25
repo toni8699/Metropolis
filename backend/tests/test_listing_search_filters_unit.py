@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from metropolis.services.marketplace_common import build_listing_search_filters
+from vroom.services.marketplace_common import build_listing_search_filters
 
 
 def test_build_filters_price_and_body_type() -> None:

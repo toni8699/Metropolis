@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from metropolis.services.kyc_service import KycService
+from vroom.services.kyc_service import KycService
 
 
 def test_set_status_rejects_invalid_status():
@@ -41,7 +41,7 @@ def _mock_conn(fetchone_return=None):
 def test_set_status_not_found_when_no_profile():
     svc = KycService()
     conn, cur = _mock_conn(fetchone_return=None)
-    with patch("metropolis.services.kyc_service.get_connection", return_value=conn):
+    with patch("vroom.services.kyc_service.get_connection", return_value=conn):
         result = svc.set_status(user_id=999, status="VERIFIED")
     assert result["status"] == "not_found"
     assert "not found" in result["message"].lower()
@@ -50,7 +50,7 @@ def test_set_status_not_found_when_no_profile():
 def test_set_status_verified_success():
     svc = KycService()
     conn, cur = _mock_conn(fetchone_return={"user_id": 42, "verification_status": "VERIFIED"})
-    with patch("metropolis.services.kyc_service.get_connection", return_value=conn):
+    with patch("vroom.services.kyc_service.get_connection", return_value=conn):
         result = svc.set_status(user_id=42, status="VERIFIED")
     assert result["status"] == "success"
     assert result["verificationStatus"] == "VERIFIED"
@@ -60,7 +60,7 @@ def test_set_status_verified_success():
 def test_set_status_rejected_success():
     svc = KycService()
     conn, cur = _mock_conn(fetchone_return={"user_id": 7, "verification_status": "REJECTED"})
-    with patch("metropolis.services.kyc_service.get_connection", return_value=conn):
+    with patch("vroom.services.kyc_service.get_connection", return_value=conn):
         result = svc.set_status(user_id=7, status="rejected")
     assert result["status"] == "success"
     assert result["verificationStatus"] == "REJECTED"
@@ -70,7 +70,7 @@ def test_list_pending_empty():
     svc = KycService()
     conn, cur = _mock_conn()
     cur.fetchall.return_value = []
-    with patch("metropolis.services.kyc_service.get_connection", return_value=conn):
+    with patch("vroom.services.kyc_service.get_connection", return_value=conn):
         result = svc.list_pending()
     assert result["status"] == "success"
     assert result["queue"] == []

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from metropolis.services.booking_support import resolve_post_payment_status
+from vroom.services.booking_support import resolve_post_payment_status
 
 
 def test_post_payment_status_fleet_and_instant_confirm():

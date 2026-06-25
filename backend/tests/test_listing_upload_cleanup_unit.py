@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from metropolis.services.uploads_service import UploadsService
+from vroom.services.uploads_service import UploadsService
 
 
 @pytest.fixture
@@ -69,8 +69,8 @@ def test_sweep_orphan_listing_uploads_deletes_old_untracked_keys(uploads_service
     mock_conn.__enter__.return_value = mock_conn
 
     with (
-        patch("metropolis.services.uploads_service.get_connection", return_value=mock_conn),
-        patch("metropolis.services.uploads_service.settings") as mock_settings,
+        patch("vroom.services.uploads_service.get_connection", return_value=mock_conn),
+        patch("vroom.services.uploads_service.settings") as mock_settings,
     ):
         mock_settings.upload_sweep_orphan_grace_hours = 24
         result = uploads_service.sweep_orphan_listing_uploads()
@@ -95,8 +95,8 @@ def test_sweep_deletes_recent_orphans_when_listing_gone(uploads_service):
     mock_conn.__enter__.return_value = mock_conn
 
     with (
-        patch("metropolis.services.uploads_service.get_connection", return_value=mock_conn),
-        patch("metropolis.services.uploads_service.settings") as mock_settings,
+        patch("vroom.services.uploads_service.get_connection", return_value=mock_conn),
+        patch("vroom.services.uploads_service.settings") as mock_settings,
     ):
         mock_settings.upload_sweep_orphan_grace_hours = 24
         result = uploads_service.sweep_orphan_listing_uploads()
@@ -109,8 +109,8 @@ def test_sweep_deletes_recent_orphans_when_listing_gone(uploads_service):
 
 
 def test_delete_listing_calls_s3_cleanup_before_db_delete():
-    from metropolis.services import uploads_service as uploads_svc
-    from metropolis.services.listing_service import ListingService
+    from vroom.services import uploads_service as uploads_svc
+    from vroom.services.listing_service import ListingService
 
     service = ListingService()
     mock_conn = MagicMock()
@@ -121,7 +121,7 @@ def test_delete_listing_calls_s3_cleanup_before_db_delete():
     mock_cur.execute.side_effect = lambda sql, params=None: call_order.append("db")
 
     with (
-        patch("metropolis.services.listing_service.get_connection", return_value=mock_conn),
+        patch("vroom.services.listing_service.get_connection", return_value=mock_conn),
         patch.object(service, "_fetch_listing_ownership", return_value={"owner_user_id": 5}),
         patch.object(service, "_can_manage_listing", return_value=True),
         patch.object(

@@ -1,4 +1,4 @@
-Alembic migrations for Metropolis Nexus.
+Alembic migrations for Vroom.
 
 Run from `backend/` with `DATABASE_URL` in the project `.env`.
 Current chain starts from a single fresh baseline revision: `000001_new_base`.

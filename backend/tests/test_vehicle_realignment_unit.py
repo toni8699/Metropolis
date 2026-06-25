@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 
-from metropolis.services.listing_service import (
+from vroom.services.listing_service import (
     ListingService,
     _management_mode,
     _normalize_body_type_other,
 )
-from metropolis.services.vin_decode_service import (
+from vroom.services.vin_decode_service import (
     BODY_TYPE_DEFAULTS,
     enrich_with_spec_fields,
     map_nhtsa_result,
@@ -165,7 +165,7 @@ def test_enrich_keeps_nhtsa_values_verified() -> None:
 
 
 def test_normalize_fuel_type_keeps_diesel_separate() -> None:
-    from metropolis.services.vin_decode_service import normalize_fuel_type
+    from vroom.services.vin_decode_service import normalize_fuel_type
 
     assert normalize_fuel_type("Diesel") == "Diesel"
     assert normalize_fuel_type("diesel fuel") == "Diesel"

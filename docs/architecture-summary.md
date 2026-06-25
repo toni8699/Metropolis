@@ -1,4 +1,4 @@
-# Metropolis Nexus — Architecture Summary
+# Vroom — Architecture Summary
 
 Peer-to-peer and company fleet car rental marketplace.
 
@@ -39,7 +39,7 @@ Key pages: `MapBrowsePage`, `ListingDetailPage`, `BookingCheckoutPage`, `TripsPa
 
 ### Backend (`backend/`)
 
-FastAPI ASGI app (`metropolis.asgi:app`), deployed on Render via Docker image pushed to GHCR.
+FastAPI ASGI app (`vroom.asgi:app`), deployed on Render via Docker image pushed to GHCR.
 
 | Concern | Detail |
 |---------|--------|
@@ -49,7 +49,7 @@ FastAPI ASGI app (`metropolis.asgi:app`), deployed on Render via Docker image pu
 | Real-time | `python-socketio` ASGI + Redis manager for multi-worker |
 | API docs | FastAPI OpenAPI — Swagger at `/docs`, ReDoc at `/redoc` |
 | Rate limits | slowapi (disabled in CI: `RATELIMIT_ENABLED=0`) |
-| Background jobs | ARQ worker (`metropolis.jobs.booking_sweep`) via Redis |
+| Background jobs | ARQ worker (`vroom.jobs.booking_sweep`) via Redis |
 | File uploads | `boto3` presigned PUT URLs to S3 |
 | Payments | Stripe PaymentIntents (`payment_service.py`); mock path when no key set |
 

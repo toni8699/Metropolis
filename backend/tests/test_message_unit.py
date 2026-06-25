@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from metropolis.services.message_service import MessageService
+from vroom.services.message_service import MessageService
 
 
 def _mock_conn(*, fetchall=None, fetchone=None):
@@ -23,7 +23,7 @@ def test_list_booking_messages_loads_full_thread_without_pagination():
     svc = MessageService()
     conn, cur = _mock_conn(fetchall=[])
     with patch.object(svc, "assert_booking_participant", return_value={"status": "ok"}):
-        with patch("metropolis.services.message_service.get_connection", return_value=conn):
+        with patch("vroom.services.message_service.get_connection", return_value=conn):
             svc.list_booking_messages(1, 3, False)
 
     select_sql = cur.execute.call_args_list[0].args[0].upper()
@@ -54,7 +54,7 @@ def test_list_booking_messages_marks_latest_as_read():
     ]
     conn, cur = _mock_conn(fetchall=rows)
     with patch.object(svc, "assert_booking_participant", return_value={"status": "ok"}):
-        with patch("metropolis.services.message_service.get_connection", return_value=conn):
+        with patch("vroom.services.message_service.get_connection", return_value=conn):
             result = svc.list_booking_messages(1, 3, False)
 
     assert result["status"] == "ok"
@@ -72,7 +72,7 @@ def test_list_booking_messages_skips_read_state_when_empty():
     svc = MessageService()
     conn, cur = _mock_conn(fetchall=[])
     with patch.object(svc, "assert_booking_participant", return_value={"status": "ok"}):
-        with patch("metropolis.services.message_service.get_connection", return_value=conn):
+        with patch("vroom.services.message_service.get_connection", return_value=conn):
             result = svc.list_booking_messages(1, 3, False)
 
     assert result["status"] == "ok"
@@ -108,9 +108,9 @@ def test_list_message_threads_includes_unread_count():
         "unread_count": 2,
     }
     conn, cur = _mock_conn(fetchall=[row])
-    with patch("metropolis.services.message_service.get_connection", return_value=conn):
+    with patch("vroom.services.message_service.get_connection", return_value=conn):
         with patch(
-            "metropolis.services.message_service.fetch_listing_images_map",
+            "vroom.services.message_service.fetch_listing_images_map",
             return_value={9: []},
         ):
             result = svc.list_message_threads(3)

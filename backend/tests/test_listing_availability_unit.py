@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from metropolis.services.listing_service import ListingService
+from vroom.services.listing_service import ListingService
 
 
 def test_add_availability_rejects_invalid_status():

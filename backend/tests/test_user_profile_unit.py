@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from metropolis.services.auth_service import _joined_label
+from vroom.services.auth_service import _joined_label
 
 
 def test_joined_label_formats_month_and_year():

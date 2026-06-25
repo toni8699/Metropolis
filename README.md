@@ -1,4 +1,4 @@
-# Metropolis Nexus (DriveBnb)
+# Vroom
 
 Peer-to-peer and fleet car rental marketplace. Renters search, book, and pay; hosts manage listings; admins sync fleet inventory. Includes map browse, Stripe checkout, real-time trip chat, and host KYC review.
 
@@ -65,7 +65,7 @@ edit  →  lint / test  →  PR to main or develop  →  CI  →  merge main  �
 **Before you push** (from repo root):
 
 ```bash
-# Backend (use uv — pins ruff 0.15; global `ruff` may differ)
+# Backend
 cd backend && uv run ruff check .
 cd backend && uv run ruff format --check .
 cd backend && uv run pytest tests -v

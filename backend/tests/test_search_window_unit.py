@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from metropolis.services.marketplace_common import (
+from vroom.services.marketplace_common import (
     _BOOKING_HOLD_STATUSES,
     _resolve_search_window,
     listing_available_for_window_sql,
@@ -32,7 +32,7 @@ def test_parse_listing_list_query_accepts_start_end_aliases():
 
     from starlette.datastructures import QueryParams
 
-    from metropolis.routers.listings import parse_listing_list_query
+    from vroom.routers.listings import parse_listing_list_query
 
     request = Mock()
     request.query_params = QueryParams("start=2099-06-02T10:00:00Z&end=2099-06-04T10:00:00Z")

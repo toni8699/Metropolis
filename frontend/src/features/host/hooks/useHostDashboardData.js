@@ -26,14 +26,21 @@ export function useHostDashboardData({ isAdmin, pathname }) {
   const [recentPayouts, setRecentPayouts] = useState([]);
 
   const loadPayouts = useCallback(async () => {
-    if (isAdmin) return;
+    if (isAdmin) return null;
     try {
       const data = await apiGet("/api/payouts/connect/status", true);
-      setConnectStatus(data?.connect || null);
+      const connect = data?.connect || null;
+      setConnectStatus(connect);
       setRecentPayouts(data?.recentPayouts || []);
-    } catch {
+      return connect;
+    } catch (err) {
+      const message = err?.message || "";
+      if (/token|bearer|expired|unauthorized|missing bearer/i.test(message)) {
+        setError("Session expired. Log in again to view payout status.");
+      }
       setConnectStatus(null);
       setRecentPayouts([]);
+      return null;
     }
   }, [isAdmin]);
 

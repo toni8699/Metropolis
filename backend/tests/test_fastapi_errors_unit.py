@@ -3,7 +3,7 @@
 import pytest
 from fastapi import HTTPException
 
-from metropolis.core.errors import raise_for_service_result
+from vroom.core.errors import raise_for_service_result
 
 
 def test_raise_for_service_result_ok_statuses() -> None:

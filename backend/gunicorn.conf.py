@@ -9,7 +9,7 @@ import os
 _port = os.environ.get("PORT", "8080")
 bind = f"0.0.0.0:{_port}"
 
-# Gunicorn + UvicornWorker serves metropolis.asgi:app (FastAPI + Socket.IO).
+# Gunicorn + UvicornWorker serves vroom.asgi:app (FastAPI + Socket.IO).
 _cpu = multiprocessing.cpu_count()
 _default_workers = max(2, (_cpu * 2) + 1)
 worker_class = os.environ.get("GUNICORN_WORKER_CLASS", "uvicorn.workers.UvicornWorker")
@@ -30,8 +30,8 @@ loglevel = os.environ.get("LOG_LEVEL", "info").lower()
 capture_output = True
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
-# ASGI app (FastAPI + Socket.IO) — see metropolis/asgi.py
-wsgi_app = os.environ.get("GUNICORN_APP", "metropolis.asgi:app")
+# ASGI app (FastAPI + Socket.IO) — see vroom/asgi.py
+wsgi_app = os.environ.get("GUNICORN_APP", "vroom.asgi:app")
 
 # Proxy headers (set to 1 behind ALB/nginx/Render)
 forwarded_allow_ips = os.environ.get("GUNICORN_FORWARDED_ALLOW_IPS", "127.0.0.1")

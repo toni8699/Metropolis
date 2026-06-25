@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from metropolis.services.saved_listing_service import SavedListingService
+from vroom.services.saved_listing_service import SavedListingService
 
 
 def test_saved_listing_toggle_payload_shape() -> None:

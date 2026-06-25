@@ -1,4 +1,4 @@
-# Metropolis Nexus — Architecture Diagrams
+# Vroom — Architecture Diagrams
 
 Mermaid diagrams reflecting the current codebase. Render in GitHub, GitLab, VS Code (Mermaid preview), or [mermaid.live](https://mermaid.live).
 
@@ -182,17 +182,17 @@ Canonical schema: `db/schema.sql`, applied on empty databases via Alembic baseli
 | Topic | Location |
 |-------|----------|
 | Frontend routes | `frontend/src/app/App.jsx` |
-| API routers | `backend/metropolis/routers/` |
-| ASGI entry (HTTP + Socket.IO) | `backend/metropolis/asgi.py` |
-| Auth dependencies | `backend/metropolis/dependencies/auth.py` |
-| Pydantic schemas | `backend/metropolis/schemas/*_models.py` |
-| Booking logic | `backend/metropolis/services/booking_service.py` |
-| Listing logic | `backend/metropolis/services/listing_service.py` |
-| Fleet logic | `backend/metropolis/services/fleet_service.py` |
-| Payment logic | `backend/metropolis/services/payment_service.py` |
-| Stripe webhook | `backend/metropolis/routers/webhooks.py` |
-| Socket.IO | `backend/metropolis/sockets/booking_chat.py` |
-| ARQ booking sweep | `backend/metropolis/jobs/booking_sweep.py` |
+| API routers | `backend/vroom/routers/` |
+| ASGI entry (HTTP + Socket.IO) | `backend/vroom/asgi.py` |
+| Auth dependencies | `backend/vroom/dependencies/auth.py` |
+| Pydantic schemas | `backend/vroom/schemas/*_models.py` |
+| Booking logic | `backend/vroom/services/booking_service.py` |
+| Listing logic | `backend/vroom/services/listing_service.py` |
+| Fleet logic | `backend/vroom/services/fleet_service.py` |
+| Payment logic | `backend/vroom/services/payment_service.py` |
+| Stripe webhook | `backend/vroom/routers/webhooks.py` |
+| Socket.IO | `backend/vroom/sockets/booking_chat.py` |
+| ARQ booking sweep | `backend/vroom/jobs/booking_sweep.py` |
 | Base schema | `db/schema.sql` |
 | Active migrations | `backend/alembic/versions/` |
 | ER diagrams (current) | `docs/database-schema.md` |

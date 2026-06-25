@@ -1,6 +1,6 @@
 """JWT auth context — no DB hit per request."""
 
-from metropolis.dependencies.auth import _user_context_from_payload
+from vroom.dependencies.auth import _user_context_from_payload
 
 
 def test_user_context_from_payload_maps_claims():
@@ -28,7 +28,7 @@ def test_user_context_from_payload_defaults_has_listings_false():
 def test_require_listing_access_allows_admin_on_fleet_listing():
     from unittest.mock import MagicMock, patch
 
-    from metropolis.dependencies.auth import UserContext, require_listing_access
+    from vroom.dependencies.auth import UserContext, require_listing_access
 
     mock_conn = MagicMock()
     mock_cur = MagicMock()
@@ -37,7 +37,7 @@ def test_require_listing_access_allows_admin_on_fleet_listing():
     mock_conn.__enter__.return_value = mock_conn
     admin = UserContext(user_id=1, email="admin@example.com", is_admin=True)
 
-    with patch("metropolis.dependencies.auth.get_connection", return_value=mock_conn):
+    with patch("vroom.dependencies.auth.get_connection", return_value=mock_conn):
         access = require_listing_access(99, admin)
 
     assert access.listing_id == 99

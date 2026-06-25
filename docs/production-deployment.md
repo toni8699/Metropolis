@@ -1,4 +1,4 @@
-# Production deployment — Metropolis Nexus
+# Production deployment — Vroom
 
 Backend on **Render** (Docker from GHCR). Frontend on **Vercel**. Database on **Neon**. Files on **AWS S3**. Payments via **Stripe** (test mode in staging).
 
@@ -23,7 +23,7 @@ FastAPI serves OpenAPI automatically on the same host as the API. No extra Rende
 | `https://<your-render-host>/redoc` | ReDoc |
 | `https://<your-render-host>/openapi.json` | OpenAPI JSON |
 
-Example: if Render URL is `https://metropolis-api.onrender.com`, docs are at `https://metropolis-api.onrender.com/docs`.
+Example: if Render URL is `https://vroom-api.onrender.com`, docs are at `https://vroom-api.onrender.com/docs`.
 
 Docs are on by default in production. Health check stays `/api/health` (not `/docs`).
 
@@ -57,14 +57,14 @@ Migrations run on container start via `docker-entrypoint.prod.sh` (`alembic upgr
 3. Frontend (Vercel build env):
    - `VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...`
 
-4. **Stripe Connect (host payouts):** Enable Connect in Dashboard (Express accounts). Add webhook event `account.updated` on the same endpoint. Hosts onboard via Host Dashboard → Payouts.
+4. **Stripe Connect (host payouts):** Enable Connect in Dashboard (Express + embedded components). Add webhook event `v2.core.account[requirements].updated` on the same endpoint. Hosts onboard in-app via Host Dashboard → Payouts (embedded onboarding).
 
 Without Stripe keys locally, checkout auto-completes payment in dev (`mock: true`).
 
 ## 4. Render web service
 
 1. **New Web Service** → Deploy from container image.
-2. Image: `ghcr.io/<github-owner>/metropolis-backend:<git-sha>` (pushed by CI on `main`).
+2. Image: `ghcr.io/<github-owner>/vroom-backend:<git-sha>` (pushed by CI on `main`).
 3. Port: `8080` (matches `PORT` in `Dockerfile.prod`).
 4. Health check path: `/api/health`
 
@@ -94,7 +94,7 @@ Without Stripe keys locally, checkout auto-completes payment in dev (`mock: true
 On push to `main`, after tests pass, CI:
 
 1. Builds `backend/Dockerfile.prod`
-2. Pushes to `ghcr.io/<owner>/metropolis-backend:<sha>` and `:latest`
+2. Pushes to `ghcr.io/<owner>/vroom-backend:<sha>` and `:latest`
 3. POSTs `RENDER_DEPLOY_HOOK` (repository secret) to trigger Render pull
 
 Add secret: **Settings → Secrets → Actions → `RENDER_DEPLOY_HOOK`** (from Render service → Deploy Hook).
@@ -107,7 +107,7 @@ No CI changes needed for docs — they ship inside the same backend container.
 2. Build: `npm run build`; output `dist`.
 3. `frontend/vercel.json` rewrites all routes to `index.html` (SPA).
 4. Environment variables (Production):
-   - `VITE_API_URL` — Render API URL (e.g. `https://metropolis-api.onrender.com`) — **unchanged**; same `/api/*` paths
+   - `VITE_API_URL` — Render API URL (e.g. `https://vroom-api.onrender.com`) — **unchanged**; same `/api/*` paths
    - `VITE_GOOGLE_MAPS_API_KEY`
    - `VITE_STRIPE_PUBLISHABLE_KEY`
    - `VITE_GOOGLE_OAUTH_CLIENT_ID` (optional)
@@ -129,7 +129,7 @@ Local dev: `docker compose up` includes `redis`, `backend`, and `worker` (ARQ).
 Booking auto-expiry runs in a separate process:
 
 ```bash
-arq metropolis.jobs.booking_sweep.WorkerSettings
+arq vroom.jobs.booking_sweep.WorkerSettings
 ```
 
 Add a **Background Worker** on Render (same GHCR image, override start command to the line above, same `REDIS_URL` + `DATABASE_URL`). Or run sweep only in dev until you add the worker service.

@@ -8,9 +8,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic import ValidationError
 
-from metropolis.schemas.upload_models import UploadPresignRequest
-from metropolis.services.trip_inspection_service import TripInspectionService
-from metropolis.trip_inspection_angles import MAX_EXTRA_PHOTOS_PER_PHASE, STANDARD_ANGLE_KEYS
+from vroom.schemas.upload_models import UploadPresignRequest
+from vroom.services.trip_inspection_service import TripInspectionService
+from vroom.trip_inspection_angles import MAX_EXTRA_PHOTOS_PER_PHASE, STANDARD_ANGLE_KEYS
 
 
 def test_upload_presign_rejects_unknown_angle_key():
@@ -61,7 +61,7 @@ def test_renter_can_upload_check_out_only_in_progress():
     assert service.renter_can_upload_phase(booking, "CHECK_OUT") is False
 
 
-@patch("metropolis.services.trip_inspection_service.get_connection")
+@patch("vroom.services.trip_inspection_service.get_connection")
 def test_assert_renter_upload_access_blocks_extra_cap(mock_get_connection):
     service = TripInspectionService()
     mock_conn = MagicMock()
@@ -89,7 +89,7 @@ def test_assert_renter_upload_access_blocks_extra_cap(mock_get_connection):
     assert "Maximum" in err["message"]
 
 
-@patch("metropolis.services.trip_inspection_service.get_connection")
+@patch("vroom.services.trip_inspection_service.get_connection")
 def test_sweep_expired_trip_inspection_deletes_file_assets_only(mock_get_connection):
     service = TripInspectionService()
     mock_conn = MagicMock()
@@ -98,7 +98,7 @@ def test_sweep_expired_trip_inspection_deletes_file_assets_only(mock_get_connect
     mock_cur.fetchall.return_value = [(10,), (11,)]
     mock_cur.rowcount = 2
 
-    with patch("metropolis.services.trip_inspection_service.settings") as mock_settings:
+    with patch("vroom.services.trip_inspection_service.settings") as mock_settings:
         mock_settings.trip_inspection_retention_days = 30
         result = service.sweep_expired_trip_inspection_photos()
 
@@ -114,12 +114,12 @@ def test_standard_angle_keys_match_manifest_count():
 
 
 def test_angle_manifest_entries_include_group():
-    from metropolis.trip_inspection_angles import ANGLE_MANIFEST
+    from vroom.trip_inspection_angles import ANGLE_MANIFEST
 
     assert all(entry.get("group") in {"exterior", "interior", "detail"} for entry in ANGLE_MANIFEST)
 
 
-@patch("metropolis.services.trip_inspection_service.get_connection")
+@patch("vroom.services.trip_inspection_service.get_connection")
 def test_delete_inspection_photo_renter_deletes_file_asset(mock_get_connection):
     service = TripInspectionService()
     mock_conn = MagicMock()
@@ -154,7 +154,7 @@ def test_delete_inspection_photo_renter_deletes_file_asset(mock_get_connection):
     )
 
 
-@patch("metropolis.services.trip_inspection_service.get_connection")
+@patch("vroom.services.trip_inspection_service.get_connection")
 def test_delete_inspection_photo_host_forbidden(mock_get_connection):
     service = TripInspectionService()
     mock_conn = MagicMock()
@@ -179,7 +179,7 @@ def test_delete_inspection_photo_host_forbidden(mock_get_connection):
     assert result["status"] == "forbidden"
 
 
-@patch("metropolis.services.trip_inspection_service.get_connection")
+@patch("vroom.services.trip_inspection_service.get_connection")
 def test_delete_inspection_photo_wrong_phase(mock_get_connection):
     service = TripInspectionService()
     mock_conn = MagicMock()

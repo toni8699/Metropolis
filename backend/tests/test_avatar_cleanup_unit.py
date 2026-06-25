@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from metropolis.services.uploads_service import UploadsService, object_key_from_file_url
+from vroom.services.uploads_service import UploadsService, object_key_from_file_url
 
 
 def test_object_key_from_file_url_decodes_key():
@@ -41,7 +41,7 @@ def test_delete_user_avatar_file_removes_s3_and_db_row(uploads_service):
     mock_conn.cursor.return_value.__enter__.return_value = mock_cur
     mock_conn.__enter__.return_value = mock_conn
 
-    with patch("metropolis.services.uploads_service.get_connection", return_value=mock_conn):
+    with patch("vroom.services.uploads_service.get_connection", return_value=mock_conn):
         uploads_service.delete_user_avatar_file(7, file_url)
 
     uploads_service.client.delete_object.assert_called_once_with(
@@ -58,7 +58,7 @@ def test_delete_user_avatar_file_removes_s3_and_db_row(uploads_service):
 def test_delete_user_avatar_file_skips_other_users_key(uploads_service):
     file_url = "https://my-bucket.s3.us-east-1.amazonaws.com/user/99/avatar/old.jpg"
 
-    with patch("metropolis.services.uploads_service.get_connection") as mock_get_conn:
+    with patch("vroom.services.uploads_service.get_connection") as mock_get_conn:
         uploads_service.delete_user_avatar_file(7, file_url)
 
     uploads_service.client.delete_object.assert_not_called()

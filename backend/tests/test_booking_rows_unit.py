@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from metropolis.services.booking_rows import to_booking_row
+from vroom.services.booking_rows import to_booking_row
 
 
 def test_to_booking_row_reads_listing_title_from_booking_select_sql():

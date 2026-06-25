@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from metropolis.services import mail_service
+from vroom.services import mail_service
 
 
 def test_send_html_noop_without_resend_config():
@@ -19,7 +19,7 @@ def test_booking_email_context_missing_returns_none():
     mock_conn.cursor.return_value.__enter__.return_value = mock_cur
     mock_conn.__enter__.return_value = mock_conn
 
-    with patch("metropolis.services.mail_service.get_connection", return_value=mock_conn):
+    with patch("vroom.services.mail_service.get_connection", return_value=mock_conn):
         assert mail_service.booking_email_context(999) is None
 
 
@@ -37,8 +37,8 @@ def test_send_booking_confirmed_sends_renter_and_host():
         "hostDashboardUrl": "http://localhost/host/dashboard",
     }
     with (
-        patch("metropolis.services.mail_service.booking_email_context", return_value=ctx),
-        patch("metropolis.services.mail_service._send_html", return_value=True) as send,
+        patch("vroom.services.mail_service.booking_email_context", return_value=ctx),
+        patch("vroom.services.mail_service._send_html", return_value=True) as send,
     ):
         mail_service.send_booking_confirmed(1)
     assert send.call_count == 2

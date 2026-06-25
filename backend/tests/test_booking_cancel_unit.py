@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from metropolis.services.booking_support import host_can_cancel, renter_can_cancel
+from vroom.services.booking_support import host_can_cancel, renter_can_cancel
 
 _NOW = datetime(2026, 6, 1, 12, 0, tzinfo=timezone.utc)
 _FUTURE = _NOW + timedelta(days=2)

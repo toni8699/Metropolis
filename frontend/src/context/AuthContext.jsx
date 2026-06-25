@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { apiGet, apiPatch, apiPost } from "@/shared/api/api";
+import { apiGet, apiPatch, apiPost, ApiError } from "@/shared/api/api";
 import VerifyEmailToast from "@/layout/VerifyEmailToast";
 
 const AuthContext = createContext(null);
@@ -31,15 +31,19 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   useEffect(() => {
-    if (token) {
-      refreshMe().catch(() => {
+    if (!token) {
+      return;
+    }
+    refreshMe().catch((err) => {
+      // ponytail: only clear session on auth failure — network blips after Stripe return were logging hosts out
+      if (err instanceof ApiError && err.status === 401) {
         localStorage.removeItem("accessToken");
         localStorage.removeItem(AUTH_USER_KEY);
         setToken(null);
         setUser(null);
-      });
-    }
-  }, [token]);  
+      }
+    });
+  }, [token]);
 
   const refreshMe = async () => {
     if (!localStorage.getItem("accessToken")) return null;

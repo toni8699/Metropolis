@@ -5,7 +5,7 @@ echo "Applying Alembic migrations..."
 alembic upgrade head
 
 echo "Starting Gunicorn (Uvicorn workers + Socket.IO ASGI)..."
-exec gunicorn metropolis.asgi:app \
+exec gunicorn vroom.asgi:app \
   -k uvicorn.workers.UvicornWorker \
   -w "${WEB_CONCURRENCY:-2}" \
   -b "0.0.0.0:${PORT:-8080}" \

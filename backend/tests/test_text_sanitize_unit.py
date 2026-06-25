@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from metropolis.text_sanitize import sanitize_display_text
+from vroom.text_sanitize import sanitize_display_text
 
 
 def test_sanitize_display_text_strips_html_tags():

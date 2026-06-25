@@ -56,8 +56,8 @@ services:
         uv sync --frozen --extra dev &&
         uv run alembic upgrade head &&
         uv run python scripts/seed_ci_database.py &&
-        PORT=5000 DEBUG=0 uv run uvicorn metropolis.asgi:app --host 0.0.0.0 --port 5000 &
-        echo \$$! > /tmp/metropolis-api.pid &&
+        PORT=5000 DEBUG=0 uv run uvicorn vroom.asgi:app --host 0.0.0.0 --port 5000 &
+        echo \$$! > /tmp/vroom-api.pid &&
         for i in $$(seq 1 30); do
           if curl -sf http://127.0.0.1:5000/api/health >/dev/null; then
             echo 'API ready';
@@ -67,6 +67,6 @@ services:
         done &&
         uv run pytest tests -v --tb=short;
         status=\$$?;
-        if [ -f /tmp/metropolis-api.pid ]; then kill $$(cat /tmp/metropolis-api.pid) 2>/dev/null || true; fi;
+        if [ -f /tmp/vroom-api.pid ]; then kill $$(cat /tmp/vroom-api.pid) 2>/dev/null || true; fi;
         exit \$$status
       "

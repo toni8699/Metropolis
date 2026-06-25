@@ -1,4 +1,4 @@
-# Contributing to Metropolis Nexus
+# Contributing to Vroom
 
 ---
 
@@ -11,7 +11,7 @@ Core marketplace paths (auth, listings, bookings, payments, fleet, search, messa
 To query the database in a service:
 
 ```python
-from metropolis.core.db import get_connection
+from vroom.core.db import get_connection
 from psycopg2.extras import RealDictCursor
 
 with get_connection() as conn:
@@ -44,7 +44,7 @@ When adding an island, document it in the service module docstring and add a one
 ## Project structure
 
 ```
-backend/metropolis/
+backend/vroom/
   routers/       # FastAPI route handlers — thin controllers (validate, auth, call service)
   services/      # Business logic + SQL
   schemas/       # Pydantic request/response models (*_models.py, camel.py)
@@ -171,4 +171,4 @@ uv export --frozen --no-dev -o requirements.txt
 | `GOOGLE_OAUTH_CLIENT_ID` | No | Required for Google sign-in |
 | `DEBUG` | No | Set to `0` in production |
 
-Security checks in `metropolis/security.py` block `DEBUG=0` with a weak `JWT_SECRET` or wildcard CORS.
+Security checks in `vroom/security.py` block `DEBUG=0` with a weak `JWT_SECRET` or wildcard CORS.

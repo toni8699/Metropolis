@@ -22,7 +22,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def client() -> TestClient:
-    from metropolis.main import create_app
+    from vroom.main import create_app
 
     app = create_app()
     app.state.limiter.enabled = False
