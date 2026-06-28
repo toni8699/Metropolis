@@ -11,12 +11,13 @@ import TripsPage from "@/views/TripsPage";
 import InboxPage from "@/views/InboxPage";
 import SavedListingsPage from "@/views/SavedListingsPage";
 import AccountSettingsPage from "@/views/AccountSettingsPage";
+import UserProfilePage from "@/views/UserProfilePage";
 import LoginPage from "@/views/LoginPage";
 import VerifyEmailPage from "@/views/VerifyEmailPage";
 import Layout from "@/layout/Layout";
 import HostOnboardingFlow from "@/features/host/components/HostOnboardingFlow";
 import SuccessListingPage from "@/features/host/SuccessListingPage";
-import { RequireAuth, RequireRole } from "@/app/RouteGuards";
+import { RequireAuth, RequireHost, RequireRole } from "@/app/RouteGuards";
 import { BrowseFiltersProvider } from "@/features/browse/hooks/useBrowseFilters.jsx";
 
 function AppShell({ onSearch, onHome, hasSearched, searchParams }) {
@@ -93,13 +94,16 @@ export default function App() {
         <Route path="saved" element={<SavedListingsPage />} />
         <Route path="messages" element={<InboxPage />} />
         <Route path="account" element={<AccountSettingsPage />} />
+        <Route path="users/:userId" element={<UserProfilePage />} />
         <Route path="*" element={<Navigate to="/app" replace />} />
       </Route>
 
       <Route element={<RequireAuth />}>
         <Route path="/host" element={<HostEntry />} />
         <Route path="/host/success/:listingId" element={<SuccessListingPage />} />
-        <Route path="/host/dashboard" element={<HostDashboardPage mode="owner" />} />
+        <Route element={<RequireHost />}>
+          <Route path="/host/dashboard" element={<HostDashboardPage mode="owner" />} />
+        </Route>
         <Route element={<RequireRole roles={["admin"]} />}>
           <Route path="/admin" element={<HostDashboardPage mode="admin" />} />
         </Route>

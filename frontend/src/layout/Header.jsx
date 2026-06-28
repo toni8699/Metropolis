@@ -19,15 +19,15 @@ import { useOptionalBrowseFilters } from "@/features/browse/hooks/useBrowseFilte
 
 export default function Header({ onSearch, onHome }) {
   const navigate = useNavigate();
-  const { isAuthenticated, isAdmin, user, logout, ensureVerifiedEmail } = useAuth();
-  const showHostDashboard = isAuthenticated && !isAdmin;
+  const { isAuthenticated, isAdmin, hasListings, user, logout, ensureVerifiedEmail } = useAuth();
+  const showHostDashboard = isAuthenticated && !isAdmin && hasListings;
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("where");
-  const [location, setLocation] = useState("montreal-core");
-  const [searchQuery, setSearchQuery] = useState("montreal-core");
+  const [location, setLocation] = useState("toronto");
+  const [searchQuery, setSearchQuery] = useState("toronto");
   const [selectedCoordinates, setSelectedCoordinates] = useState(null);
   const [selectedRange, setSelectedRange] = useState(defaultDateRangeFromToday);
   const searchContainerRef = useRef(null);
@@ -174,6 +174,10 @@ export default function Header({ onSearch, onHome }) {
     }
     if (isAdmin) {
       navigate("/admin");
+      return;
+    }
+    if (hasListings) {
+      navigate("/host/dashboard");
       return;
     }
     if (!ensureVerifiedEmail()) {
@@ -353,7 +357,7 @@ export default function Header({ onSearch, onHome }) {
               </button>
             ) : null}
             <button type="button" onClick={handleHostClick} className="neo-btn-primary px-4 py-2 text-sm hover:scale-105">
-              {isAdmin ? "Admin dashboard" : "Host your car"}
+              {isAdmin ? "Admin dashboard" : hasListings ? "Go to dashboard" : "Host your car"}
             </button>
             <button
               type="button"

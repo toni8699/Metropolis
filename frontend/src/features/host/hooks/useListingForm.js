@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPatch, apiPost } from "@/shared/api/api";
 import { useAuth } from "@/context/AuthContext";
-import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
+import {
+  cityToZone,
+  extractCity,
+  resolvePredictionCoordinates,
+} from "@/shared/lib/placesAutocomplete";
 import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
 import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
 
+/** Unwrap a VIN-decode spec field that may be a raw value or a {value} object. */
 function readSpecValue(field) {
   if (field == null) return null;
   if (typeof field === "object" && "value" in field) return field.value;
@@ -41,9 +46,10 @@ export const emptyListingForm = {
   parkingSpotId: "",
   lat: 43.6532,
   lng: -79.3832,
-  cityZone: "toronto-core",
+  cityZone: "toronto",
 };
 
+/** Drop keys whose value is undefined so they don't overwrite server fields. */
 function omitUndefined(obj) {
   return Object.fromEntries(
     Object.entries(obj).filter(([, value]) => value !== undefined),
@@ -176,6 +182,7 @@ export function useListingForm({
     [listingForm, addressQuery, pendingPhotoCount, locationMode, editingListingId],
   );
 
+  /** Snapshot current form state as the "clean" baseline for dirty checks. */
   const syncFormBaseline = () => {
     baselineRef.current = getFormSnapshot();
   };
@@ -197,11 +204,13 @@ export function useListingForm({
     editingListingId,
   ]);
 
+  /** Prompt before discarding unsaved edits; true means it's safe to leave. */
   const confirmLeaveIfDirty = () => {
     if (!isDirty) return true;
     return window.confirm("You have unsaved changes. Are you sure you want to leave?");
   };
 
+  /** Fill location fields from a chosen company branch (admin hub mode). */
   const applyHubBranchSelection = (branchIdValue) => {
     const selectedBranch =
       companyLocations.branches.find(
@@ -212,11 +221,7 @@ export function useListingForm({
       return;
     }
 
-    const derivedCityZone =
-      (selectedBranch.city || "")
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, "-") || "toronto-core";
+    const derivedCityZone = cityToZone(selectedBranch.city) || "other";
 
     setListingForm((prev) => ({
       ...prev,
@@ -256,6 +261,7 @@ export function useListingForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationMode, listingForm.branchId, listingForm.address, companyLocations.branches]);
 
+  /** Add/remove a feature id and keep the matching display names in sync. */
   const toggleFeature = (featureId) => {
     setListingForm((prev) => {
       const id = Number(featureId);
@@ -269,6 +275,7 @@ export function useListingForm({
     });
   };
 
+  /** Decode the entered VIN and lock the resulting metal specs. */
   const decodeVin = async () => {
     const vin = String(listingForm.vin || "").trim().toUpperCase();
     if (!vin) {
@@ -307,6 +314,7 @@ export function useListingForm({
     }
   };
 
+  /** Queue dropped/picked image files, de-duped by name+size+mtime. */
   const selectUploadFiles = (fileList) => {
     const incoming = Array.from(fileList || []).filter(
       (file) => file && file.type.startsWith("image/"),
@@ -325,18 +333,22 @@ export function useListingForm({
     setError("");
   };
 
+  /** Remove one queued photo by index. */
   const removePendingPhoto = (index) => {
     setPendingPhotoFiles((prev) => prev.filter((_, fileIndex) => fileIndex !== index));
   };
 
+  /** Clear all queued photos. */
   const clearPendingPhotos = () => setPendingPhotoFiles([]);
 
+  /** Handle a file drag-drop onto the upload zone. */
   const onDropFile = (event) => {
     event.preventDefault();
     setIsDragOver(false);
     selectUploadFiles(event.dataTransfer.files);
   };
 
+  /** Presign, PUT to S3, and confirm each queued photo for a listing. */
   const uploadListingPhotos = async (listingId, options = {}) => {
     const { skipRefresh = false, skipSuccess = false } = options;
     if (!pendingPhotoFiles.length) {
@@ -398,6 +410,7 @@ export function useListingForm({
     }
   };
 
+  /** Create or update the listing, then persist location and upload photos. */
   const createListing = async (event) => {
     event.preventDefault();
     setError("");
@@ -453,7 +466,7 @@ export function useListingForm({
         parkingSpotId: undefined,
         locationSourceType: usesCompanyDropdown ? "BRANCH" : undefined,
         cityZone: usesCompanyDropdown
-          ? selectedHubBranch?.city?.toLowerCase()?.replace(/\s+/g, "-") || "toronto-core"
+          ? cityToZone(selectedHubBranch?.city) || "other"
           : listingForm.cityZone,
       });
 
@@ -517,6 +530,7 @@ export function useListingForm({
     }
   };
 
+  /** Reset all fields/photos to defaults, keeping admin branch context. */
   const resetFormState = () => {
     setListingForm((prev) => ({
       ...emptyListingForm,
@@ -532,6 +546,7 @@ export function useListingForm({
     setBaselineKey((key) => key + 1);
   };
 
+  /** Close the create-success card and optionally switch tabs. */
   const dismissCreateSuccess = (nextTab = null) => {
     setCreateSuccessListing(null);
     resetFormState();
@@ -540,6 +555,7 @@ export function useListingForm({
     }
   };
 
+  /** Load an existing listing into the form for editing. */
   const startEditListing = (listing) => {
     if (!confirmLeaveIfDirty()) return;
 
@@ -602,15 +618,17 @@ export function useListingForm({
     setBaselineKey((key) => key + 1);
   };
 
+  /** Abandon edits (with confirm) and return to the overview tab. */
   const cancelForm = () => {
     if (!confirmLeaveIfDirty()) return;
     resetFormState();
     setActiveTab("overview");
   };
 
+  /** Resolve a chosen autocomplete prediction into coords + city zone. */
   const selectAddressPrediction = async (prediction) => {
     try {
-      const { lat, lng } = await resolvePredictionCoordinates(prediction);
+      const { lat, lng, city } = await resolvePredictionCoordinates(prediction);
       const formatted = prediction.description || addressQuery;
       setAddressQuery(formatted);
       setListingForm((prev) => ({
@@ -620,6 +638,7 @@ export function useListingForm({
         longitude: lng,
         lat,
         lng,
+        cityZone: cityToZone(city) || prev.cityZone,
       }));
       setPlacePredictions([]);
     } catch {
@@ -627,6 +646,7 @@ export function useListingForm({
     }
   };
 
+  /** Set coords from a map click and reverse-geocode address + city zone. */
   const selectMapPoint = (lat, lng) => {
     setListingForm((prev) => ({
       ...prev,
@@ -640,12 +660,18 @@ export function useListingForm({
     geocoderRef.current.geocode({ location: { lat, lng }, region: "ca" }, (results, status) => {
       if (status === "OK" && results?.[0]?.formatted_address) {
         const formatted = results[0].formatted_address;
+        const zone = cityToZone(extractCity(results[0].address_components));
         setAddressQuery(formatted);
-        setListingForm((prev) => ({ ...prev, address: formatted }));
+        setListingForm((prev) => ({
+          ...prev,
+          address: formatted,
+          cityZone: zone || prev.cityZone,
+        }));
       }
     });
   };
 
+  /** Reverse-geocode coords to a formatted address string (or ""). */
   const reverseGeocodeLocation = (lat, lng) =>
     new Promise((resolve) => {
       if (!geocoderRef.current) {
@@ -663,10 +689,12 @@ export function useListingForm({
       });
     });
 
+  /** Open the map picker modal. */
   const openMapPicker = () => {
     setIsMapModalOpen(true);
   };
 
+  /** Update the draft pin and reverse-geocode its address. */
   const handlePinDrop = async (newLat, newLng) => {
     setTempLocation((prev) => ({ ...prev, lat: newLat, lng: newLng }));
     const resolved = await reverseGeocodeLocation(newLat, newLng);
@@ -675,6 +703,7 @@ export function useListingForm({
     }
   };
 
+  /** Commit the draft pin/address from the modal to the form. */
   const confirmMapPickerLocation = () => {
     selectMapPoint(tempLocation.lat, tempLocation.lng);
     if (tempLocation.address) {

@@ -117,6 +117,10 @@ class BookingCollectionResponse(CamelModel):
     status: str
     scope: str | None = None
     bookings: list[BookingResponse] | None = None
+    total: int | None = None
+    page: int | None = None
+    page_size: int | None = None
+    has_more: bool | None = None
     links: dict[str, LinkResponse] | None = Field(default=None, alias="_links")
 
 

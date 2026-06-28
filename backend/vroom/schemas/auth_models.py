@@ -103,6 +103,27 @@ class MeResponse(CamelModel):
     user: MeUserResponse
 
 
+class PublicUserResponse(CamelModel):
+    user_id: int
+    full_name: str | None = None
+    profile_photo_url: str | None = None
+    created_at: str | None = None
+    joined_label: str | None = None
+    lives: str | None = None
+    about: str | None = None
+    languages: str | None = None
+    work: str | None = None
+    trips_count: int
+    average_rating: float | None = None
+    is_verified: bool = False
+    is_host: bool = False
+
+
+class PublicProfileResponse(CamelModel):
+    status: str
+    user: PublicUserResponse
+
+
 class MeUpdateRequest(CamelModel):
     model_config = ConfigDict(
         populate_by_name=True,

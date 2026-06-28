@@ -306,6 +306,7 @@ CREATE TABLE vehicle_listing
   CONSTRAINT vehicle_listing_status_active_consistency CHECK (
     (status = 'ACTIVE' AND active = TRUE)
     OR (status = 'INACTIVE' AND active = FALSE)
+    OR (status = 'ARCHIVED' AND active = FALSE)
   ),
   CONSTRAINT vehicle_listing_source_check CHECK (
     (source_type = 'OWNER' AND owner_user_id IS NOT NULL AND fleet_vehicle_vin IS NULL) OR
@@ -386,7 +387,7 @@ CREATE INDEX idx_listing_feature_feature ON listing_feature(feature_id);
 CREATE TABLE booking
 (
   booking_id BIGSERIAL PRIMARY KEY,
-  listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE CASCADE,
+  listing_id BIGINT NOT NULL REFERENCES vehicle_listing(listing_id) ON DELETE RESTRICT,
   renter_user_id BIGINT NOT NULL REFERENCES app_user(user_id) ON DELETE CASCADE,
   start_at TIMESTAMPTZ NOT NULL,
   end_at TIMESTAMPTZ NOT NULL,

@@ -457,7 +457,7 @@ class ListingService:
         return {"status": "success", "listing": listing}
 
     def list_listing_booked_ranges(self, listing_id: int) -> dict:
-        """Return booking windows that block new reservations on this listing (and fleet VIN)."""
+        """Return booking and host-blocked windows that prevent new reservations."""
         status_sql = ", ".join(["%s::booking_status"] * len(_BOOKING_HOLD_STATUSES))
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -474,19 +474,27 @@ class ListingService:
                     return {"status": "not_found", "message": "Listing not found."}
                 cur.execute(
                     f"""
-                    SELECT b.start_at, b.end_at
-                    FROM booking b
-                    JOIN vehicle_listing vl ON vl.listing_id = b.listing_id
-                    WHERE b.status IN ({status_sql})
-                      AND (
-                        b.listing_id = %s
-                        OR (
-                          %s = 'FLEET'
-                          AND %s IS NOT NULL
-                          AND vl.fleet_vehicle_vin = %s
-                        )
-                      )
-                    ORDER BY b.start_at ASC
+                    SELECT start_at, end_at
+                    FROM (
+                        SELECT b.start_at, b.end_at
+                        FROM booking b
+                        JOIN vehicle_listing vl ON vl.listing_id = b.listing_id
+                        WHERE b.status IN ({status_sql})
+                          AND (
+                            b.listing_id = %s
+                            OR (
+                              %s = 'FLEET'
+                              AND %s IS NOT NULL
+                              AND vl.fleet_vehicle_vin = %s
+                            )
+                          )
+                        UNION ALL
+                        SELECT la.start_at, la.end_at
+                        FROM listing_availability la
+                        WHERE la.listing_id = %s
+                          AND la.status = 'BLOCKED'::availability_status
+                    ) AS unavailable
+                    ORDER BY start_at ASC
                     """,
                     (
                         *_BOOKING_HOLD_STATUSES,
@@ -494,6 +502,7 @@ class ListingService:
                         listing["source_type"],
                         listing.get("fleet_vehicle_vin"),
                         listing.get("fleet_vehicle_vin"),
+                        listing_id,
                     ),
                 )
                 rows = cur.fetchall()
@@ -516,6 +525,7 @@ class ListingService:
                     {LISTING_SELECT_SQL}
                     WHERE l.owner_user_id = %s
                       AND l.source_type = 'OWNER'
+                      AND COALESCE(l.status, 'ACTIVE') <> 'ARCHIVED'
                     ORDER BY l.created_at DESC
                     """,
                     (actor["userId"],),
@@ -908,6 +918,9 @@ class ListingService:
         return {"status": "success"}
 
     def delete_listing(self, actor: dict, listing_id: int) -> dict:
+        # Soft-delete: archive the listing so bookings, payments, and reviews are
+        # preserved. S3 photos are kept on purpose (past trips still render them).
+        status_sql = ", ".join(["%s::booking_status"] * len(_BOOKING_HOLD_STATUSES))
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 listing = self._fetch_listing_ownership(cur, listing_id)
@@ -915,10 +928,28 @@ class ListingService:
                     return {"status": "not_found", "message": "Listing not found."}
                 if not self._can_manage_listing(actor, listing):
                     return {"status": "forbidden", "message": "No listing access."}
-                from vroom.services import uploads_service
-
-                uploads_service.delete_listing_s3_files(listing_id)
-                cur.execute("DELETE FROM vehicle_listing WHERE listing_id = %s", (listing_id,))
+                cur.execute(
+                    f"""
+                    SELECT 1
+                    FROM booking
+                    WHERE listing_id = %s AND status IN ({status_sql})
+                    LIMIT 1
+                    """,
+                    (listing_id, *_BOOKING_HOLD_STATUSES),
+                )
+                if cur.fetchone():
+                    return {
+                        "status": "validation_error",
+                        "message": "Finish or cancel active bookings before deleting.",
+                    }
+                cur.execute(
+                    """
+                    UPDATE vehicle_listing
+                    SET status = 'ARCHIVED', active = FALSE, updated_at = %s
+                    WHERE listing_id = %s
+                    """,
+                    (datetime.utcnow(), listing_id),
+                )
                 conn.commit()
         return {"status": "success"}
 

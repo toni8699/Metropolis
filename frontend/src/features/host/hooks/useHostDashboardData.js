@@ -102,7 +102,7 @@ export function useHostDashboardData({ isAdmin, pathname }) {
   const deleteListing = async (listingId) => {
     if (
       !window.confirm(
-        `Delete listing #${listingId}? This cannot be undone.`,
+        `Remove listing #${listingId}? It disappears from search; past trips are kept.`,
       )
     ) {
       return;
@@ -111,7 +111,7 @@ export function useHostDashboardData({ isAdmin, pathname }) {
     setSuccess("");
     try {
       await apiDelete(`/api/listings/${listingId}`, true);
-      setSuccess("Listing deleted.");
+      setSuccess("Listing removed.");
       await loadAll();
     } catch (err) {
       const message = err?.message || "Could not delete listing.";
@@ -121,6 +121,18 @@ export function useHostDashboardData({ isAdmin, pathname }) {
         return;
       }
       setError(message);
+    }
+  };
+
+  const setListingStatus = async (listingId, status) => {
+    setError("");
+    setSuccess("");
+    try {
+      await apiPatch(`/api/listings/${listingId}`, { status }, true);
+      setSuccess(status === "ACTIVE" ? "Listing activated." : "Listing paused.");
+      await loadAll();
+    } catch (err) {
+      setError(err?.message || "Could not update listing status.");
     }
   };
 
@@ -190,6 +202,7 @@ export function useHostDashboardData({ isAdmin, pathname }) {
     setSuccess,
     refresh: loadAll,
     deleteListing,
+    setListingStatus,
     syncFleet,
     handleBookingDecision,
     handleCancelBooking,

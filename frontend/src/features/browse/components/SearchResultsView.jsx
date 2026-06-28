@@ -192,7 +192,6 @@ export default function SearchResultsView({
   searchCenter = null,
   isLoading = false,
   filtersActive = false,
-  totalCount = null,
 }) {
   const [activeId, setActiveId] = useState(null);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
@@ -275,7 +274,7 @@ export default function SearchResultsView({
           <h2 className="mb-4 text-xl font-extrabold text-vroom-heading">
             {isLoading
               ? "Loading cars..."
-              : `${totalCount ?? cars.length} cars in ${cityLabel}`}
+              : `${cars.length} ${cars.length === 1 ? "car" : "cars"} in ${cityLabel}`}
           </h2>
           <div className="mb-4 md:hidden">
             <button

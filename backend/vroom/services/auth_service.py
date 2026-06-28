@@ -37,15 +37,17 @@ def _verify_google_id_token(id_token: str) -> dict | None:
 
 
 def _fetch_has_listings(cur, user_id: int) -> bool:
+    # Sticky host flag: true if the user currently owns a listing OR has ever
+    # become a host (owner_profile is created on first publish and never deleted).
+    # This keeps host dashboard access after a host removes all their listings.
     cur.execute(
         """
-        SELECT EXISTS (
-            SELECT 1
-            FROM vehicle_listing
-            WHERE owner_user_id = %s
+        SELECT (
+            EXISTS (SELECT 1 FROM vehicle_listing WHERE owner_user_id = %s)
+            OR EXISTS (SELECT 1 FROM owner_profile WHERE user_id = %s)
         ) AS has_listings
         """,
-        (user_id,),
+        (user_id, user_id),
     )
     return bool(cur.fetchone()["has_listings"])
 
@@ -150,6 +152,31 @@ class AuthService:
             "isAdmin": bool(user["is_admin"]),
             "hasListings": has_listings,
             "isVerified": bool(user.get("is_verified")),
+        }
+
+    def _format_public_user(
+        self,
+        user: dict,
+        *,
+        has_listings: bool,
+        trips_count: int,
+        average_rating: float | None,
+    ) -> dict:
+        # Public-facing subset: never expose email, phone, admin flag, or tokens.
+        return {
+            "userId": user["user_id"],
+            "fullName": user.get("full_name"),
+            "profilePhotoUrl": user.get("profile_photo_url"),
+            "createdAt": user["created_at"].isoformat() if user["created_at"] else None,
+            "joinedLabel": _joined_label(user.get("created_at")),
+            "lives": user.get("lives"),
+            "about": user.get("about"),
+            "languages": user.get("languages"),
+            "work": user.get("work"),
+            "tripsCount": trips_count,
+            "averageRating": average_rating,
+            "isVerified": bool(user.get("is_verified")),
+            "isHost": has_listings,
         }
 
     def register(self, email: str, password: str, full_name: str) -> dict:
@@ -328,6 +355,35 @@ class AuthService:
             "user": self._format_me_user(
                 user,
                 has_listings,
+                trips_count=trips_count,
+                average_rating=average_rating,
+            ),
+        }
+
+    def public_profile(self, user_id: int) -> dict:
+        with get_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT user_id, full_name, profile_photo_url,
+                           lives, about, languages, work, created_at, is_verified
+                    FROM app_user
+                    WHERE user_id = %s
+                    """,
+                    (user_id,),
+                )
+                user = cur.fetchone()
+                if not user:
+                    return {"status": "not_found", "message": "User not found."}
+                has_listings = _fetch_has_listings(cur, user_id)
+                trips_count = _fetch_trips_count(cur, user_id)
+                average_rating = _fetch_average_rating(cur, user_id)
+
+        return {
+            "status": "success",
+            "user": self._format_public_user(
+                user,
+                has_listings=has_listings,
                 trips_count=trips_count,
                 average_rating=average_rating,
             ),
@@ -543,6 +599,17 @@ class AuthService:
                         RETURNING user_id, email, full_name, is_admin, is_verified
                         """,
                         (email, generate_password_hash(secrets.token_urlsafe(32)), full_name),
+                    )
+                    user = cur.fetchone()
+                elif full_name and not (user.get("full_name") or "").strip():
+                    # Backfill name for accounts created before Google name capture
+                    # (otherwise their listings show the "Individual host" fallback).
+                    cur.execute(
+                        """
+                        UPDATE app_user SET full_name = %s WHERE user_id = %s
+                        RETURNING user_id, email, full_name, is_admin, is_verified
+                        """,
+                        (full_name, user["user_id"]),
                     )
                     user = cur.fetchone()
                 has_listings = _fetch_has_listings(cur, user["user_id"])

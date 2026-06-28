@@ -303,7 +303,7 @@ def test_approve_fails_when_confirmed_conflict_exists():
 
     approve_resp = _patch_booking_status(booking_id, host_token, "CONFIRMED")
     assert approve_resp.status_code == 400, approve_resp.text
-    assert "overlap" in _error_message(approve_resp).lower()
+    assert "unavailable" in _error_message(approve_resp).lower()
 
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:

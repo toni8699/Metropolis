@@ -303,6 +303,87 @@ def test_search_hides_listing_during_blocked_availability_window():
             _delete_listing(listing_id)
 
 
+def _parse_api_dt(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def test_booked_ranges_includes_host_blocked_availability():
+    host_token = _register_user("booked-ranges-block-host")
+    listing_id, delete_listing = _prepare_listing_for_booking(host_token)
+    blocked_start = datetime(2099, 9, 20, 10, 0, tzinfo=timezone.utc)
+    blocked_end = blocked_start + timedelta(days=4)
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO listing_availability (listing_id, start_at, end_at, status)
+                VALUES (%s, %s, %s, 'BLOCKED')
+                """,
+                (listing_id, blocked_start, blocked_end),
+            )
+        conn.commit()
+    try:
+        resp = _api("GET", f"/api/listings/{listing_id}/booked-ranges")
+        assert resp.status_code == 200, _error_message(resp)
+        ranges = resp.json().get("ranges") or []
+        assert any(
+            _parse_api_dt(row["startAt"]) == blocked_start
+            and _parse_api_dt(row["endAt"]) == blocked_end
+            for row in ranges
+        )
+    finally:
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM listing_availability WHERE listing_id = %s",
+                    (listing_id,),
+                )
+            conn.commit()
+        if delete_listing:
+            _delete_listing(listing_id)
+
+
+def test_create_booking_rejects_host_blocked_availability():
+    host_token = _register_user("booking-block-host")
+    renter_token = _register_user("booking-block-renter")
+    listing_id, delete_listing = _prepare_listing_for_booking(host_token)
+    blocked_start = datetime(2099, 9, 30, 10, 0, tzinfo=timezone.utc)
+    blocked_end = blocked_start + timedelta(days=5)
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO listing_availability (listing_id, start_at, end_at, status)
+                VALUES (%s, %s, %s, 'BLOCKED')
+                """,
+                (listing_id, blocked_start, blocked_end),
+            )
+        conn.commit()
+    try:
+        resp = _api(
+            "POST",
+            "/api/bookings",
+            token=renter_token,
+            json={
+                "listingId": listing_id,
+                "startAt": _iso_z(blocked_start + timedelta(days=1)),
+                "endAt": _iso_z(blocked_start + timedelta(days=3)),
+            },
+        )
+        assert resp.status_code == 400, resp.text
+        assert "unavailable" in _error_message(resp).lower()
+    finally:
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM listing_availability WHERE listing_id = %s",
+                    (listing_id,),
+                )
+            conn.commit()
+        if delete_listing:
+            _delete_listing(listing_id)
+
+
 def test_search_validation_end_must_be_after_start():
     resp = _api(
         "GET",

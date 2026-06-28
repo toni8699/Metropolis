@@ -12,6 +12,7 @@ from vroom.schemas.admin_models import (
     AdminUsersResponse,
     KycPatchRequest,
 )
+from vroom.schemas.auth_models import PublicProfileResponse
 from vroom.services import auth_service, kyc_service
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -60,6 +61,18 @@ def patch_user_kyc(
         )
     try:
         result = kyc_service.set_status(user_id, verification_status)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    raise_for_service_result(result)
+    return result
+
+
+# Public route: registered last so literal paths (e.g. /kyc) match first.
+@router.get("/{user_id}", response_model=PublicProfileResponse)
+def get_public_profile(user_id: int) -> dict:
+    """Public profile for any user (host or reviewer) — no auth required."""
+    try:
+        result = auth_service.public_profile(user_id)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     raise_for_service_result(result)

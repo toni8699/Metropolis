@@ -31,6 +31,7 @@ export default function HostDashboardContent({
   form,
   onRequestTabChange,
   onDeleteListing,
+  onToggleListingStatus,
   onBookingDecision,
   onCancelBooking,
   onKycDecision,
@@ -76,6 +77,7 @@ export default function HostDashboardContent({
           onAdd={() => onRequestTabChange(TAB.create_listing)}
           onEdit={form.startEditListing}
           onDelete={onDeleteListing}
+          onToggleStatus={onToggleListingStatus}
         />
       )}
 

@@ -87,9 +87,13 @@ test.describe("VROOM smoke", () => {
 
   test("host can open dashboard listings tab", async ({ page, request }) => {
     const host = await registerUser(request, "e2e-host");
+    // /host/dashboard is gated by RequireHost (hasListings): a fresh host must own a
+    // listing first, and the seeded auth user needs hasListings so the guard passes
+    // on first paint (before refreshMe re-fetches /api/me).
+    await createSmokeListing(request, host.token);
     await page.addInitScript(({ token, user }) => {
       localStorage.setItem("accessToken", token);
-      localStorage.setItem("authUser", JSON.stringify(user));
+      localStorage.setItem("authUser", JSON.stringify({ ...user, hasListings: true }));
     }, { token: host.token, user: host.user });
     await page.goto("/host/dashboard");
     await expect(page.getByRole("heading", { name: /^overview$/i })).toBeVisible({

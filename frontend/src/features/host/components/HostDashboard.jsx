@@ -86,6 +86,7 @@ export default function HostDashboard({ mode = "admin" }) {
             form={form}
             onRequestTabChange={guardedTabChange}
             onDeleteListing={data.deleteListing}
+            onToggleListingStatus={data.setListingStatus}
             onBookingDecision={data.handleBookingDecision}
             onCancelBooking={data.handleCancelBooking}
             onKycDecision={data.decideKyc}

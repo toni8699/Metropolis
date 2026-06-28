@@ -108,8 +108,7 @@ def test_sweep_deletes_recent_orphans_when_listing_gone(uploads_service):
     )
 
 
-def test_delete_listing_calls_s3_cleanup_before_db_delete():
-    from vroom.services import uploads_service as uploads_svc
+def _delete_listing_fixture():
     from vroom.services.listing_service import ListingService
 
     service = ListingService()
@@ -117,20 +116,42 @@ def test_delete_listing_calls_s3_cleanup_before_db_delete():
     mock_cur = MagicMock()
     mock_conn.cursor.return_value.__enter__.return_value = mock_cur
     mock_conn.__enter__.return_value = mock_conn
-    call_order: list[str] = []
-    mock_cur.execute.side_effect = lambda sql, params=None: call_order.append("db")
+    return service, mock_conn, mock_cur
+
+
+def test_delete_listing_archives_and_keeps_s3_photos():
+    from vroom.services import uploads_service as uploads_svc
+
+    service, mock_conn, mock_cur = _delete_listing_fixture()
+    # No active bookings → guard passes.
+    mock_cur.fetchone.return_value = None
+    executed: list[str] = []
+    mock_cur.execute.side_effect = lambda sql, params=None: executed.append(sql)
 
     with (
         patch("vroom.services.listing_service.get_connection", return_value=mock_conn),
         patch.object(service, "_fetch_listing_ownership", return_value={"owner_user_id": 5}),
         patch.object(service, "_can_manage_listing", return_value=True),
-        patch.object(
-            uploads_svc,
-            "delete_listing_s3_files",
-            side_effect=lambda listing_id: call_order.append("s3") or {"deleted": 1},
-        ),
+        patch.object(uploads_svc, "delete_listing_s3_files") as mock_s3,
     ):
         result = service.delete_listing({"user_id": 5, "role": "USER"}, 42)
 
     assert result == {"status": "success"}
-    assert call_order == ["s3", "db"]
+    # Soft-delete archives the row and intentionally leaves S3 photos in place.
+    assert any("ARCHIVED" in sql for sql in executed)
+    mock_s3.assert_not_called()
+
+
+def test_delete_listing_blocked_when_active_bookings_exist():
+    service, mock_conn, mock_cur = _delete_listing_fixture()
+    # Active booking present → guard returns validation_error before archiving.
+    mock_cur.fetchone.return_value = (1,)
+
+    with (
+        patch("vroom.services.listing_service.get_connection", return_value=mock_conn),
+        patch.object(service, "_fetch_listing_ownership", return_value={"owner_user_id": 5}),
+        patch.object(service, "_can_manage_listing", return_value=True),
+    ):
+        result = service.delete_listing({"user_id": 5, "role": "USER"}, 42)
+
+    assert result["status"] == "validation_error"

@@ -13,8 +13,7 @@ export default function PricingBreakdown({
       <div className="flex items-center justify-between">
         <p className={showNightsLabel ? "underline" : ""}>
           ${Number(pricePerDay).toFixed(showNightsLabel ? 0 : 2)}
-          {currencyLabel ? ` ${currencyLabel}` : ""} x {dayCount}{" "}
-          {showNightsLabel ? "nights" : "days"}
+          {currencyLabel ? ` ${currencyLabel}` : ""} x {dayCount} days
         </p>
         <p>${subtotal.toFixed(2)}</p>
       </div>

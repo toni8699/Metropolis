@@ -50,13 +50,17 @@ def _booking_list_query(scope: str = Query(...)) -> BookingListQuery:
 @router.get("", response_model=BookingCollectionResponse)
 def list_bookings(
     query: BookingListQuery = Depends(_booking_list_query),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=50, alias="pageSize"),
     user: UserContext = Depends(get_current_user),
 ) -> dict:
     """List bookings for renter (mine), host (owner), or admin fleet (fleet)."""
     scope = query.scope.strip().lower()
     try:
         if scope == "mine":
-            result = booking_service.list_renter_bookings(user.user_id)
+            result = booking_service.list_renter_bookings(
+                user.user_id, page=page, page_size=page_size
+            )
         elif scope == "owner":
             result = booking_service.owner_bookings(user.user_id)
         elif scope == "fleet":

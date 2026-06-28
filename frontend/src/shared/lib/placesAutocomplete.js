@@ -120,7 +120,13 @@ export async function fetchPlacePredictions(input, options = {}) {
   });
 }
 
-/** Resolve lat/lng from a normalized prediction. */
+/** City name from Google address components (handles new + legacy shapes). */
+export function extractCity(components = []) {
+  const locality = (components || []).find((c) => (c.types || []).includes("locality"));
+  return locality ? locality.longText || locality.long_name || null : null;
+}
+
+/** Resolve lat/lng (and city when available) from a normalized prediction. */
 export async function resolvePredictionCoordinates(prediction) {
   const normalized = normalizePrediction(prediction);
   if (!normalized) {
@@ -129,13 +135,13 @@ export async function resolvePredictionCoordinates(prediction) {
 
   if (normalized._placePrediction?.toPlace) {
     const place = normalized._placePrediction.toPlace();
-    await place.fetchFields({ fields: ["location"] });
+    await place.fetchFields({ fields: ["location", "addressComponents"] });
     const loc = place.location;
     if (loc) {
       const lat = typeof loc.lat === "function" ? loc.lat() : loc.lat;
       const lng = typeof loc.lng === "function" ? loc.lng() : loc.lng;
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        return { lat, lng };
+        return { lat, lng, city: extractCity(place.addressComponents) };
       }
     }
   }
@@ -150,10 +156,19 @@ export async function resolvePredictionCoordinates(prediction) {
     geocoder.geocode({ placeId }, (results, status) => {
       const point = results?.[0]?.geometry?.location;
       if (status === "OK" && point && typeof point.lat === "function") {
-        resolve({ lat: point.lat(), lng: point.lng() });
+        resolve({
+          lat: point.lat(),
+          lng: point.lng(),
+          city: extractCity(results[0].address_components),
+        });
         return;
       }
       reject(new Error("Could not resolve place coordinates"));
     });
   });
+}
+
+/** Slugify a city name into a city_zone code (e.g. "Quebec City" -> "quebec-city"). */
+export function cityToZone(city) {
+  return String(city || "").toLowerCase().trim().replace(/\s+/g, "-");
 }

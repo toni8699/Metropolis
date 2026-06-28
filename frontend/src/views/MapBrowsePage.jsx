@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import CarGrid from "@/shared/components/CarGrid";
 import SearchResultsView from "@/features/browse/components/SearchResultsView";
 import BodyCard from "@/shared/components/BodyCard";
@@ -8,11 +9,67 @@ import { listingToCarCard } from "@/shared/lib/listingCard";
 import { useBrowseFilters } from "@/features/browse/hooks/useBrowseFilters.jsx";
 import { filtersToParams } from "@/features/browse/lib/filterParams";
 
+const CITY_PAGE_SIZE = 5;
+
+function formatCityZone(zone) {
+  if (!zone) return "Other";
+  return zone
+    .split(/[-_\s]+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function LocationSection({ zone, cars }) {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.ceil(cars.length / CITY_PAGE_SIZE);
+  const hasCarousel = cars.length > CITY_PAGE_SIZE;
+  const start = page * CITY_PAGE_SIZE;
+  const visibleCars = cars.slice(start, start + CITY_PAGE_SIZE);
+  const arrowClass =
+    "flex h-8 w-8 items-center justify-center rounded-full border-2 border-black bg-vroom-surface text-black transition hover:scale-105";
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-xl font-extrabold text-vroom-heading">
+          {formatCityZone(zone)}
+          <span className="ml-2 text-sm font-semibold text-vroom-muted">
+            {cars.length} {cars.length === 1 ? "car" : "cars"}
+          </span>
+        </h3>
+        {hasCarousel && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Previous cars"
+              onClick={() => setPage((p) => (p - 1 + totalPages) % totalPages)}
+              className={arrowClass}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-semibold text-vroom-muted">
+              {page + 1}/{totalPages}
+            </span>
+            <button
+              type="button"
+              aria-label="Next cars"
+              onClick={() => setPage((p) => (p + 1) % totalPages)}
+              className={arrowClass}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      <CarGrid cars={visibleCars} />
+    </section>
+  );
+}
+
 export default function MapBrowsePage({ hasSearched, searchParams }) {
   const { appliedFilters, filtersActive } = useBrowseFilters();
   const [userLocation, setUserLocation] = useState(null);
   const [listings, setListings] = useState([]);
-  const [totalCount, setTotalCount] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const queryPath = useMemo(() => {
@@ -33,13 +90,11 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
       .then((data) => {
         if (!isCancelled) {
           setListings(data?.listings || []);
-          setTotalCount(Number(data?.totalCount ?? data?.listings?.length ?? 0));
         }
       })
       .catch((err) => {
         if (!isCancelled) {
           setListings([]);
-          setTotalCount(0);
           setFetchError(err?.message || "Could not load listings.");
         }
       })
@@ -86,6 +141,19 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
     [visibleListings, userLocation],
   );
 
+  // Home page: group cars by city so each location with listings gets a section.
+  const locationSections = useMemo(() => {
+    const groups = new Map();
+    cars.forEach((car) => {
+      const zone = car.cityZone || "other";
+      if (!groups.has(zone)) groups.set(zone, []);
+      groups.get(zone).push(car);
+    });
+    return [...groups.entries()]
+      .map(([zone, cityCars]) => ({ zone, cars: cityCars }))
+      .sort((a, b) => b.cars.length - a.cars.length);
+  }, [cars]);
+
   if (fetchError && !isLoading) {
     return <div className="neo-error text-sm font-semibold">{fetchError}</div>;
   }
@@ -98,7 +166,6 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
         searchCenter={searchParams?.coordinates || null}
         isLoading={isLoading}
         filtersActive={filtersActive}
-        totalCount={totalCount}
       />
     );
   }
@@ -130,7 +197,11 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
           </p>
         </div>
       ) : (
-        <CarGrid cars={cars} />
+        <div className="relative space-y-10">
+          {locationSections.map((section) => (
+            <LocationSection key={section.zone} zone={section.zone} cars={section.cars} />
+          ))}
+        </div>
       )}
     </BodyCard>
   );

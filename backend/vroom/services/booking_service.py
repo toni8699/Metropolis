@@ -120,9 +120,23 @@ class BookingService:
             "booking": booking,
         }
 
-    def list_renter_bookings(self, renter_user_id: int) -> dict:
+    def list_renter_bookings(
+        self,
+        renter_user_id: int,
+        *,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> dict:
+        page = max(1, page)
+        page_size = max(1, min(page_size, 50))
+        offset = (page - 1) * page_size
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT COUNT(*) AS total FROM booking WHERE renter_user_id = %s",
+                    (renter_user_id,),
+                )
+                total = int(cur.fetchone()["total"])
                 cur.execute(
                     f"""
                     SELECT
@@ -147,9 +161,9 @@ class BookingService:
                     LEFT JOIN app_user u ON u.user_id = b.renter_user_id
                     WHERE b.renter_user_id = %s
                     ORDER BY b.created_at DESC, b.booking_id DESC
-                    LIMIT 200
+                    LIMIT %s OFFSET %s
                     """,
-                    (renter_user_id,),
+                    (renter_user_id, page_size, offset),
                 )
                 rows = cur.fetchall()
         now = utcnow()
@@ -158,6 +172,10 @@ class BookingService:
         return {
             "status": "success",
             "bookings": [to_booking_row(row) for row in rows],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "has_more": offset + len(rows) < total,
         }
 
     def owner_bookings(self, owner_user_id: int) -> dict:
@@ -225,6 +243,28 @@ class BookingService:
         )
         return cur.fetchone() is not None
 
+    def _has_blocked_availability_conflict(
+        self,
+        cur,
+        *,
+        listing_id: int,
+        start_at,
+        end_at,
+    ) -> bool:
+        cur.execute(
+            """
+            SELECT 1
+            FROM listing_availability
+            WHERE listing_id = %s
+              AND status = 'BLOCKED'::availability_status
+              AND start_at < %s
+              AND end_at > %s
+            LIMIT 1
+            """,
+            (listing_id, end_at, start_at),
+        )
+        return cur.fetchone() is not None
+
     def create_booking(self, renter_user_id: int, payload: dict) -> dict:
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -247,6 +287,11 @@ class BookingService:
                     listing_id=listing["listing_id"],
                     source_type=listing["source_type"],
                     fleet_vehicle_vin=listing.get("fleet_vehicle_vin"),
+                    start_at=payload["startAt"],
+                    end_at=payload["endAt"],
+                ) or self._has_blocked_availability_conflict(
+                    cur,
+                    listing_id=listing["listing_id"],
                     start_at=payload["startAt"],
                     end_at=payload["endAt"],
                 ):
@@ -342,12 +387,15 @@ class BookingService:
                     end_at=row["end_at"],
                     statuses=_BOOKING_BLOCKING_STATUSES,
                     exclude_booking_id=booking_id,
+                ) or self._has_blocked_availability_conflict(
+                    cur,
+                    listing_id=row["listing_id"],
+                    start_at=row["start_at"],
+                    end_at=row["end_at"],
                 ):
                     return {
                         "status": "validation_error",
-                        "message": (
-                            "Cannot approve: another confirmed booking overlaps these dates."
-                        ),
+                        "message": ("Cannot approve: listing unavailable for these dates."),
                     }
                 cur.execute(
                     """

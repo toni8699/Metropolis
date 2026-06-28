@@ -7,6 +7,8 @@ import { apiGet, apiPatch } from "@/shared/api/api";
 import { bookingStatusBadgeClass, formatBookingStatusLabel } from "@/shared/lib/bookingStatus";
 import { formatTripWindow } from "@/shared/lib/tripDetail";
 
+const PAGE_SIZE = 10;
+
 export default function TripsPage() {
   const { isAuthenticated } = useAuth();
   const [trips, setTrips] = useState([]);
@@ -14,15 +16,23 @@ export default function TripsPage() {
   const [error, setError] = useState("");
   const [reviewBooking, setReviewBooking] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const loadTrips = useCallback(async () => {
+  const loadTrips = useCallback(async (targetPage = 1) => {
     setError("");
     setIsLoading(true);
     try {
-      const data = await apiGet("/api/bookings?scope=mine", true);
+      const data = await apiGet(
+        `/api/bookings?scope=mine&page=${targetPage}&pageSize=${PAGE_SIZE}`,
+        true,
+      );
       setTrips(data?.bookings || []);
+      setTotal(data?.total ?? 0);
+      setPage(data?.page ?? targetPage);
     } catch (err) {
       setTrips([]);
+      setTotal(0);
       setError(err?.message || "Could not load your trips.");
     } finally {
       setIsLoading(false);
@@ -31,8 +41,10 @@ export default function TripsPage() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    loadTrips();
+    loadTrips(1);
   }, [isAuthenticated, loadTrips]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const handleCancel = async (bookingId) => {
     if (!window.confirm("Cancel this booking?")) return;
@@ -40,7 +52,7 @@ export default function TripsPage() {
     setCancellingId(bookingId);
     try {
       await apiPatch(`/api/bookings/${bookingId}`, { status: "CANCELLED" }, true);
-      await loadTrips();
+      await loadTrips(page);
     } catch (err) {
       setError(err?.message || "Could not cancel booking.");
     } finally {
@@ -149,11 +161,35 @@ export default function TripsPage() {
         </div>
       )}
 
+      {!isLoading && total > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-3 border-t-2 border-black pt-4">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => loadTrips(page - 1)}
+            className="rounded-full border-2 border-black border-b-4 bg-white px-4 py-2 text-sm font-bold text-vroom-heading active:border-b-0 disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-sm font-semibold text-vroom-muted">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => loadTrips(page + 1)}
+            className="rounded-full border-2 border-black border-b-4 bg-white px-4 py-2 text-sm font-bold text-vroom-heading active:border-b-0 disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      )}
+
       <ReviewModal
         booking={reviewBooking}
         isOpen={Boolean(reviewBooking)}
         onClose={() => setReviewBooking(null)}
-        onSuccess={loadTrips}
+        onSuccess={() => loadTrips(page)}
       />
     </PageShell>
   );

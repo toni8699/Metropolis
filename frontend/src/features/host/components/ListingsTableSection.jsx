@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BadgeCheck, CheckCircle2, Pencil, Trash2 } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { listingPhotos } from "@/shared/lib/listingPhotos";
 
 const FALLBACK_PHOTO =
@@ -25,10 +25,12 @@ function ListingCard({
   showTypeColumn,
   onEdit,
   onDelete,
+  onToggleStatus,
 }) {
   const title = listingLabel(listing);
   const specs = [listing.make, listing.model, listing.year].filter(Boolean).join(" ");
   const hasVin = Boolean(String(listing.vin || "").trim());
+  const isActive = Boolean(listing.active);
 
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl border-2 border-black bg-white shadow-neo transition hover:-translate-y-0.5">
@@ -121,6 +123,17 @@ function ListingCard({
           >
             View
           </Link>
+          {onToggleStatus && (
+            <button
+              type="button"
+              onClick={() => onToggleStatus(listing.listingId, isActive ? "INACTIVE" : "ACTIVE")}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border-2 border-black text-vroom-muted transition hover:bg-vroom-card hover:text-vroom-heading"
+              aria-label={isActive ? "Pause listing" : "Activate listing"}
+              title={isActive ? "Pause listing" : "Activate listing"}
+            >
+              {isActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onDelete(listing.listingId)}
@@ -144,6 +157,7 @@ export default function ListingsTableSection({
   onAdd,
   onEdit,
   onDelete,
+  onToggleStatus,
 }) {
   return (
     <section className="mx-11 mt-6 mb-11">
@@ -174,6 +188,7 @@ export default function ListingsTableSection({
               showTypeColumn={showTypeColumn}
               onEdit={onEdit}
               onDelete={onDelete}
+              onToggleStatus={onToggleStatus}
             />
           ))}
         </div>

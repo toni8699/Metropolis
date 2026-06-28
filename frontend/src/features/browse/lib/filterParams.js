@@ -69,9 +69,6 @@ export function filtersToParams(filters, { searchContext, pagination, urlOnly = 
   const params = new URLSearchParams();
 
   if (!urlOnly && searchContext) {
-    if (!searchContext.hasSearched) {
-      params.set("bbox", "-79.65,43.58,-79.10,43.86");
-    }
     if (searchContext.searchParams?.pickupDate) {
       params.set("start", `${searchContext.searchParams.pickupDate}T00:00:00Z`);
     }

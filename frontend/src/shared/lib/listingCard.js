@@ -1,11 +1,6 @@
 export function listingToCarCard(listing, { distanceKm = null } = {}) {
-  const transmissionLabel = listing.transmission
-    ? listing.transmission === "AUTOMATIC"
-      ? "Automatic"
-      : listing.transmission === "MANUAL"
-        ? "Manual"
-        : listing.transmission
-    : "Automatic";
+  const transmissionLabel =
+    listing.transmission === "MANUAL" ? "Manual" : "Automatic";
 
   const lat = listing.lat ?? listing.latitude ?? null;
   const lng = listing.lng ?? listing.longitude ?? null;
@@ -20,6 +15,7 @@ export function listingToCarCard(listing, { distanceKm = null } = {}) {
     year: listing.year || null,
     averageRating: listing.averageRating,
     reviewCount: listing.reviewCount,
+    cityZone: listing.cityZone || null,
     details:
       listing.isCompanyOwned || listing.sourceType === "FLEET"
         ? `Company Fleet • ${transmissionLabel}`

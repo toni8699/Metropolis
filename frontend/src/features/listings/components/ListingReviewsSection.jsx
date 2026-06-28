@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Star } from "lucide-react";
+import UserAvatar from "@/shared/components/UserAvatar";
 import {
   formatReviewDate,
   formatRatingValue,
@@ -8,16 +10,6 @@ import {
 
 const PREVIEW_COUNT = 6;
 const TRUNCATE_LENGTH = 150;
-
-function avatarInitials(name) {
-  const parts = String(name || "G")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (!parts.length) return "G";
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
-}
 
 function ReviewComment({ comment }) {
   const [expanded, setExpanded] = useState(false);
@@ -77,15 +69,33 @@ function ReviewSubRatings({ review }) {
 
 function ReviewCard({ review }) {
   const displayName = review.authorName || "VROOM guest";
+  const profileHref = review.authorUserId ? `/app/users/${review.authorUserId}` : null;
+  const avatarUser = {
+    fullName: displayName,
+    profilePhotoUrl: review.authorProfilePhotoUrl,
+  };
 
   return (
     <article>
       <div className="mb-4 flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-200 object-cover text-lg font-semibold text-gray-500">
-          {avatarInitials(displayName)}
-        </div>
+        {profileHref ? (
+          <Link to={profileHref}>
+            <UserAvatar user={avatarUser} className="h-12 w-12 text-lg" />
+          </Link>
+        ) : (
+          <UserAvatar user={avatarUser} className="h-12 w-12 text-lg" />
+        )}
         <div className="flex flex-col">
-          <p className="text-base font-semibold text-gray-900">{displayName}</p>
+          {profileHref ? (
+            <Link
+              to={profileHref}
+              className="text-base font-semibold text-gray-900 hover:underline"
+            >
+              {displayName}
+            </Link>
+          ) : (
+            <p className="text-base font-semibold text-gray-900">{displayName}</p>
+          )}
           <p className="text-sm text-gray-500">
             {formatReviewDate(review.createdAt)}
             {review.rating != null && (

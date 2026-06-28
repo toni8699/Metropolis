@@ -4,7 +4,7 @@ import UserAvatar from "@/shared/components/UserAvatar";
 import { differenceInDays, format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
 import AuthModal from "@/shared/components/AuthModal";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import ListingReviewsSection from "@/features/listings/components/ListingReviewsSection";
 import ListingRatingLine from "@/features/listings/components/ListingRatingLine";
 import ListingPhotoGrid from "@/features/listings/components/ListingPhotoGrid";
@@ -147,6 +147,8 @@ export default function ListingDetailPage() {
   const hostUser = isCompanyFleet
     ? { fullName: "Company fleet" }
     : { fullName: hostedByName, profilePhotoUrl: listing.ownerProfilePhotoUrl };
+  const hostHref =
+    !isCompanyFleet && listing.ownerUserId ? `/app/users/${listing.ownerUserId}` : null;
 
   const rawDayCount =
     dateRange.from && dateRange.to ? differenceInDays(dateRange.to, dateRange.from) : 0;
@@ -221,19 +223,33 @@ export default function ListingDetailPage() {
         <div className="relative mt-10 flex flex-col gap-12 md:flex-row">
           <div className="w-full space-y-6 md:w-[65%]">
             <div className="flex items-center gap-3 border-t-4 border-black py-6">
-              <UserAvatar user={hostUser} className="h-10 w-10 text-sm" />
-              <div>
-                <p className="text-xl font-semibold text-vroom-heading">
-                  {isCompanyFleet
-                    ? "Company fleet"
-                    : hostedByName
-                      ? `Hosted by ${hostedByName}`
-                      : "Individual host"}
-                </p>
-                {!isCompanyFleet && hostedByName && (
-                  <p className="text-sm text-vroom-muted">Individual host</p>
-                )}
-              </div>
+              {hostHref ? (
+                <Link to={hostHref} className="group flex items-center gap-3">
+                  <UserAvatar user={hostUser} className="h-10 w-10 text-sm" />
+                  <div>
+                    <p className="text-xl font-semibold text-vroom-heading group-hover:underline">
+                      {hostedByName ? `Hosted by ${hostedByName}` : "Individual host"}
+                    </p>
+                    <p className="text-sm text-vroom-muted">View profile</p>
+                  </div>
+                </Link>
+              ) : (
+                <>
+                  <UserAvatar user={hostUser} className="h-10 w-10 text-sm" />
+                  <div>
+                    <p className="text-xl font-semibold text-vroom-heading">
+                      {isCompanyFleet
+                        ? "Company fleet"
+                        : hostedByName
+                          ? `Hosted by ${hostedByName}`
+                          : "Individual host"}
+                    </p>
+                    {!isCompanyFleet && hostedByName && (
+                      <p className="text-sm text-vroom-muted">Individual host</p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="grid gap-4 border-t-4 border-black py-6 sm:grid-cols-3">
@@ -243,7 +259,13 @@ export default function ListingDetailPage() {
               </div>
               <div className="flex items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 font-bold text-vroom-text">
                 <Settings className="h-5 w-5 text-vroom-accent" />
-                <span className="text-sm">{listing.transmission || "Transmission N/A"}</span>
+                <span className="text-sm">
+                  {listing.transmission
+                    ? listing.transmission === "MANUAL"
+                      ? "Manual"
+                      : "Automatic"
+                    : "Transmission N/A"}
+                </span>
               </div>
               <div className="flex items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 font-bold text-vroom-text">
                 <Fuel className="h-5 w-5 text-vroom-accent" />

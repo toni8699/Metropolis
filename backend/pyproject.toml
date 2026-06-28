@@ -30,6 +30,8 @@ dev = [
     "requests>=2.32,<3",
     "httpx2>=2.0,<3",
     "ruff>=0.15,<0.16",
+    "faker>=30.0,<38",
+    "factory-boy>=3.3,<4",
 ]
 
 [tool.ruff]

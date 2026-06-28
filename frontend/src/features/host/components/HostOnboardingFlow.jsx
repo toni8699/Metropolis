@@ -7,7 +7,7 @@ import { uploadPresignedFile } from "@/shared/lib/uploadPresigned";
 import { useAuth } from "@/context/AuthContext";
 import { useGoogleMaps } from "@/context/GoogleMapsProvider";
 import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
-import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
+import { cityToZone, resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 import { MIN_LISTING_PHOTOS } from "@/features/host/constants";
 import {
   BODY_TYPE_DEFAULTS,
@@ -192,6 +192,7 @@ export default function HostOnboardingFlow() {
     bodyTypeOther: "",
     listingTitle: "",
     address: "",
+    city: "",
     lat: null,
     lng: null,
     price: 50,
@@ -439,10 +440,11 @@ export default function HostOnboardingFlow() {
 
   const selectAddressPrediction = async (prediction) => {
     try {
-      const { lat, lng } = await resolvePredictionCoordinates(prediction);
+      const { lat, lng, city } = await resolvePredictionCoordinates(prediction);
       setListingData((prev) => ({
         ...prev,
         address: prediction.description || prev.address,
+        city: city || prev.city,
         lat,
         lng,
       }));
@@ -483,7 +485,7 @@ export default function HostOnboardingFlow() {
     try {
       const lat = Number(listingData.lat);
       const lng = Number(listingData.lng);
-      const cityZone = "toronto-core";
+      const cityZone = cityToZone(listingData.city) || "other";
       const listingTitle = listingData.listingTitle.trim();
       const payload = {
         listingTitle,
