@@ -148,11 +148,7 @@ def get_listing(
     user: UserContext | None = Depends(get_optional_user),
 ) -> dict:
     """Get listing details by id."""
-    try:
-        result = listing_service.get_listing(listing_id)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
+    result = listing_service.get_listing(listing_id)
     raise_for_service_result(result)
     can_edit = bool(
         user and (user.is_admin or result.get("listing", {}).get("ownerUserId") == user.user_id)
@@ -166,13 +162,10 @@ def create_listing(
     user: UserContext = Depends(verified_user_required),
 ) -> dict:
     """Create listing for authenticated verified user."""
-    try:
-        result = listing_service.create_listing(
-            _actor_from_user(user),
-            payload.model_dump(by_alias=True),
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = listing_service.create_listing(
+        _actor_from_user(user),
+        payload.model_dump(by_alias=True),
+    )
     raise_for_service_result(result)
     return with_listing_links(result, can_edit=True)
 
@@ -184,14 +177,11 @@ def patch_listing(
     access: ListingAccessContext = Depends(require_listing_access),
 ) -> dict:
     """Patch listing fields."""
-    try:
-        result = listing_service.update_listing(
-            _actor_from_user(access.user),
-            listing_id,
-            payload.model_dump(by_alias=True, exclude_unset=True),
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = listing_service.update_listing(
+        _actor_from_user(access.user),
+        listing_id,
+        payload.model_dump(by_alias=True, exclude_unset=True),
+    )
     raise_for_service_result(result)
     return with_listing_links(result, can_edit=True)
 
@@ -202,10 +192,7 @@ def delete_listing(
     access: ListingAccessContext = Depends(require_listing_access),
 ) -> dict:
     """Delete listing when actor has listing access."""
-    try:
-        result = listing_service.delete_listing(_actor_from_user(access.user), listing_id)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = listing_service.delete_listing(_actor_from_user(access.user), listing_id)
     raise_for_service_result(result)
     return result
 
@@ -217,14 +204,11 @@ def set_location(
     access: ListingAccessContext = Depends(require_listing_access),
 ) -> dict:
     """Upsert parking location for listing."""
-    try:
-        result = listing_service.upsert_location(
-            _actor_from_user(access.user),
-            listing_id,
-            payload.model_dump(by_alias=True),
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = listing_service.upsert_location(
+        _actor_from_user(access.user),
+        listing_id,
+        payload.model_dump(by_alias=True),
+    )
     raise_for_service_result(result)
     return with_listing_links(result, can_edit=True)
 
@@ -235,13 +219,10 @@ def list_listing_availability(
     access: ListingAccessContext = Depends(require_listing_access),
 ) -> dict:
     """List host-blocked availability windows for a listing."""
-    try:
-        result = listing_service.list_listing_availability(
-            _actor_from_user(access.user),
-            listing_id,
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = listing_service.list_listing_availability(
+        _actor_from_user(access.user),
+        listing_id,
+    )
     raise_for_service_result(result)
     return result
 
@@ -253,14 +234,11 @@ def add_availability(
     access: ListingAccessContext = Depends(require_listing_access),
 ) -> dict:
     """Add availability window for listing."""
-    try:
-        result = listing_service.add_availability(
-            _actor_from_user(access.user),
-            listing_id,
-            payload.model_dump(by_alias=True),
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = listing_service.add_availability(
+        _actor_from_user(access.user),
+        listing_id,
+        payload.model_dump(by_alias=True),
+    )
     raise_for_service_result(result)
     return result["availability"]
 
@@ -272,14 +250,11 @@ def delete_availability(
     access: ListingAccessContext = Depends(require_listing_access),
 ) -> dict:
     """Remove a host availability block."""
-    try:
-        result = listing_service.delete_availability(
-            _actor_from_user(access.user),
-            listing_id,
-            availability_id,
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = listing_service.delete_availability(
+        _actor_from_user(access.user),
+        listing_id,
+        availability_id,
+    )
     raise_for_service_result(result)
     return result
 
@@ -287,10 +262,7 @@ def delete_availability(
 @router.get("/{listing_id}/booked-ranges", response_model=BookedRangeCollectionResponse)
 def list_listing_booked_ranges(listing_id: int) -> dict:
     """List booking windows that block new reservations for this listing."""
-    try:
-        result = listing_service.list_listing_booked_ranges(listing_id)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = listing_service.list_listing_booked_ranges(listing_id)
     raise_for_service_result(result)
     return result
 
@@ -298,9 +270,6 @@ def list_listing_booked_ranges(listing_id: int) -> dict:
 @router.get("/{listing_id}/reviews", response_model=ReviewCollectionResponse)
 def list_listing_reviews(listing_id: int) -> dict:
     """List public listing reviews (renter feedback on the vehicle)."""
-    try:
-        result = review_service.list_listing_reviews(listing_id)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = review_service.list_listing_reviews(listing_id)
     raise_for_service_result(result)
     return result

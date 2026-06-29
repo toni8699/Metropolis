@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 
 from vroom.core.config import settings
 from vroom.core.errors import raise_for_service_result
@@ -30,14 +30,11 @@ def register(
     payload: AuthRegisterRequest,
 ) -> dict:
     """Register account; issues JWT and sends verification email."""
-    try:
-        result = auth_service.register(
-            email=str(payload.email),
-            password=payload.password,
-            full_name=payload.full_name,
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = auth_service.register(
+        email=str(payload.email),
+        password=payload.password,
+        full_name=payload.full_name,
+    )
     raise_for_service_result(result)
     verification_token = result.pop("verification_token", None)
     if verification_token:
@@ -59,10 +56,7 @@ def resend_verification(
     user: UserContext = Depends(get_current_user),
 ) -> dict:
     """Resend verification email for logged-in unverified user."""
-    try:
-        result = auth_service.resend_verification(user.user_id)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = auth_service.resend_verification(user.user_id)
     raise_for_service_result(result)
     verification_token = result.pop("verification_token", None)
     email = result.pop("email", None)
@@ -79,10 +73,7 @@ def resend_verification(
 @limiter.limit("20/minute")
 def verify_email(request: Request, token: str = Query(min_length=1)) -> dict:
     """Mark email verified from link token."""
-    try:
-        result = auth_service.verify_email(token)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = auth_service.verify_email(token)
     raise_for_service_result(result)
     return result
 
@@ -91,10 +82,7 @@ def verify_email(request: Request, token: str = Query(min_length=1)) -> dict:
 @limiter.limit("10/minute")
 def login(request: Request, payload: AuthLoginRequest) -> dict:
     """Login with email/password and get JWT."""
-    try:
-        result = auth_service.login(email=str(payload.email), password=payload.password)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = auth_service.login(email=str(payload.email), password=payload.password)
     raise_for_service_result(result)
     return result
 
@@ -103,9 +91,6 @@ def login(request: Request, payload: AuthLoginRequest) -> dict:
 def google_login(payload: AuthGoogleRequest) -> dict:
     """Login or register via Google ID token; issues same JWT as password login."""
     data = payload.model_dump(by_alias=True)
-    try:
-        result = auth_service.google_login(data["idToken"])
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = auth_service.google_login(data["idToken"])
     raise_for_service_result(result)
     return result

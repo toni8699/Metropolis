@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     # Auth
     jwt_secret: str = Field(default="change-me-dev-secret", validation_alias="JWT_SECRET")
+    jwt_alg: str = Field(default="HS256", validation_alias="JWT_ALG")
     jwt_expires_hours: int = Field(default=24, validation_alias="JWT_EXPIRES_HOURS")
 
     # Database

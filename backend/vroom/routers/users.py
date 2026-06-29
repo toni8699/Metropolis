@@ -21,10 +21,7 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 @router.get("", response_model=AdminUsersResponse)
 def list_users(_admin: UserContext = Depends(require_admin)) -> dict:
     """List users for admin."""
-    try:
-        result = auth_service.admin_list_users()
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = auth_service.admin_list_users()
     raise_for_service_result(result)
     return result
 
@@ -38,10 +35,7 @@ def list_kyc_queue(
     normalized = (status or "pending").strip().lower()
     if normalized != "pending":
         raise HTTPException(status_code=400, detail="Only status=pending is supported.")
-    try:
-        result = kyc_service.list_pending()
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = kyc_service.list_pending()
     raise_for_service_result(result)
     return result
 
@@ -59,10 +53,7 @@ def patch_user_kyc(
             status_code=400,
             detail="verificationStatus must be VERIFIED or REJECTED.",
         )
-    try:
-        result = kyc_service.set_status(user_id, verification_status)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = kyc_service.set_status(user_id, verification_status)
     raise_for_service_result(result)
     return result
 
@@ -71,9 +62,6 @@ def patch_user_kyc(
 @router.get("/{user_id}", response_model=PublicProfileResponse)
 def get_public_profile(user_id: int) -> dict:
     """Public profile for any user (host or reviewer) — no auth required."""
-    try:
-        result = auth_service.public_profile(user_id)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = auth_service.public_profile(user_id)
     raise_for_service_result(result)
     return result

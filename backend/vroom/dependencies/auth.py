@@ -34,7 +34,7 @@ class ListingAccessContext(BaseModel):
 
 
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_alg])
 
 
 def create_access_token(
@@ -52,7 +52,7 @@ def create_access_token(
         "hasListings": bool(has_listings),
         "exp": datetime.now(UTC) + timedelta(hours=settings.jwt_expires_hours),
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_alg)
 
 
 def _user_context_from_payload(payload: dict) -> UserContext:

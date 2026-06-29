@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from vroom.core.errors import raise_for_service_result
 from vroom.dependencies.auth import UserContext, get_current_user
@@ -16,9 +16,6 @@ router = APIRouter(prefix="/api/messages", tags=["messages"])
 @router.get("/threads", response_model=MessageThreadCollectionResponse)
 def list_message_threads(user: UserContext = Depends(get_current_user)) -> dict:
     """List inbox conversation threads for the authenticated user."""
-    try:
-        result = message_service.list_message_threads(user.user_id)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    result = message_service.list_message_threads(user.user_id)
     raise_for_service_result(result)
     return {"threads": result["threads"]}
