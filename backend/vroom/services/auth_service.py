@@ -192,9 +192,12 @@ class AuthService:
                     """
                     INSERT INTO app_user (
                         email, password_hash, role, full_name, is_admin,
-                        is_verified, verification_token
+                        is_verified, verification_token, verification_token_expires_at
                     )
-                    VALUES (%s, %s, 'RENTER'::user_role, %s, FALSE, FALSE, %s)
+                    VALUES (
+                        %s, %s, 'RENTER'::user_role, %s, FALSE, FALSE, %s,
+                        NOW() + INTERVAL '24 hours'
+                    )
                     RETURNING user_id, email, full_name, is_admin, is_verified
                     """,
                     (
@@ -243,7 +246,8 @@ class AuthService:
                 cur.execute(
                     """
                     UPDATE app_user
-                    SET verification_token = %s
+                    SET verification_token = %s,
+                        verification_token_expires_at = NOW() + INTERVAL '24 hours'
                     WHERE user_id = %s
                     """,
                     (verification_token, user_id),
@@ -266,7 +270,9 @@ class AuthService:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(
                     """
-                    SELECT user_id, is_verified
+                    SELECT user_id, is_verified,
+                           (verification_token_expires_at IS NOT NULL
+                            AND verification_token_expires_at < NOW()) AS is_expired
                     FROM app_user
                     WHERE verification_token = %s
                     """,
@@ -285,6 +291,14 @@ class AuthService:
                         "message": "Email already verified.",
                     }
 
+                if user.get("is_expired"):
+                    return {
+                        "status": "validation_error",
+                        "message": "Invalid or expired verification link.",
+                    }
+
+                # Keep verification_token so re-verifying with the same link stays
+                # idempotent; the token is inert once is_verified is TRUE.
                 cur.execute(
                     """
                     UPDATE app_user

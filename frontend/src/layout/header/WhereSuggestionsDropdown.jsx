@@ -1,4 +1,4 @@
-import { MapPin } from "lucide-react";
+import { LocateFixed, MapPin } from "lucide-react";
 
 export default function WhereSuggestionsDropdown({
   isLoading,
@@ -6,9 +6,32 @@ export default function WhereSuggestionsDropdown({
   placesError,
   searchQuery,
   onPickPrediction,
+  onUseMyLocation,
+  isLocating,
+  geoError,
 }) {
   return (
     <div className="absolute top-[80px] left-0 z-50 w-[430px] rounded-3xl border border-gray-200 bg-white p-4 shadow-xl">
+      {onUseMyLocation ? (
+        <button
+          type="button"
+          onClick={onUseMyLocation}
+          disabled={isLocating}
+          className="mb-2 flex w-full items-center gap-3 rounded-2xl border-2 border-black px-3 py-3 text-left font-semibold transition hover:bg-vroom-sage disabled:opacity-60"
+        >
+          <span className="rounded-xl bg-vroom-gold p-2 text-vroom-text">
+            <LocateFixed className="h-5 w-5" />
+          </span>
+          <span className="text-base text-gray-900">
+            {isLocating ? "Locating..." : "Near me"}
+          </span>
+        </button>
+      ) : null}
+      {geoError ? (
+        <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+          {geoError}
+        </p>
+      ) : null}
       {isLoading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((row) => (

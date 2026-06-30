@@ -4,6 +4,7 @@ from psycopg2.extras import RealDictCursor
 
 from vroom.core.db import get_connection
 from vroom.services.marketplace_common import fetch_listing_images_map
+from vroom.text_sanitize import sanitize_display_text
 
 
 class MessageService:
@@ -151,6 +152,9 @@ class MessageService:
                 "status": "validation_error",
                 "message": "Message is too long (max 4000 characters).",
             }
+        text = sanitize_display_text(text, max_length=4000)
+        if not text:
+            return {"status": "validation_error", "message": "Message cannot be empty."}
 
         access = self.assert_booking_participant(booking_id, sender_id, requester_is_admin)
         if access["status"] != "ok":

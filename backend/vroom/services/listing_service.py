@@ -9,6 +9,7 @@ from vroom.core.db import get_connection
 from vroom.services.marketplace_common import (
     _BOOKING_HOLD_STATUSES,
     LISTING_SELECT_SQL,
+    PROXIMITY_DISTANCE_SQL,
     _associate_listing_image_urls,
     _fetch_dashboard_analytics,
     _listing_image_urls,
@@ -16,10 +17,13 @@ from vroom.services.marketplace_common import (
     _resolve_listing_title,
     _upsert_listing_location,
     build_listing_search_filters,
+    compose_canonical_title,
     count_listing_search_matches,
     hydrate_listing_rows,
     replace_listing_features,
     resolve_company_location,
+    resolve_optional_listing_title,
+    sanitize_listing_text_payload,
     sync_listing_cache_from_asset,
     validate_feature_ids,
 )
@@ -178,6 +182,7 @@ class ListingService:
                 "status": "forbidden",
                 "message": "User vehicle listings are disabled. Admin fleet only.",
             }
+        payload = sanitize_listing_text_payload(payload)
         is_company_owned = bool(payload.get("isCompanyOwned")) and bool(actor.get("isAdmin"))
         owner_user_id = actor["userId"]
         source_type = "OWNER"
@@ -365,6 +370,15 @@ class ListingService:
                     )
 
                 pickup_address = address or location_address
+                # title = canonical vehicle label (NOT NULL); listing_title = optional
+                # user display override (NULL when the host did not supply one).
+                canonical_title = compose_canonical_title(
+                    asset_row["make"],
+                    asset_row["model"],
+                    asset_row["model_year"],
+                    fallback=listing_title,
+                )
+                override_listing_title = resolve_optional_listing_title(payload)
                 cur.execute(
                     """
                     INSERT INTO vehicle_listing
@@ -391,8 +405,8 @@ class ListingService:
                         actor["userId"],
                         vehicle_id,
                         source_type,
-                        listing_title,
-                        listing_title,
+                        canonical_title,
+                        override_listing_title,
                         asset_row["make"],
                         asset_row["model"],
                         asset_row["model_year"],
@@ -430,6 +444,13 @@ class ListingService:
             return self.get_listing(listing_id)
         except Exception as exc:  # noqa: BLE001
             msg = str(exc)
+            # 23505 = unique_violation; vehicle_asset.vin is UNIQUE, so a duplicate VIN here
+            # means another asset already owns it. Surface a clean 400 instead of a 500.
+            if getattr(exc, "pgcode", None) == "23505" and "vin" in msg.lower():
+                return {
+                    "status": "validation_error",
+                    "message": "A vehicle with this VIN already exists.",
+                }
             if "column" in msg and "vehicle_listing" in msg and "does not exist" in msg:
                 return {
                     "status": "validation_error",
@@ -544,6 +565,14 @@ class ListingService:
         limit = int(query.get("limit") or 24)
         offset = int(query.get("offset") or 0)
         where_sql = " AND ".join(clauses)
+        lat = query.get("lat")
+        lng = query.get("lng")
+        if lat is not None and lng is not None:
+            order_sql = f"{PROXIMITY_DISTANCE_SQL} ASC"
+            order_params = [float(lat), float(lng), float(lat)]
+        else:
+            order_sql = "l.updated_at DESC"
+            order_params = []
         with get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 total_count = count_listing_search_matches(cur, clauses, params)
@@ -551,10 +580,10 @@ class ListingService:
                     f"""
                     {LISTING_SELECT_SQL}
                     WHERE {where_sql}
-                    ORDER BY l.updated_at DESC
+                    ORDER BY {order_sql}
                     LIMIT %s OFFSET %s
                     """,
-                    (*params, limit, offset),
+                    (*params, *order_params, limit, offset),
                 )
                 listings = hydrate_listing_rows(cur, cur.fetchall())
         return {
@@ -623,6 +652,7 @@ class ListingService:
             payload = {**payload, "make": payload.get("brand")}
         if "title" in payload and "listingTitle" not in payload:
             payload = {**payload, "listingTitle": payload["title"]}
+        payload = sanitize_listing_text_payload(payload)
 
         listing_mapping = {
             "listingTitle": "listing_title",
@@ -642,9 +672,8 @@ class ListingService:
             if key in payload:
                 listing_fields.append(f"{column} = %s")
                 listing_params.append(payload[key])
-        if "listingTitle" in payload:
-            listing_fields.append("title = %s")
-            listing_params.append(payload["listingTitle"])
+        # Edits update only the user override (listing_title); the canonical title
+        # column stays as composed at create time (make/model/year).
 
         image_urls = _listing_image_urls(payload)
         location_keys = {

@@ -7,7 +7,7 @@ import {
   FUEL_TYPE_OPTIONS,
   SEAT_OPTIONS,
 } from "@/shared/constants/vehicleSpecOptions";
-import { DEFAULT_FILTERS, PRICE_DOMAIN } from "@/features/browse/lib/filterParams";
+import { DEFAULT_FILTERS, PRICE_DOMAIN, RADIUS_DOMAIN } from "@/features/browse/lib/filterParams";
 
 function toggleInList(list, value) {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
@@ -171,6 +171,29 @@ export default function FilterModal({
               maxPrice={safeDraft.maxPrice}
               onChange={(pricePatch) => onChange((prev) => ({ ...prev, ...pricePatch }))}
             />
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+              Search radius
+            </h3>
+            <div className="flex items-center justify-between text-sm font-semibold text-vroom-text">
+              <span>Within {safeDraft.radius ?? RADIUS_DOMAIN.default} km</span>
+            </div>
+            <input
+              type="range"
+              min={RADIUS_DOMAIN.min}
+              max={RADIUS_DOMAIN.max}
+              step={5}
+              value={safeDraft.radius ?? RADIUS_DOMAIN.default}
+              onChange={(event) =>
+                onChange((prev) => ({ ...prev, radius: Number(event.target.value) }))
+              }
+              className="w-full accent-vroom-heading"
+            />
+            <p className="text-xs text-vroom-muted">
+              Applies when a location or &quot;Near me&quot; is set.
+            </p>
           </section>
 
           <section className="space-y-3">

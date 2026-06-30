@@ -2,6 +2,8 @@
 
 export const PRICE_DOMAIN = { min: 0, max: 500 };
 
+export const RADIUS_DOMAIN = { min: 5, max: 200, default: 50 };
+
 export const DEFAULT_FILTERS = {
   minPrice: null,
   maxPrice: null,
@@ -10,6 +12,7 @@ export const DEFAULT_FILTERS = {
   fuelTypes: [],
   seats: [],
   featureIds: [],
+  radius: RADIUS_DOMAIN.default,
 };
 
 export const FILTER_URL_KEYS = [
@@ -20,6 +23,7 @@ export const FILTER_URL_KEYS = [
   "fuelTypes",
   "seats",
   "featureIds",
+  "radius",
 ];
 
 function splitInts(value) {
@@ -41,6 +45,7 @@ function splitStrings(value) {
 export function parseFiltersFromSearchParams(urlSearchParams) {
   const minRaw = urlSearchParams.get("minPrice");
   const maxRaw = urlSearchParams.get("maxPrice");
+  const radiusRaw = urlSearchParams.get("radius");
   return {
     minPrice: minRaw != null && minRaw !== "" ? Number(minRaw) : null,
     maxPrice: maxRaw != null && maxRaw !== "" ? Number(maxRaw) : null,
@@ -49,6 +54,8 @@ export function parseFiltersFromSearchParams(urlSearchParams) {
     fuelTypes: splitStrings(urlSearchParams.get("fuelTypes")),
     seats: splitInts(urlSearchParams.get("seats")),
     featureIds: splitInts(urlSearchParams.get("featureIds")),
+    radius:
+      radiusRaw != null && radiusRaw !== "" ? Number(radiusRaw) : RADIUS_DOMAIN.default,
   };
 }
 
@@ -79,7 +86,7 @@ export function filtersToParams(filters, { searchContext, pagination, urlOnly = 
     if (coords?.lat != null && coords?.lng != null) {
       params.set("lat", String(coords.lat));
       params.set("lng", String(coords.lng));
-      params.set("radius", "50");
+      params.set("radius", String(filters.radius ?? RADIUS_DOMAIN.default));
     }
   }
 
@@ -91,6 +98,9 @@ export function filtersToParams(filters, { searchContext, pagination, urlOnly = 
 
   if (urlOnly) {
     if (filters.seats.length) params.set("seats", filters.seats.join(","));
+    if (filters.radius != null && filters.radius !== RADIUS_DOMAIN.default) {
+      params.set("radius", String(filters.radius));
+    }
   } else {
     const exactSeats = filters.seats.filter((seat) => seat !== 7);
     if (exactSeats.length) params.set("seats", exactSeats.join(","));

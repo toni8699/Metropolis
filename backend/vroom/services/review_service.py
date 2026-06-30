@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from psycopg2.extras import RealDictCursor
 
 from vroom.core.db import get_connection
+from vroom.text_sanitize import sanitize_display_text
 
 REVIEW_WINDOW_DAYS = 30
 
@@ -83,6 +84,8 @@ class ReviewService:
             return {"status": "validation_error", "message": "rating must be between 1 and 5."}
 
         trimmed_comment = (comment or "").strip() or None
+        if trimmed_comment is not None:
+            trimmed_comment = sanitize_display_text(trimmed_comment, max_length=2000) or None
 
         try:
             cleanliness_value = _parse_optional_sub_rating(cleanliness, "cleanliness")

@@ -169,6 +169,14 @@ class ListingListQuery(CamelModel):
         default=None,
         description="minLng,minLat,maxLng,maxLat",
     )
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lng: float | None = Field(default=None, ge=-180, le=180)
+    radius_km: float | None = Field(
+        default=None,
+        ge=0.1,
+        le=500,
+        validation_alias=AliasChoices("radius_km", "radius", "radiusKm"),
+    )
     start_at: datetime | None = Field(
         default=None,
         validation_alias=AliasChoices("start_at", "start", "startAt"),

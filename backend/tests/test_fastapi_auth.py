@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import uuid
 
+import psycopg2
 import pytest
 from auth_test_helpers import register_and_login, verification_token_for_email
 from fastapi.testclient import TestClient
@@ -221,6 +222,45 @@ def test_verify_email_is_idempotent(client: TestClient) -> None:
     second = client.get(f"/api/auth/verify-email?token={token}")
     assert second.status_code == 200, second.text
     assert second.json()["status"] == "success"
+
+
+def test_verify_email_rejects_expired_token(client: TestClient) -> None:
+    email = _unique_email("verify-expired")
+    reg = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": "VerifyExp123!", "fullName": "Expired User"},
+    )
+    assert reg.status_code == 201, reg.text
+    token = verification_token_for_email(DATABASE_URL, email)
+
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE app_user
+                SET verification_token_expires_at = NOW() - INTERVAL '1 hour'
+                WHERE email = %s
+                """,
+                (email,),
+            )
+        conn.commit()
+
+    resp = client.get(f"/api/auth/verify-email?token={token}")
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["status"] == "validation_error"
+
+
+def test_verify_email_fresh_token_succeeds(client: TestClient) -> None:
+    email = _unique_email("verify-fresh")
+    reg = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": "VerifyFresh123!", "fullName": "Fresh User"},
+    )
+    assert reg.status_code == 201, reg.text
+    token = verification_token_for_email(DATABASE_URL, email)
+    resp = client.get(f"/api/auth/verify-email?token={token}")
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "success"
 
 
 def test_login_success(client: TestClient) -> None:

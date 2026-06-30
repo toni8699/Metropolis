@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from vroom.services.marketplace_common import build_listing_search_filters
+from vroom.services.marketplace_common import (
+    build_listing_search_filters,
+    compose_canonical_title,
+    resolve_optional_listing_title,
+)
 
 
 def test_build_filters_price_and_body_type() -> None:
@@ -55,6 +59,39 @@ def test_build_filters_feature_intersection() -> None:
     sql = " ".join(clauses)
     assert "HAVING COUNT(DISTINCT lf.feature_id) = %s" in sql
     assert params[-2:] == [[4, 9], 2]
+
+
+def test_build_filters_proximity_radius() -> None:
+    clauses, params, error = build_listing_search_filters(
+        {"lat": 45.5, "lng": -73.5, "radius_km": 25},
+        booking_hold_statuses=("CONFIRMED",),
+    )
+    assert error is None
+    assert any("acos" in clause for clause in clauses)
+    assert params[-4:] == [45.5, -73.5, 45.5, 25.0]
+
+
+def test_build_filters_proximity_defaults_radius() -> None:
+    _clauses, params, error = build_listing_search_filters(
+        {"lat": 45.5, "lng": -73.5},
+        booking_hold_statuses=("CONFIRMED",),
+    )
+    assert error is None
+    assert params[-1] == 50.0
+
+
+def test_canonical_title_from_specs() -> None:
+    assert compose_canonical_title("Toyota", "Corolla", 2021, fallback="x") == "Toyota Corolla 2021"
+
+
+def test_canonical_title_falls_back_when_no_specs() -> None:
+    assert compose_canonical_title(None, None, None, fallback="My Car") == "My Car"
+
+
+def test_optional_listing_title_returns_override_or_none() -> None:
+    assert resolve_optional_listing_title({"listingTitle": " Cruiser "}) == "Cruiser"
+    assert resolve_optional_listing_title({"title": "Fallback Name"}) == "Fallback Name"
+    assert resolve_optional_listing_title({"make": "Toyota"}) is None
 
 
 def test_build_filters_date_validation_error() -> None:

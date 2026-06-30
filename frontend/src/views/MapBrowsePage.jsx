@@ -110,35 +110,21 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
   }, [queryPath]);
 
   useEffect(() => {
-    getUserLocation().then(setUserLocation);
+    getUserLocation().then(({ coords }) => setUserLocation(coords));
   }, []);
 
-  const visibleListings = useMemo(() => {
-    if (!hasSearched) return listings;
-
-    const center = searchParams?.coordinates;
-    if (center?.lat == null || center?.lng == null) {
-      return [];
-    }
-
-    const maxDistanceKm = 50;
-    return listings.filter((listing) => {
-      const coords = listingCoords(listing);
-      if (!coords) return false;
-      return haversineKm({ lat: center.lat, lng: center.lng }, coords) <= maxDistanceKm;
-    });
-  }, [hasSearched, listings, searchParams]);
-
+  // Proximity/date filtering is done server-side (see filtersToParams: lat/lng/radius);
+  // render whatever the API returned rather than re-filtering on the client.
   const cars = useMemo(
     () =>
-      visibleListings.map((listing) => {
+      listings.map((listing) => {
         const coords = listingCoords(listing);
         const hasCoords = Boolean(coords);
         return listingToCarCard(listing, {
           distanceKm: hasCoords ? haversineKm(userLocation, coords) : null,
         });
       }),
-    [visibleListings, userLocation],
+    [listings, userLocation],
   );
 
   // Home page: group cars by city so each location with listings gets a section.
@@ -162,7 +148,7 @@ export default function MapBrowsePage({ hasSearched, searchParams }) {
     return (
       <SearchResultsView
         cars={cars}
-        cityLabel={searchParams?.location || visibleListings?.[0]?.cityZone || "Toronto"}
+        cityLabel={searchParams?.location || listings?.[0]?.cityZone || "Toronto"}
         searchCenter={searchParams?.coordinates || null}
         isLoading={isLoading}
         filtersActive={filtersActive}

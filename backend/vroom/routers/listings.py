@@ -47,6 +47,11 @@ def _actor_from_user(user: UserContext) -> dict:
 _QUERY_FIELD_ALIASES = {
     "scope": "scope",
     "bbox": "bbox",
+    "lat": "lat",
+    "lng": "lng",
+    "radius": "radius_km",
+    "radiusKm": "radius_km",
+    "radius_km": "radius_km",
     "city_zone": "city_zone",
     "cityZone": "city_zone",
     "start_at": "start_at",

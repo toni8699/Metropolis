@@ -11,11 +11,22 @@ import WhereSuggestionsDropdown from "@/layout/header/WhereSuggestionsDropdown";
 import WhenDateDropdown from "@/layout/header/WhenDateDropdown";
 import VroomLogo from "@/layout/VroomLogo";
 import { defaultDateRangeFromToday, startOfToday } from "@/shared/lib/datePicker";
+import { getUserLocation } from "@/shared/lib/location";
 import { nextWeekendRange } from "@/shared/lib/weekendDates";
 import { useClickOutside } from "@/shared/hooks/useClickOutside";
 import { usePlacesAutocomplete } from "@/shared/hooks/usePlacesAutocomplete";
 import { resolvePredictionCoordinates } from "@/shared/lib/placesAutocomplete";
 import { useOptionalBrowseFilters } from "@/features/browse/hooks/useBrowseFilters.jsx";
+
+const LOCATION_ERROR_MESSAGES = {
+  insecure: "Location needs a secure (https) connection. Try the deployed site or localhost.",
+  unsupported: "Your browser doesn't support location sharing.",
+  denied: "Location permission was blocked. Enable it for this site in your browser settings.",
+  timeout: "Getting your location took too long. Please try again.",
+  unavailable:
+    "Couldn't get your location. Turn on Location Services for your browser "
+    + "(macOS: System Settings > Privacy & Security > Location Services), or search by city.",
+};
 
 export default function Header({ onSearch, onHome }) {
   const navigate = useNavigate();
@@ -29,6 +40,8 @@ export default function Header({ onSearch, onHome }) {
   const [location, setLocation] = useState("toronto");
   const [searchQuery, setSearchQuery] = useState("toronto");
   const [selectedCoordinates, setSelectedCoordinates] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [geoError, setGeoError] = useState("");
   const [selectedRange, setSelectedRange] = useState(defaultDateRangeFromToday);
   const searchContainerRef = useRef(null);
   const geocoderRef = useRef(null);
@@ -192,6 +205,29 @@ export default function Header({ onSearch, onHome }) {
     navigate("/");
   };
 
+  const handleUseMyLocation = async () => {
+    setIsLocating(true);
+    setGeoError("");
+    const { coords, error } = await getUserLocation();
+    setIsLocating(false);
+    if (!coords) {
+      setGeoError(LOCATION_ERROR_MESSAGES[error] ?? LOCATION_ERROR_MESSAGES.unavailable);
+      return;
+    }
+    setGeoError("");
+    setSelectedCoordinates(coords);
+    setLocation("Near me");
+    setSearchQuery("Near me");
+    onSearch?.({
+      location: "Near me",
+      pickupDate: selectedRange?.from ? format(selectedRange.from, "yyyy-MM-dd") : "",
+      returnDate: selectedRange?.to ? format(selectedRange.to, "yyyy-MM-dd") : "",
+      coordinates: coords,
+    });
+    closeSearch();
+    navigate("/");
+  };
+
   const handlePickPrediction = async (prediction, title) => {
     setLocation(title);
     setSearchQuery(title);
@@ -334,6 +370,9 @@ export default function Header({ onSearch, onHome }) {
                     placesError={placesError}
                     searchQuery={searchQuery}
                     onPickPrediction={handlePickPrediction}
+                    onUseMyLocation={handleUseMyLocation}
+                    isLocating={isLocating}
+                    geoError={geoError}
                   />
                 )}
               </div>

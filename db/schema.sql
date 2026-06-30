@@ -79,6 +79,7 @@ CREATE TABLE app_user
   is_admin BOOLEAN NOT NULL DEFAULT FALSE,
   is_verified BOOLEAN NOT NULL DEFAULT FALSE,
   verification_token TEXT,
+  verification_token_expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -87,7 +88,9 @@ CREATE TABLE owner_profile
   user_id BIGINT PRIMARY KEY REFERENCES app_user(user_id) ON DELETE CASCADE,
   verification_status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
   payout_ref TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT owner_profile_verification_status_check
+    CHECK (verification_status IN ('PENDING', 'VERIFIED', 'REJECTED'))
 );
 
 -- ---------------------------------------------------------------------------
@@ -414,7 +417,9 @@ CREATE TABLE payment
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   stripe_payment_intent_id VARCHAR(100),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT payment_status_check
+    CHECK (status IN ('pending', 'succeeded', 'failed', 'refunded', 'canceled'))
 );
 
 CREATE UNIQUE INDEX idx_payment_booking_id ON payment(booking_id);
@@ -656,7 +661,9 @@ CREATE TABLE host_payout
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   failure_reason TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT host_payout_status_check
+    CHECK (status IN ('pending', 'pending_onboarding', 'succeeded', 'failed', 'skipped'))
 );
 
 CREATE INDEX idx_host_payout_owner_status ON host_payout(owner_user_id, status);

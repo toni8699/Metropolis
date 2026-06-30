@@ -591,5 +591,101 @@ def test_search_count_matches_total_count_and_pagination():
             _delete_listing(listing_id)
 
 
+def _create_listing_at(host_token: str, *, lat: float, lng: float, title: str) -> int:
+    resp = _api(
+        "POST",
+        "/api/listings",
+        token=host_token,
+        json={
+            "title": title,
+            "make": "Toyota",
+            "model": "Corolla",
+            "year": 2021,
+            "pricePerDay": 49.0,
+            "lat": lat,
+            "lng": lng,
+            "cityZone": "proximity-test",
+            "instantBook": True,
+        },
+    )
+    assert resp.status_code == 201, _error_message(resp)
+    return int(resp.json()["listing"]["listingId"])
+
+
+# Remote anchor far from seeded Montreal/Toronto data so proximity results are deterministic.
+PROX_ANCHOR_LAT = 60.0
+PROX_ANCHOR_LNG = -100.0
+
+
+def test_search_proximity_includes_near_excludes_far():
+    host_token = _register_user("prox-host")
+    near_id = _create_listing_at(
+        host_token,
+        lat=PROX_ANCHOR_LAT,
+        lng=PROX_ANCHOR_LNG,
+        title=f"Prox Near {uuid.uuid4().hex[:8]}",
+    )
+    # ~300 km north (2.7 deg latitude) -> outside a 50 km radius.
+    far_id = _create_listing_at(
+        host_token,
+        lat=PROX_ANCHOR_LAT + 2.7,
+        lng=PROX_ANCHOR_LNG,
+        title=f"Prox Far {uuid.uuid4().hex[:8]}",
+    )
+    try:
+        resp = _api(
+            "GET",
+            "/api/listings",
+            params={
+                "lat": PROX_ANCHOR_LAT,
+                "lng": PROX_ANCHOR_LNG,
+                "radius": 50,
+                "limit": 100,
+            },
+        )
+        assert resp.status_code == 200, _error_message(resp)
+        ids = _listing_ids(resp)
+        assert near_id in ids
+        assert far_id not in ids
+    finally:
+        _delete_listing(near_id)
+        _delete_listing(far_id)
+
+
+def test_search_proximity_orders_by_distance():
+    host_token = _register_user("prox-order-host")
+    near_id = _create_listing_at(
+        host_token,
+        lat=PROX_ANCHOR_LAT,
+        lng=PROX_ANCHOR_LNG,
+        title=f"Prox A {uuid.uuid4().hex[:8]}",
+    )
+    # ~30 km north (0.27 deg latitude) -> within radius but farther than the anchor listing.
+    mid_id = _create_listing_at(
+        host_token,
+        lat=PROX_ANCHOR_LAT + 0.27,
+        lng=PROX_ANCHOR_LNG,
+        title=f"Prox B {uuid.uuid4().hex[:8]}",
+    )
+    try:
+        resp = _api(
+            "GET",
+            "/api/listings",
+            params={
+                "lat": PROX_ANCHOR_LAT,
+                "lng": PROX_ANCHOR_LNG,
+                "radius": 50,
+                "limit": 100,
+            },
+        )
+        assert resp.status_code == 200, _error_message(resp)
+        ordered = [int(item["listingId"]) for item in (resp.json().get("listings") or [])]
+        assert near_id in ordered and mid_id in ordered
+        assert ordered.index(near_id) < ordered.index(mid_id)
+    finally:
+        _delete_listing(near_id)
+        _delete_listing(mid_id)
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))

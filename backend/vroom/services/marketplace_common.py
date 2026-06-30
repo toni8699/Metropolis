@@ -3,6 +3,28 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime
 
+from vroom.text_sanitize import sanitize_display_text
+
+# User-authored listing text fields and their max lengths (titles map to VARCHAR(120)).
+_LISTING_TEXT_LIMITS = {
+    "title": 120,
+    "listingTitle": 120,
+    "description": 4000,
+    "guidelines": 4000,
+    "rules": 4000,
+}
+
+
+def sanitize_listing_text_payload(payload: dict) -> dict:
+    """Return a copy of payload with user-facing text fields HTML/control-char stripped."""
+    cleaned = dict(payload)
+    for key, limit in _LISTING_TEXT_LIMITS.items():
+        value = cleaned.get(key)
+        if isinstance(value, str) and value.strip():
+            cleaned[key] = sanitize_display_text(value, max_length=limit)
+    return cleaned
+
+
 LISTING_SELECT_SQL = """
     SELECT l.*,
            va.vin AS asset_vin,
@@ -71,6 +93,17 @@ _BOOKING_NEEDS_REVIEW_SQL = """
 _BOOKING_HOLD_STATUSES = ("PENDING", "PENDING_APPROVAL", "CONFIRMED", "IN_PROGRESS")
 _BOOKING_BLOCKING_STATUSES = ("CONFIRMED", "IN_PROGRESS")
 
+# Default search radius (km) when proximity coords are supplied without an explicit radius.
+DEFAULT_PROXIMITY_RADIUS_KM = 50.0
+
+# Haversine great-circle distance (km) between a point and the listing location.
+# Param order per use is (lat, lng, lat); LEAST guards acos against float rounding > 1.
+PROXIMITY_DISTANCE_SQL = (
+    "(6371 * acos(LEAST(1.0, "
+    "cos(radians(%s)) * cos(radians(loc.lat)) * cos(radians(loc.lng) - radians(%s)) "
+    "+ sin(radians(%s)) * sin(radians(loc.lat)))))"
+)
+
 
 def listing_available_for_window_sql(statuses: tuple[str, ...]) -> str:
     """SQL fragment: listing has no overlapping holds or blocked availability windows."""
@@ -135,6 +168,15 @@ def build_listing_search_filters(
         min_lng, min_lat, max_lng, max_lat = (float(x) for x in query["bbox"].split(","))
         clauses.extend(["loc.lng BETWEEN %s AND %s", "loc.lat BETWEEN %s AND %s"])
         params.extend([min_lng, max_lng, min_lat, max_lat])
+
+    lat = query.get("lat")
+    lng = query.get("lng")
+    if lat is not None and lng is not None:
+        radius_km = query.get("radius_km")
+        radius_km = float(radius_km) if radius_km is not None else DEFAULT_PROXIMITY_RADIUS_KM
+        # NULL listing_location (LEFT JOIN) yields NULL distance -> excluded, as intended.
+        clauses.append(f"{PROXIMITY_DISTANCE_SQL} <= %s")
+        params.extend([float(lat), float(lng), float(lat), radius_km])
 
     window = _resolve_search_window(query)
     if isinstance(window, dict):
@@ -268,6 +310,22 @@ def _resolve_listing_title(payload: dict) -> str:
     year = payload.get("year")
     parts = [p for p in [make, model, str(year) if year else None] if p]
     return " ".join(parts) if parts else "User listed car"
+
+
+def resolve_optional_listing_title(payload: dict) -> str | None:
+    """The user-supplied display override (vehicle_listing.listing_title), or None."""
+    for key in ("listingTitle", "listing_title", "title"):
+        value = payload.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    return None
+
+
+def compose_canonical_title(make, model, year, *, fallback: str) -> str:
+    """The canonical vehicle label (vehicle_listing.title, NOT NULL): make/model/year."""
+    parts = [p for p in [make, model, str(year) if year else None] if p]
+    canonical = " ".join(str(p).strip() for p in parts).strip()
+    return canonical or fallback
 
 
 def resolve_company_location(cur, payload: dict) -> dict:

@@ -45,16 +45,52 @@ function deg2rad(deg) {
   return deg * (Math.PI / 180);
 }
 
+/**
+ * Resolve the user's coordinates via the browser Geolocation API.
+ * Returns `{ coords, error }`; `coords` is null on failure and `error` is one of
+ * "insecure" | "unsupported" | "denied" | "unavailable" | "timeout".
+ *
+ * Note: browsers only show the permission prompt on a secure context
+ * (https:// or localhost). On an insecure origin (e.g. an http:// LAN IP) the
+ * API errors immediately with no prompt — surfaced here as "insecure".
+ */
 export function getUserLocation() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
-      resolve(null);
+      resolve({ coords: null, error: "unsupported" });
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => resolve(null),
-      { enableHighAccuracy: false, timeout: 4000 }
-    );
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+      resolve({ coords: null, error: "insecure" });
+      return;
+    }
+
+    const onSuccess = (pos) =>
+      resolve({ coords: { lat: pos.coords.latitude, lng: pos.coords.longitude }, error: null });
+    const reasonFor = (err) =>
+      err.code === err.PERMISSION_DENIED
+        ? "denied"
+        : err.code === err.TIMEOUT
+          ? "timeout"
+          : "unavailable";
+
+    // Safari/CoreLocation often returns POSITION_UNAVAILABLE on the first attempt even when
+    // permission is granted; retry once with a fresh high-accuracy fix before giving up.
+    const attempt = (isRetry) => {
+      navigator.geolocation.getCurrentPosition(
+        onSuccess,
+        (err) => {
+          if (!isRetry && err.code === err.POSITION_UNAVAILABLE) {
+            setTimeout(() => attempt(true), 700);
+            return;
+          }
+          resolve({ coords: null, error: reasonFor(err) });
+        },
+        isRetry
+          ? { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+          : { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+      );
+    };
+    attempt(false);
   });
 }
