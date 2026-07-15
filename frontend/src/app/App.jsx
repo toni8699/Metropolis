@@ -1,5 +1,6 @@
 import { Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { AppPathRedirect } from "@/app/AppPathRedirect";
 import { useAuth } from "@/context/AuthContext";
 import BookingDetailsPage from "@/views/BookingDetailsPage";
@@ -69,55 +70,58 @@ export default function App() {
   };
 
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/verify-email" element={<VerifyEmailPage />} />
-      <Route
-        path="/app"
-        element={
-          <AppShell
-            onSearch={handleSearch}
-            onHome={handleGoHome}
-            hasSearched={hasSearched}
-            searchParams={searchParams}
-          />
-        }
-      >
+    <>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route
-          index
-          element={<MapBrowsePage hasSearched={hasSearched} searchParams={searchParams} />}
-        />
-        <Route path="listings/:listingId" element={<ListingDetailPage />} />
-        <Route path="book/:id" element={<BookingCheckoutPage />} />
-        <Route path="bookings/:bookingId" element={<BookingDetailsPage />} />
-        <Route path="trips" element={<TripsPage />} />
-        <Route path="saved" element={<SavedListingsPage />} />
-        <Route path="messages" element={<InboxPage />} />
-        <Route path="account" element={<AccountSettingsPage />} />
-        <Route path="users/:userId" element={<UserProfilePage />} />
+          path="/app"
+          element={
+            <AppShell
+              onSearch={handleSearch}
+              onHome={handleGoHome}
+              hasSearched={hasSearched}
+              searchParams={searchParams}
+            />
+          }
+        >
+          <Route
+            index
+            element={<MapBrowsePage hasSearched={hasSearched} searchParams={searchParams} />}
+          />
+          <Route path="listings/:listingId" element={<ListingDetailPage />} />
+          <Route path="book/:id" element={<BookingCheckoutPage />} />
+          <Route path="bookings/:bookingId" element={<BookingDetailsPage />} />
+          <Route path="trips" element={<TripsPage />} />
+          <Route path="saved" element={<SavedListingsPage />} />
+          <Route path="messages" element={<InboxPage />} />
+          <Route path="account" element={<AccountSettingsPage />} />
+          <Route path="users/:userId" element={<UserProfilePage />} />
+          <Route path="*" element={<Navigate to="/app" replace />} />
+        </Route>
+
+        <Route element={<RequireAuth />}>
+          <Route path="/host" element={<HostEntry />} />
+          <Route path="/host/success/:listingId" element={<SuccessListingPage />} />
+          <Route element={<RequireHost />}>
+            <Route path="/host/dashboard" element={<HostDashboardPage mode="owner" />} />
+          </Route>
+          <Route element={<RequireRole roles={["admin"]} />}>
+            <Route path="/admin" element={<HostDashboardPage mode="admin" />} />
+          </Route>
+        </Route>
+
+        <Route path="/" element={<Navigate to="/app" replace />} />
+        <Route path="/trips" element={<Navigate to="/app/trips" replace />} />
+        <Route path="/saved" element={<Navigate to="/app/saved" replace />} />
+        <Route path="/messages" element={<Navigate to="/app/messages" replace />} />
+        <Route path="/account" element={<Navigate to="/app/account" replace />} />
+        <Route path="/book/:id" element={<AppPathRedirect prefix="/app/book" />} />
+        <Route path="/listings/:listingId" element={<AppPathRedirect prefix="/app/listings" />} />
+        <Route path="/bookings/:bookingId" element={<AppPathRedirect prefix="/app/bookings" />} />
         <Route path="*" element={<Navigate to="/app" replace />} />
-      </Route>
-
-      <Route element={<RequireAuth />}>
-        <Route path="/host" element={<HostEntry />} />
-        <Route path="/host/success/:listingId" element={<SuccessListingPage />} />
-        <Route element={<RequireHost />}>
-          <Route path="/host/dashboard" element={<HostDashboardPage mode="owner" />} />
-        </Route>
-        <Route element={<RequireRole roles={["admin"]} />}>
-          <Route path="/admin" element={<HostDashboardPage mode="admin" />} />
-        </Route>
-      </Route>
-
-      <Route path="/" element={<Navigate to="/app" replace />} />
-      <Route path="/trips" element={<Navigate to="/app/trips" replace />} />
-      <Route path="/saved" element={<Navigate to="/app/saved" replace />} />
-      <Route path="/messages" element={<Navigate to="/app/messages" replace />} />
-      <Route path="/account" element={<Navigate to="/app/account" replace />} />
-      <Route path="/book/:id" element={<AppPathRedirect prefix="/app/book" />} />
-      <Route path="/listings/:listingId" element={<AppPathRedirect prefix="/app/listings" />} />
-      <Route path="/bookings/:bookingId" element={<AppPathRedirect prefix="/app/bookings" />} />
-      <Route path="*" element={<Navigate to="/app" replace />} />
-    </Routes>
+      </Routes>
+      <Analytics />
+    </>
   );
 }
